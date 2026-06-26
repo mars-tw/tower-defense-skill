@@ -10,6 +10,13 @@
  *   sprites 欄位先留 null，生成後填入即可，不需改邏輯。
  * ========================================================================= */
 
+// 產生英雄四方向精靈圖路徑（相對 index.html，在 repo 根）
+// 由 GPT 生「2x2 四方向設定集」再裁切而來；圖載入失敗時 game 端用 emoji 佔位。
+function heroSprites(id) {
+  return { down: `assets/heroes/${id}/down.png`, up: `assets/heroes/${id}/up.png`,
+           left: `assets/heroes/${id}/left.png`, right: `assets/heroes/${id}/right.png` };
+}
+
 // 英雄稀有度（抽卡權重；越稀有越強）
 const HERO_RARITY = {
   common:    { label: "普通", stars: 1, weight: 55, color: "#9aa5b1", glow: "rgba(154,165,177,.5)" },
@@ -27,22 +34,22 @@ const HERO_RARITY = {
 const HEROES = {
   knight:  { id: "knight",  name: "聖騎士", emoji: "🤺", rarity: "rare", element: "physical", role: "melee",
              hp: 220, atk: 18, speed: 70, range: 40, atkRate: 1.2, color: "#3b82f6",
-             desc: "近戰肉盾，前線砍殺。", sprites: null },
+             desc: "近戰肉盾，前線砍殺。", sprites: heroSprites("knight") },
   archer:  { id: "archer",  name: "遊俠",   emoji: "🏹", rarity: "common", element: "physical", role: "ranged",
              hp: 120, atk: 14, speed: 80, range: 120, atkRate: 1.6, color: "#84cc16",
-             desc: "遠程速射，風箏走位。", sprites: null },
+             desc: "遠程速射，風箏走位。", sprites: heroSprites("archer") },
   mage:    { id: "mage",    name: "大法師", emoji: "🧙", rarity: "epic", element: "fire", role: "ranged",
              hp: 140, atk: 28, speed: 60, range: 110, atkRate: 0.9, color: "#f97316",
-             desc: "火焰範圍輸出。", sprites: null, splash: 35 },
+             desc: "火焰範圍輸出。", sprites: heroSprites("mage"), splash: 35 },
   iceMage: { id: "iceMage", name: "冰霜法師", emoji: "❄️", rarity: "rare", element: "ice", role: "ranged",
              hp: 130, atk: 16, speed: 60, range: 110, atkRate: 1.1, color: "#38bdf8",
-             desc: "攻擊減速敵人。", sprites: null, slow: 0.4 },
+             desc: "攻擊減速敵人。", sprites: heroSprites("iceMage"), slow: 0.4 },
   valkyrie:{ id: "valkyrie",name: "女武神", emoji: "⚔️", rarity: "legendary", element: "thunder", role: "melee",
              hp: 320, atk: 30, speed: 95, range: 50, atkRate: 1.5, color: "#facc15",
-             desc: "傳說戰神，高速強攻。", sprites: null },
+             desc: "傳說戰神，高速強攻。", sprites: heroSprites("valkyrie") },
   cleric:  { id: "cleric",  name: "牧師",   emoji: "✨", rarity: "common", element: "physical", role: "ranged",
              hp: 110, atk: 8, speed: 70, range: 90, atkRate: 1.0, color: "#a3e635",
-             desc: "攻擊偏弱，但會治療女神。", sprites: null, healGoddess: 6 },
+             desc: "攻擊偏弱，但會治療女神。", sprites: heroSprites("cleric"), healGoddess: 6 },
 };
 
 // 英雄升級曲線：每級數值成長

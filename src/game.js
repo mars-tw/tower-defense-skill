@@ -272,21 +272,27 @@
     if (best > range) {
       // 追向敵人
       moveToward(h, target.x, target.y, def.speed, dt);
-    } else if (h.cd <= 0) {
-      // 攻擊
-      heroAttack(h, target);
-      h.cd = 1 / def.atkRate;
+    } else {
+      // 在攻擊範圍內：面向目標（即使不移動也轉向）
+      faceToward(h, target.x, target.y);
+      if (h.cd <= 0) { heroAttack(h, target); h.cd = 1 / def.atkRate; }
     }
+  }
+
+  // 設定朝向（四方向精靈圖切換用）
+  function faceToward(h, tx, ty) {
+    const dx = tx - h.x, dy = ty - h.y;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    if (Math.abs(dx) > Math.abs(dy)) h.facing = dx > 0 ? "right" : "left";
+    else h.facing = dy > 0 ? "down" : "up";
   }
 
   function moveToward(h, tx, ty, speed, dt) {
     const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
     if (d < 2) return;
+    faceToward(h, tx, ty); // 先定朝向，再移動
     const step = Math.min(d, speed * dt);
     h.x += (dx / d) * step; h.y += (dy / d) * step;
-    // 朝向（四方向精靈圖切換用）
-    if (Math.abs(dx) > Math.abs(dy)) h.facing = dx > 0 ? "right" : "left";
-    else h.facing = dy > 0 ? "down" : "up";
   }
 
   function heroAttack(h, target) {

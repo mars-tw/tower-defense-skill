@@ -58,9 +58,53 @@
     const hero = TD.rollHero();
     const isNew = !ownedHeroes.has(hero.id);
     ownedHeroes.add(hero.id); saveOwned();
+    refreshUI();
+    playGachaAnimation(hero, isNew);  // 盲盒動畫
+  }
+
+  // 盲盒開箱動畫：寶箱 → 點擊開啟 → 稀有度光柱 → 英雄登場
+  function playGachaAnimation(hero, isNew) {
+    const ov = $("gachaOverlay"), chest = $("chest"), reveal = $("reveal");
     const r = TD.config.HERO_RARITY[hero.rarity];
-    pushLog(`🎲 抽到 ${"★".repeat(r.stars)} ${hero.name}${isNew ? "（新英雄！）" : "（重複）"}`);
-    renderRoster(); refreshUI();
+    // 重置
+    chest.className = "chest"; reveal.className = "reveal";
+    ov.classList.add("show");
+
+    chest.onclick = () => {
+      chest.classList.add("opening");
+      setTimeout(() => {
+        chest.classList.add("hidden");
+        // 揭示英雄
+        ov.style.setProperty("--rev-color", r.color);
+        ov.style.setProperty("--rev-glow", r.glow);
+        const sp = hero.sprites;
+        $("revealHero").innerHTML = sp ? `<img src="${sp.down}" alt="${hero.name}" onerror="this.replaceWith(document.createTextNode('${hero.emoji}'))">` : hero.emoji;
+        $("revealName").textContent = hero.name + (isNew ? " ✨新英雄" : "");
+        $("revealRarity").textContent = "★".repeat(r.stars) + " " + r.label;
+        reveal.classList.add("show");
+        if (hero.rarity === "legendary" || hero.rarity === "epic") gachaConfetti();
+      }, 900);
+    };
+    $("revealOk").onclick = () => {
+      ov.classList.remove("show");
+      const r2 = TD.config.HERO_RARITY[hero.rarity];
+      pushLog(`🎲 獲得 ${"★".repeat(r2.stars)} ${hero.name}${isNew ? "（新英雄！）" : "（重複）"}`);
+      renderRoster(); refreshUI();
+    };
+  }
+
+  function gachaConfetti() {
+    for (let i = 0; i < 30; i++) {
+      const c = document.createElement("div");
+      c.textContent = ["✨","⭐","💫","🌟","🎉"][i % 5];
+      c.style.cssText = `position:fixed;left:50%;top:45%;font-size:26px;pointer-events:none;z-index:120;transition:all 1.3s ease-out;`;
+      document.body.appendChild(c);
+      requestAnimationFrame(() => {
+        const a = (Math.PI*2*i)/30, d = 30+Math.random()*20;
+        c.style.left = 50+Math.cos(a)*d+"%"; c.style.top = 45+Math.sin(a)*d+"%"; c.style.opacity = "0";
+      });
+      setTimeout(() => c.remove(), 1400);
+    }
   }
 
   function renderRoster() {

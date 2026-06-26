@@ -84,6 +84,44 @@
   .overlay .res { font-size: 20px; color: #facc15; }
   .overlay button { background: #4ade80; color: #06210f; border: none; padding: 12px 32px;
     border-radius: 24px; font-size: 16px; font-weight: 800; cursor: pointer; }
+
+  /* ===== 抽卡盲盒動畫 ===== */
+  .gacha-overlay { position: fixed; inset: 0; background: rgba(6,10,8,.92); display: none;
+    align-items: center; justify-content: center; z-index: 100; overflow: hidden; }
+  .gacha-overlay.show { display: flex; }
+  .gacha-stage { position: relative; text-align: center; }
+
+  /* 寶箱 */
+  .chest { cursor: pointer; transition: transform .2s; animation: chestFloat 2s ease-in-out infinite; }
+  .chest:hover { transform: scale(1.08); }
+  .chest.opening { animation: chestShake .5s ease, chestPop .4s ease .5s forwards; }
+  .chest.hidden { display: none; }
+  .chest-body { font-size: 110px; filter: drop-shadow(0 0 30px gold); }
+  .chest-lid { display: none; }
+  .chest-hint { color: #fde047; font-weight: 700; margin-top: 8px; letter-spacing: 2px; }
+
+  /* 揭示 */
+  .reveal { display: none; flex-direction: column; align-items: center; gap: 10px; }
+  .reveal.show { display: flex; }
+  .reveal-beam { position: absolute; left: 50%; top: 50%; width: 300px; height: 300px;
+    transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, var(--rev-glow, gold), transparent 70%);
+    animation: beamPulse 1.5s ease infinite; }
+  .reveal-hero { font-size: 120px; position: relative; z-index: 2;
+    filter: drop-shadow(0 0 20px var(--rev-color, gold)); animation: heroRise .6s ease; }
+  .reveal-hero img { width: 160px; height: 160px; object-fit: contain; }
+  .reveal-name { font-size: 28px; font-weight: 900; color: var(--rev-color, #fff);
+    text-shadow: 0 0 16px var(--rev-glow); z-index: 2; position: relative; }
+  .reveal-rarity { font-size: 18px; font-weight: 800; color: var(--rev-color); letter-spacing: 3px; z-index: 2; position: relative; }
+  .reveal-ok { background: linear-gradient(180deg,#4ade80,#22c55e); color: #06210f; border: none;
+    padding: 12px 36px; border-radius: 24px; font-size: 16px; font-weight: 800; cursor: pointer;
+    z-index: 2; position: relative; margin-top: 8px; }
+
+  @keyframes chestFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  @keyframes chestShake { 0%,100%{transform:translateX(0) rotate(0)} 20%{transform:translateX(-8px) rotate(-4deg)} 40%{transform:translateX(8px) rotate(4deg)} 60%{transform:translateX(-6px) rotate(-3deg)} 80%{transform:translateX(6px) rotate(3deg)} }
+  @keyframes chestPop { to { transform: scale(1.8); opacity: 0; } }
+  @keyframes beamPulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.7} 50%{transform:translate(-50%,-50%) scale(1.2);opacity:1} }
+  @keyframes heroRise { 0%{transform:translateY(40px) scale(.5);opacity:0} 100%{transform:translateY(0) scale(1);opacity:1} }
 </style>
 </head>
 <body>
@@ -135,6 +173,24 @@
     <h2>💀 防線崩潰</h2>
     <div class="res">撐到第 <span id="finalWave">0</span> 波 · 得分 <span id="finalScore">0</span></div>
     <button id="restartBtn">再來一局</button>
+  </div>
+
+  <!-- 抽卡盲盒動畫覆層 -->
+  <div class="gacha-overlay" id="gachaOverlay">
+    <div class="gacha-stage" id="gachaStage">
+      <div class="chest" id="chest">
+        <div class="chest-lid"></div>
+        <div class="chest-body">🎁</div>
+        <div class="chest-hint">點擊開啟</div>
+      </div>
+      <div class="reveal" id="reveal">
+        <div class="reveal-beam" id="revealBeam"></div>
+        <div class="reveal-hero" id="revealHero"></div>
+        <div class="reveal-name" id="revealName"></div>
+        <div class="reveal-rarity" id="revealRarity"></div>
+        <button class="reveal-ok" id="revealOk">收下</button>
+      </div>
+    </div>
   </div>
 
   <script src="src/config.js"></script>

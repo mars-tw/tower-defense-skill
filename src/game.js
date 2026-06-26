@@ -66,7 +66,31 @@
       speed: 1,                    // 遊戲速度倍率
     };
     Object.keys(SKILLS).forEach((k) => (state.skillCooldowns[k] = 0));
+    state.map = buildMapLayout(); // 亂數地圖佈局
     if (typeof window.__tdUI === "function") window.__tdUI();
+  }
+
+  // 亂數地圖佈局：每格隨機草地變化 + 隨機裝飾物（避開路徑）
+  function buildMapLayout() {
+    const cols = Math.ceil(W / CELL), rows = Math.ceil(H / CELL);
+    const grass = [];   // 每格用哪種草地圖 index（0~2）
+    for (let cy = 0; cy < rows; cy++) {
+      const row = [];
+      for (let cx = 0; cx < cols; cx++) row.push(1 + Math.floor(Math.random() * 3)); // grass1~3
+      grass.push(row);
+    }
+    // 裝飾物：在非路徑格隨機撒
+    const decor = [];
+    const kinds = ["rock", "bush", "tree"];
+    for (let i = 0; i < 18; i++) {
+      const cx = Math.floor(Math.random() * cols), cy = Math.floor(Math.random() * rows);
+      if (blocked.has(cellKey(cx, cy))) continue; // 不放路徑上
+      decor.push({ kind: kinds[Math.floor(Math.random() * kinds.length)],
+        x: cx * CELL + CELL / 2 + (Math.random() * 16 - 8),
+        y: cy * CELL + CELL / 2 + (Math.random() * 16 - 8),
+        size: CELL * (0.5 + Math.random() * 0.4) });
+    }
+    return { cols, rows, grass, decor };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -303,6 +327,7 @@
       state.bullets.push({
         x: h.x, y: h.y, target, speed: 360, color: def.color,
         damage: atk, element: def.element, splash: def.splash || 0, slow: def.slow || 0,
+        projectile: PROJECTILE_BY_ELEMENT[def.element] || "arrow",
         _heroOwner: h,
       });
     } else {
@@ -365,12 +390,17 @@
     }
     return best;
   }
+  // 塔/元素對應的投射物圖
+  const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning" };
+  const PROJECTILE_BY_ELEMENT = { physical: "arrow", fire: "fireball", ice: "iceshard", thunder: "lightning" };
+
   function fire(tw, target) {
     const def = TOWERS[tw.type];
     state.bullets.push({
       x: tw.x, y: tw.y, target, speed: 320, color: def.color,
       damage: towerStat(tw, "damage"), element: def.element,
       splash: def.splash || 0, slow: def.slow || 0, pierce: def.pierce || 0, type: tw.type,
+      projectile: PROJECTILE_BY_TOWER[tw.type] || PROJECTILE_BY_ELEMENT[def.element],
     });
   }
   function hit(b) {
@@ -388,6 +418,7 @@
       (near.length ? near : [b.target]).forEach((e) => dealDamage(e, b));
     } else {
       dealDamage(b.target, b);
+      burst(b.target.x, b.target.y, b.color, 5); // 命中爆裂小特效
     }
   }
   function dealDamage(e, b) {
@@ -564,17 +595,43 @@
 
   function drawBackground() {
     ctx.fillStyle = "#0e1a14"; ctx.fillRect(0, 0, W, H);
-    // 草地格紋
-    ctx.strokeStyle = "rgba(255,255,255,.03)";
-    for (let x = 0; x < W; x += CELL) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-    for (let y = 0; y < H; y += CELL) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    const map = state.map;
+    // 用草地磚塊亂數鋪滿（圖未載入時退回純色格）
+    if (map) {
+      for (let cy = 0; cy < map.rows; cy++) {
+        for (let cx = 0; cx < map.cols; cx++) {
+          const im = getImg(`assets/tiles/grass${map.grass[cy][cx]}.png`, true);
+          if (im && im.complete && im.naturalWidth > 0) {
+            ctx.drawImage(im, cx * CELL, cy * CELL, CELL, CELL);
+          } else {
+            ctx.fillStyle = (cx + cy) % 2 ? "#13241a" : "#15281d";
+            ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
+          }
+        }
+      }
+    }
   }
   function drawPath() {
-    ctx.strokeStyle = "#3b2f1f"; ctx.lineWidth = CELL * 0.85; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    // 路徑：先畫底色路（保證可見），再用路徑磚平鋪沿線蓋上
+    ctx.strokeStyle = "#3b2f1f"; ctx.lineWidth = CELL * 0.9; ctx.lineCap = "round"; ctx.lineJoin = "round";
     ctx.beginPath(); ctx.moveTo(PATH[0].x, PATH[0].y);
     for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
     ctx.stroke();
-    ctx.strokeStyle = "#5a4a32"; ctx.lineWidth = CELL * 0.7; ctx.stroke();
+    // 路徑磚塊圖蓋在路徑格上
+    const pathImg = getImg("assets/tiles/path.png", true);
+    if (pathImg && pathImg.complete && pathImg.naturalWidth > 0 && state.map) {
+      for (const key of blocked) {
+        const [cx, cy] = key.split(",").map(Number);
+        if (cx < 0 || cy < 0) continue;
+        ctx.drawImage(pathImg, cx * CELL, cy * CELL, CELL, CELL);
+      }
+    }
+    // 裝飾物（在非路徑格）
+    if (state.map) {
+      for (const d of state.map.decor) {
+        drawSprite(`assets/tiles/${d.kind}.png`, "", d.x, d.y, d.size);
+      }
+    }
     // 終點由守護女神鎮守（drawGoddess 繪製）
   }
   function drawBuildPreview() {
@@ -594,11 +651,12 @@
   // 圖片快取：載入後做「四角背景色去背」，讓素材的純色方塊背景（紫/白）變透明，
   // 融入草地。處理結果是一個帶 complete/naturalWidth 的 canvas（可直接 drawImage）。
   const imgCache = {};
-  function getImg(path) {
+  // noBg=true 時保留原圖不去背（地圖滿版磚塊用，否則整塊會被去透明）
+  function getImg(path, noBg) {
     if (imgCache[path] === undefined) {
-      imgCache[path] = null; // 預設 null（去背完成前用 emoji 佔位）
+      imgCache[path] = null; // 預設 null（載入/去背完成前用佔位）
       const im = new Image();
-      im.onload = () => { imgCache[path] = removeBg(im); };
+      im.onload = () => { imgCache[path] = noBg ? im : removeBg(im); };
       im.onerror = () => { imgCache[path] = null; };
       im.src = path;
     }
@@ -637,14 +695,42 @@
   }
   function drawTower(tw) {
     const def = TOWERS[tw.type];
+    const lv = tw.level;
+    // 升級視覺：塔依等級放大、底座顏色與光環隨等級變化
+    const baseR = CELL * (0.42 + (lv - 1) * 0.03);      // 等級越高底座越大
+    const spriteSize = CELL * (0.7 + (lv - 1) * 0.06);  // 塔身放大
+    // 等級對應的底座色（白→藍→紫→金）
+    const levelColors = ["rgba(0,0,0,.4)", "rgba(59,130,246,.35)", "rgba(168,85,247,.4)", "rgba(245,158,11,.45)"];
+    const levelGlow = ["transparent", "#3b82f6", "#a855f7", "#facc15"];
+
+    // 高等級的外圈發光
+    if (lv >= 2) {
+      ctx.save();
+      ctx.shadowColor = levelGlow[lv - 1]; ctx.shadowBlur = 6 + lv * 3;
+      ctx.strokeStyle = levelGlow[lv - 1]; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(tw.x, tw.y, baseR + 2, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     // 底座
-    ctx.fillStyle = "rgba(0,0,0,.4)"; ctx.beginPath(); ctx.arc(tw.x, tw.y, CELL * 0.42, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = def.color; ctx.lineWidth = 2; ctx.stroke();
-    drawSprite(`assets/towers/${tw.type}.png`, def.emoji, tw.x, tw.y, CELL * 0.7);
+    ctx.fillStyle = levelColors[lv - 1] || levelColors[3];
+    ctx.beginPath(); ctx.arc(tw.x, tw.y, baseR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = def.color; ctx.lineWidth = 1 + lv * 0.5; ctx.stroke();
+
+    // 滿級（4 級）：旋轉光點
+    if (lv >= UPGRADE.maxLevel) {
+      const t = state.clock * 2;
+      for (let i = 0; i < 4; i++) {
+        const a = t + i * Math.PI / 2;
+        ctx.fillStyle = "#facc15";
+        ctx.beginPath(); ctx.arc(tw.x + Math.cos(a) * baseR, tw.y + Math.sin(a) * baseR, 2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    drawSprite(`assets/towers/${tw.type}.png`, def.emoji, tw.x, tw.y, spriteSize);
     // 等級星
-    if (tw.level > 1) {
-      ctx.fillStyle = "#facc15"; ctx.font = "10px sans-serif"; ctx.textAlign = "center";
-      ctx.fillText("★".repeat(tw.level - 1), tw.x, tw.y + CELL * 0.42);
+    if (lv > 1) {
+      ctx.fillStyle = "#facc15"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("★".repeat(lv - 1), tw.x, tw.y + baseR + 4);
     }
   }
   function drawEnemy(e) {
@@ -660,8 +746,22 @@
     else if (e.slowUntil > state.clock) { ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, size / 2, 0, Math.PI * 2); ctx.stroke(); }
   }
   function drawBullet(b) {
-    ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowColor = b.color; ctx.shadowBlur = 8; ctx.fill(); ctx.shadowBlur = 0;
+    // 有投射物圖 → 畫圖並朝飛行方向旋轉；否則退回發光圓點
+    const im = b.projectile ? getImg(`assets/projectiles/${b.projectile}.png`) : null;
+    if (im && im.complete && im.naturalWidth > 0) {
+      // 飛行方向角度（朝目標）
+      let ang = 0;
+      if (b.target && !b.target._dead) ang = Math.atan2(b.target.y - b.y, b.target.x - b.x);
+      const sz = b.projectile === "cannonball" ? 22 : 26;
+      ctx.save();
+      ctx.translate(b.x, b.y); ctx.rotate(ang);
+      ctx.shadowColor = b.color; ctx.shadowBlur = 6;
+      ctx.drawImage(im, -sz / 2, -sz / 2, sz, sz);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    }
   }
   function drawParticle(p) {
     ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));

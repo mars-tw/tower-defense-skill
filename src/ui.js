@@ -8,14 +8,24 @@
   const { TOWERS, SKILLS } = TD.config;
   const $ = (id) => document.getElementById(id);
 
-  // ===== 建塔選單 =====
+  // 元素圖示與克制提示（D3 元素克制可見化）
+  const ELEM_ICON = { physical: "⚔️", fire: "🔥", ice: "❄️", thunder: "⚡" };
+  const ELEM_LABEL = { physical: "物理", fire: "火", ice: "冰", thunder: "雷" };
+  const COUNTER_HINT = { fire: "克冰", ice: "克雷", thunder: "克火" };
+  function elemChip(el) {
+    const hint = COUNTER_HINT[el] ? `·${COUNTER_HINT[el]}` : "";
+    return `<span class="elem-chip elem-${el}">${ELEM_ICON[el]}${ELEM_LABEL[el]}${hint}</span>`;
+  }
+
+  // ===== 建塔選單（補關鍵數值與元素，D3 資訊透明）=====
   const towerList = $("towerList");
   Object.values(TOWERS).forEach((t) => {
     const btn = document.createElement("button");
     btn.className = "tower-btn"; btn.dataset.type = t.id;
+    const stats = `傷${t.damage} ・ 程${t.range} ・ 速${t.fireRate}/s`;
     btn.innerHTML = `
       <span class="ico">${t.emoji}</span>
-      <span class="info"><span class="nm">${t.name}</span><br><span class="meta">${t.desc}</span></span>
+      <span class="info"><span class="nm">${t.name}</span> ${elemChip(t.element)}<br><span class="meta">${stats}</span></span>
       <span class="cost">${t.cost}</span>`;
     btn.onclick = () => {
       const st = TD.state();
@@ -196,10 +206,34 @@
     while (box.children.length > 3) box.removeChild(box.firstChild);
   }
 
-  // ===== 遊戲結束 =====
+  // ===== Meta 進度系統（D1：最高紀錄 + 魂晶）=====
+  const META_KEY = "td_meta_v1";
+  function loadMeta() {
+    try { return JSON.parse(localStorage.getItem(META_KEY)) || { bestWave: 0, totalKills: 0, soulCrystal: 0, games: 0 }; }
+    catch { return { bestWave: 0, totalKills: 0, soulCrystal: 0, games: 0 }; }
+  }
+  function saveMeta(m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch {} }
+
+  // ===== 遊戲結束（含 meta 結算）=====
   function onGameOver(wave, score) {
+    const meta = loadMeta();
+    const isRecord = wave > meta.bestWave;
+    if (isRecord) meta.bestWave = wave;
+    const earned = Math.max(1, Math.round(wave * 1.5)); // 本局魂晶 = 波數×1.5
+    meta.soulCrystal += earned;
+    meta.games += 1;
+    saveMeta(meta);
+
     $("finalWave").textContent = wave;
     $("finalScore").textContent = score;
+    // 注入 meta 結算資訊
+    const metaLine = $("metaResult");
+    if (metaLine) {
+      metaLine.innerHTML = `
+        ${isRecord ? '<div class="record">🎉 新紀錄！</div>' : `<div>歷史最高：第 ${meta.bestWave} 波</div>`}
+        <div>💎 獲得魂晶 +${earned}（共 ${meta.soulCrystal}）</div>
+        <div class="meta-sub">第 ${meta.games} 場 · 魂晶可在下次開局前永久強化</div>`;
+    }
     $("overlay").classList.add("show");
   }
 
@@ -224,6 +258,23 @@
   window.__tdUI = refreshUI;
   window.__tdLog = pushLog;
   window.__tdGameOver = onGameOver;
+
+  // 首次遊玩引導（D3）：只顯示一次，存 localStorage
+  (function setupTutorial() {
+    let seen = false;
+    try { seen = localStorage.getItem("td_tutorial_seen") === "1"; } catch {}
+    if (!seen) $("tutorial").classList.add("show");
+    $("tutorialOk").onclick = () => {
+      $("tutorial").classList.remove("show");
+      try { localStorage.setItem("td_tutorial_seen", "1"); } catch {}
+    };
+  })();
+
+  // 顯示歷史最高波數（D1 meta）
+  (function showBest() {
+    const m = loadMeta();
+    const el = $("bestWave"); if (el) el.textContent = m.bestWave;
+  })();
 
   renderRoster();
   refreshUI();

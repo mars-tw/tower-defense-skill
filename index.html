@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>無盡塔防 · Endless Tower Defense</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+    background: radial-gradient(ellipse at top, #16231a, #0a0f0c);
+    color: #e6edf3; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; user-select: none; padding: 8px; gap: 8px;
+  }
+  h1 { font-size: 20px; letter-spacing: 2px; color: #4ade80;
+    text-shadow: 0 0 14px rgba(74,222,128,.4); }
+
+  .wrap { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+
+  /* HUD */
+  .hud { display: flex; gap: 14px; align-items: center; padding: 8px 16px;
+    background: #16231a; border: 1px solid #2a3f30; border-radius: 12px; flex-wrap: wrap; }
+  .hud .stat { display: flex; align-items: center; gap: 5px; font-weight: 800; font-size: 16px; }
+  .hud .gold { color: #facc15; } .hud .lives { color: #f87171; } .hud .wave { color: #4ade80; } .hud .score { color: #93c5fd; }
+
+  canvas { background: #0e1a14; border: 2px solid #2a3f30; border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); cursor: pointer; max-width: 100%; height: auto; }
+
+  /* 側欄 */
+  .panel { width: 210px; display: flex; flex-direction: column; gap: 8px; }
+  .panel h3 { font-size: 13px; color: #8b98a8; margin-bottom: 2px; }
+  .tower-btn, .skill-btn {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px;
+    background: #16231a; border: 1px solid #2a3f30; cursor: pointer; transition: all .12s; text-align: left; width: 100%;
+    color: #e6edf3; font-family: inherit;
+  }
+  .tower-btn:hover, .skill-btn:hover { border-color: #4ade80; transform: translateX(2px); }
+  .tower-btn.active { border-color: #facc15; background: #1f2e22; }
+  .tower-btn.cant, .skill-btn.cd { opacity: .45; cursor: not-allowed; }
+  .tower-btn .ico, .skill-btn .ico { font-size: 22px; width: 26px; text-align: center; }
+  .tower-btn .info { flex: 1; }
+  .tower-btn .nm { font-weight: 700; font-size: 13px; }
+  .tower-btn .meta { font-size: 10px; color: #8b98a8; }
+  .tower-btn .cost { font-weight: 800; font-size: 13px; color: #facc15; }
+  .skill-btn .cdtext { font-size: 11px; color: #93c5fd; font-weight: 700; }
+
+  .controls { display: flex; gap: 6px; flex-wrap: wrap; }
+  button.act { flex: 1; padding: 10px; border: none; border-radius: 10px; font-weight: 800;
+    font-size: 14px; cursor: pointer; font-family: inherit; }
+  .start { background: linear-gradient(180deg,#4ade80,#22c55e); color: #06210f; }
+  .start:disabled { filter: grayscale(1) brightness(.6); cursor: not-allowed; }
+  .speed { background: #2a3f30; color: #e6edf3; }
+  .speed.on { background: #facc15; color: #1a1206; }
+  .goddess-btn { background: linear-gradient(180deg,#fde047,#f59e0b); color: #3a2606; width: 100%; }
+  .goddess-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
+
+  /* 選中塔的升級面板 */
+  .sel-panel { background: #16231a; border: 1px solid #2a3f30; border-radius: 10px; padding: 10px; font-size: 12px; }
+  .sel-panel.hidden { display: none; }
+  .sel-panel .row { display: flex; gap: 6px; margin-top: 8px; }
+  .sel-panel button { flex: 1; padding: 8px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: inherit; }
+  .upg { background: #4ade80; color: #06210f; } .sell { background: #f87171; color: #2a0606; }
+
+  #log { width: min(960px, 96vw); height: 44px; overflow: hidden; font-size: 12px; color: #8b98a8;
+    text-align: center; line-height: 1.4; }
+  #log .bad { color: #f87171; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(8,12,10,.92); display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 50; }
+  .overlay.show { display: flex; }
+  .overlay h2 { font-size: 40px; color: #f87171; }
+  .overlay .res { font-size: 20px; color: #facc15; }
+  .overlay button { background: #4ade80; color: #06210f; border: none; padding: 12px 32px;
+    border-radius: 24px; font-size: 16px; font-weight: 800; cursor: pointer; }
+</style>
+</head>
+<body>
+  <h1>🏰 無盡塔防 · ENDLESS TOWER DEFENSE 🏰</h1>
+
+  <div class="hud" id="hud">
+    <div class="stat gold">💰 <span id="gold">200</span></div>
+    <div class="stat lives">👸 <span id="goddessHp">100</span>/<span id="goddessMax">100</span></div>
+    <div class="stat wave">🌊 第 <span id="wave">0</span> 波</div>
+    <div class="stat score">⭐ <span id="score">0</span></div>
+  </div>
+
+  <div class="wrap">
+    <canvas id="game" width="960" height="640"></canvas>
+
+    <div class="panel">
+      <div class="controls">
+        <button class="act start" id="startBtn">▶ 開始下一波</button>
+      </div>
+      <div class="controls">
+        <button class="act speed on" id="speed1" data-s="1">1×</button>
+        <button class="act speed" id="speed2" data-s="2">2×</button>
+      </div>
+      <button class="act goddess-btn" id="goddessBtn">👸 升級女神</button>
+
+      <h3>🗼 建造砲塔</h3>
+      <div id="towerList"></div>
+
+      <h3>✨ 主動技能</h3>
+      <div id="skillList"></div>
+
+      <div class="sel-panel hidden" id="selPanel">
+        <div id="selInfo"></div>
+        <div class="row">
+          <button class="upg" id="upgBtn">升級</button>
+          <button class="sell" id="sellBtn">賣出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="log"></div>
+
+  <div class="overlay" id="overlay">
+    <h2>💀 防線崩潰</h2>
+    <div class="res">撐到第 <span id="finalWave">0</span> 波 · 得分 <span id="finalScore">0</span></div>
+    <button id="restartBtn">再來一局</button>
+  </div>
+
+  <script src="src/config.js"></script>
+  <script src="src/game.js"></script>
+  <script src="src/ui.js"></script>
+</body>
+</html>

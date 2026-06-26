@@ -1,0 +1,29 @@
+{
+  "_comment": "塔防美術生成統一設定檔。改這裡即可調整提示詞、加單位、換風格。gen-art.ps1(Grok) 讀這份。",
+  "outputDir": "assets",
+  "size": "1024x1024",
+  "styleSuffix": "Game asset, top-down view icon, vibrant colors, clean silhouette, centered single subject, transparent or simple dark background, no text, fantasy tower-defense art style, square composition.",
+  "groups": {
+    "towers": [
+      { "id": "arrow",   "prompt": "an archer tower with a crossbow, stone base, fantasy" },
+      { "id": "cannon",  "prompt": "a cannon tower with a heavy iron barrel, splash damage" },
+      { "id": "frost",   "prompt": "an ice crystal tower glowing blue, frost magic" },
+      { "id": "tesla",   "prompt": "a tesla coil lightning tower crackling with electricity" }
+    ],
+    "enemies": [
+      { "id": "slime",   "prompt": "a small green slime monster, cute but menacing" },
+      { "id": "goblin",  "prompt": "a fast running goblin with a dagger" },
+      { "id": "orc",     "prompt": "a heavily armored orc brute, tanky" },
+      { "id": "bat",     "prompt": "a swarm of dark flying bats" },
+      { "id": "boss",    "prompt": "a giant demon boss monster, glowing red eyes, intimidating" }
+    ],
+    "skills": [
+      { "id": "meteor",  "prompt": "a flaming meteor falling from the sky, fire impact" },
+      { "id": "freeze",  "prompt": "an icy freeze nova spreading frost, blue" },
+      { "id": "thunder", "prompt": "a thunderstorm lightning strike, electric" }
+    ],
+    "core": [
+      { "id": "goddess", "prompt": "a beautiful guardian goddess in white and gold robes, radiant holy halo, serene protective pose, divine light" }
+    ]
+  }
+}

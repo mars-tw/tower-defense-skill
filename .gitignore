@@ -1,0 +1,26 @@
+# Playwright MCP 測試暫存
+.playwright-mcp/
+mcps/
+terminals/
+
+# 測試截圖
+*-test.png
+td-*.png
+
+# 作業系統雜物
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 編輯器
+.vscode/
+.idea/
+*.swp
+
+# 暫存
+*.tmp
+*.log
+
+# 環境機密
+.env
+*.key

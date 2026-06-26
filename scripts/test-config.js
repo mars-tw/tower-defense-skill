@@ -42,7 +42,7 @@ assert(elementMultiplier("physical", "ice") === 1, "物理中性 = 1");
 
 console.log("== 平衡參數 ==");
 assert(GAME.startGold > 0, "起始金錢為正");
-assert(GAME.hpGrowthPerWave > 0, "波次血量有成長（無盡遞增）");
+assert(GAME.hpGrowthEarly > 0 && GAME.hpGrowthLate > 0, "波次血量有成長（無盡遞增，分段）");
 assert(UPGRADE.maxLevel >= 2, "砲塔可升級");
 
 console.log("== 守護女神 ==");

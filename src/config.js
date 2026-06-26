@@ -35,8 +35,8 @@ const TOWERS = {
             range: 95, damage: 14, fireRate: 1.4, cost: 130, pierce: 3, color: "#facc15",
             desc: "閃電連鎖，貫穿多個敵人。" },
 };
-// 升級：每級提升傷害與射程，造價遞增
-const UPGRADE = { damageMul: 1.5, rangeMul: 1.12, costMul: 1.6, maxLevel: 4 };
+// 升級：每級提升傷害與射程，造價遞增。maxLevel 6 + 傷害倍率提高，給後期金錢出口（D2 修碾壓）
+const UPGRADE = { damageMul: 1.55, rangeMul: 1.1, costMul: 1.5, maxLevel: 6 };
 
 // ===== 敵人定義 =====
 // hp 基礎血量、speed 速度(px/s)、reward 擊殺金錢、leak 漏過扣的生命
@@ -73,18 +73,26 @@ const GODDESS = {
 
 // ===== 全域遊戲參數 =====
 const GAME = {
-  startGold: 220,      // 略提高起始金錢，前期更順
+  startGold: 220,      // 起始金錢
   cellSize: 48,        // 格位大小
-  waveBonus: 30,       // 每波結束獎勵金錢（提高，鼓勵長期經營）
+  waveBonusBase: 30,   // 波獎勵基數
+  waveBonusGrowth: 1.12, // 波獎勵指數成長：bonus = base * growth^wave（提高，給金錢指數出口對抗血量指數）
   bossEveryWaves: 5,   // 每 5 波出 Boss
-  hpGrowthPerWave: 0.15, // 每波敵人血量成長率（調降，曲線更平滑）
-  bossHpMul: 1.0,      // Boss 額外血量倍率（從 1.2 降到 1.0，緩和斷崖）
+  hpGrowthEarly: 0.15, // 前 10 波血量成長率
+  hpGrowthLate: 0.10,  // 第 11 波起血量成長率（降低，消除後期斷崖）
+  bossHpMul: 1.0,      // Boss 額外血量倍率
   spawnInterval: 0.8,  // 同波敵人生成間隔(秒)
 };
+// 計算某波的金錢獎勵與血量倍率（D2 修碾壓的核心）
+function waveGoldBonus(wave) { return Math.round(GAME.waveBonusBase * Math.pow(GAME.waveBonusGrowth, wave)); }
+function waveHpScale(wave) {
+  if (wave <= 10) return Math.pow(1 + GAME.hpGrowthEarly, wave - 1);
+  return Math.pow(1 + GAME.hpGrowthEarly, 9) * Math.pow(1 + GAME.hpGrowthLate, wave - 10);
+}
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale };
 }

@@ -11,7 +11,7 @@
 
 const path = require("path");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
-const { TOWERS, UPGRADE, ENEMIES, GAME, GODDESS, elementMultiplier } = cfg;
+const { TOWERS, UPGRADE, ENEMIES, GAME, GODDESS, elementMultiplier, waveHpScale, waveGoldBonus } = cfg;
 
 // ===== 1. 各塔 DPS 與 CP 值分析 =====
 function towerDPS(t, level = 1) {
@@ -44,7 +44,7 @@ console.log(`  → Lv1 CP 值最高/最低比 = ${cpRatio.toFixed(2)}（建議 <
 // ===== 2. 波次敵人總血量曲線 =====
 console.log("\n===== 波次強度曲線（敵人總血量）=====");
 function waveEnemyHp(wave) {
-  const hpScale = Math.pow(1 + GAME.hpGrowthPerWave, wave - 1);
+  const hpScale = waveHpScale(wave);
   let count = 5 + Math.floor(wave * 1.2);
   if (wave % GAME.bossEveryWaves === 0) count = Math.floor(count * 0.5); // Boss 波小怪減半
   // 平均敵人血量（粗估各怪混合）
@@ -66,24 +66,31 @@ console.log("\n===== 撐波模擬（理想玩法：每波把金錢花在最高 C
 function simulate() {
   let gold = GAME.startGold;
   let goddessHp = GODDESS.baseHp;
-  let totalDPS = 0;
-  // 選最高 CP 的塔當主力
   const bestTower = Object.values(TOWERS).sort((a, b) => towerDPS(b, 1) / b.cost - towerDPS(a, 1) / a.cost)[0];
-  for (let w = 1; w <= 40; w++) {
-    // 蓋塔：用當前金錢盡量蓋主力塔
-    while (gold >= bestTower.cost) { gold -= bestTower.cost; totalDPS += towerDPS(bestTower, 1); }
-    // 本波敵人總血量與「通過時間」（敵人走完路徑約需的時間，估 8 秒）
+  const myTowers = []; // 場上塔（含等級），可升級
+  for (let w = 1; w <= 50; w++) {
+    // 理想策略：場地約可放 8 座主力塔；放滿後改升級既有塔（後期投資出口）
+    while (gold >= bestTower.cost && myTowers.length < 12) { gold -= bestTower.cost; myTowers.push({ t: bestTower, level: 1 }); }
+    // 升級最低等的塔
+    let upgraded = true;
+    while (upgraded) {
+      upgraded = false;
+      const low = myTowers.filter((m) => m.level < UPGRADE.maxLevel).sort((a, b) => a.level - b.level)[0];
+      if (low) { const c = Math.round(low.t.cost * Math.pow(UPGRADE.costMul, low.level)); if (gold >= c) { gold -= c; low.level++; upgraded = true; } }
+    }
+    const totalDPS = myTowers.reduce((s, m) => s + towerDPS(m.t, m.level), 0);
     const waveHp = waveEnemyHp(w);
-    const exposureTime = 8; // 敵人在塔射程內的大約曝露秒數
+    // 曝露時間：塔越多覆蓋路徑越廣，敵人被打越久（修正單一曝露的低估）
+    const exposureTime = 8 + Math.min(8, myTowers.length * 0.7);
     const dealt = totalDPS * exposureTime;
-    const leaked = Math.max(0, waveHp - dealt); // 沒打死的血量 → 估算漏怪傷害
-    const leakDmg = Math.round(leaked / 50); // 每 50 殘血約等於 1 隻漏過
+    const leaked = Math.max(0, waveHp - dealt);
+    const leakDmg = Math.round(leaked / 50);
     goddessHp -= leakDmg;
-    // 升級女神（有閒錢時）
-    gold += GAME.waveBonus + Math.round(waveHp / 100); // 擊殺獎勵估算
-    if (goddessHp <= 0) return { survivedWave: w, totalDPS: Math.round(totalDPS) };
+    gold += waveGoldBonus(w) + Math.round(waveHp / 80); // 新金錢公式 + 擊殺獎勵估算
+    if (goddessHp <= 0) return { survivedWave: w, totalDPS: Math.round(totalDPS), towers: myTowers.length };
   }
-  return { survivedWave: "40+", totalDPS: Math.round(totalDPS) };
+  const totalDPS = myTowers.reduce((s, m) => s + towerDPS(m.t, m.level), 0);
+  return { survivedWave: "50+", totalDPS: Math.round(totalDPS), towers: myTowers.length };
 }
 const result = simulate();
 console.log(`  主力塔: ${Object.values(TOWERS).sort((a,b)=>towerDPS(b,1)/b.cost-towerDPS(a,1)/a.cost)[0].name}`);
@@ -104,8 +111,9 @@ const bossGrowths = waveData.slice(1).filter((d) => d.wave % GAME.bossEveryWaves
 const maxBoss = Math.max(...bossGrowths);
 check(maxBoss < 150, `Boss 波強度合理（最大 +${maxBoss}% < 150%，是挑戰非猝死）`);
 check(GODDESS.baseHp >= 80, `女神起始血量足夠新手（${GODDESS.baseHp}）`);
-const survived = typeof result.survivedWave === "number" ? result.survivedWave : 40;
-check(survived >= 5 && survived <= 40, `純塔防撐波數合理（${result.survivedWave}，5~40 之間）`);
+const survived = typeof result.survivedWave === "number" ? result.survivedWave : 50;
+// D2 目標：純塔防（理想玩法）能撐 20~50 波（後期靠升級維持輸出，非第 11 波撞牆）
+check(survived >= 20, `純塔防撐波數達標（${result.survivedWave}，目標 ≥20，無中期撞牆）`);
 
 console.log(warns === 0 ? "\n✅ 平衡檢查全部通過" : `\n⚠ ${warns} 項需注意`);
 // 有失衡警告時讓 CI 失敗，確保未來改數值不會破壞平衡

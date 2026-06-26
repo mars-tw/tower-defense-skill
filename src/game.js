@@ -101,7 +101,7 @@
     state.betweenWaves = false;
     const w = state.wave;
     const isBoss = w % GAME.bossEveryWaves === 0;
-    const hpScale = Math.pow(1 + GAME.hpGrowthPerWave, w - 1); // 血量隨波遞增
+    const hpScale = waveHpScale(w); // 血量隨波遞增（分段成長，D2）
 
     const queue = [];
     // 敵人數隨波增加（前期較緩）；Boss 波小怪減半，重點在 Boss 本身、避免雙重壓力斷崖
@@ -232,8 +232,11 @@
     }
     state.bullets = state.bullets.filter((b) => !b._done);
 
-    // 粒子
-    for (const p of state.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 200 * dt; }
+    // 粒子（擴張環不移動；爆裂粒子受重力；文字往上飄不受重力）
+    for (const p of state.particles) {
+      p.life -= dt;
+      if (!p.ring) { p.x += p.vx * dt; p.y += p.vy * dt; if (!p.text) p.vy += 220 * dt; }
+    }
     state.particles = state.particles.filter((p) => p.life > 0);
 
     state.clock += dt;
@@ -241,9 +244,10 @@
     // 波次結束判定
     if (!state.betweenWaves && state.spawnQueue.length === 0 && state.enemies.length === 0) {
       state.betweenWaves = true;
-      state.gold += GAME.waveBonus;
+      const bonus = waveGoldBonus(state.wave); // 指數成長獎勵（D2）
+      state.gold += bonus;
       state.score += state.wave * 10;
-      log(`第 ${state.wave} 波清空！+${GAME.waveBonus} 金`);
+      log(`第 ${state.wave} 波清空！+${bonus} 金`);
       if (typeof window.__tdUI === "function") window.__tdUI();
     }
   }
@@ -427,7 +431,9 @@
   function dealDamage(e, b) {
     if (e._dead) return;
     const mult = elementMultiplier(b.element, e.element);
-    e.hp -= b.damage * mult;
+    const dmg = b.damage * mult;
+    e.hp -= dmg;
+    damageNumber(e.x, e.y, dmg, mult); // V2：傷害浮字（克制放大變紅）
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
     if (e.hp <= 0) { killEnemy(e); if (b._heroOwner && state.heroes.includes(b._heroOwner)) grantXp(b._heroOwner, e); }
   }
@@ -446,7 +452,7 @@
         if (e.hp <= 0) killEnemy(e);
       }
     }
-    burst(x, y, sk.color, 40);
+    burst(x, y, sk.color, 40); ring(x, y, sk.color, sk.radius > 200 ? 180 : sk.radius + 30); // V2：技能擴張環
     log(`施放 ${sk.name}！`);
     if (typeof window.__tdUI === "function") window.__tdUI();
     return true;
@@ -508,15 +514,31 @@
   }
 
   // ===== 粒子 =====
+  // 粒子爆裂（V2：初速差異化 + 重力 + 大小隨機，更有打擊感）
   function burst(x, y, color, n) {
     for (let i = 0; i < n; i++) {
-      const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 120;
-      state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.4 + Math.random() * 0.3, color });
+      const a = Math.random() * Math.PI * 2, sp = 50 + Math.random() * 160;
+      state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
+        life: 0.35 + Math.random() * 0.35, color, r: 1.5 + Math.random() * 2 });
     }
   }
-  // 浮動文字（升級提示）— 用 particle 帶 text 欄位實作
-  function flashText(x, y, text) {
-    state.particles.push({ x, y, vx: 0, vy: -40, life: 1.0, color: "#fde047", text });
+  // 擴張環特效（技能命中、Boss 死亡等）
+  function ring(x, y, color, maxR) {
+    state.particles.push({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: maxR || 60, r0: 6 });
+  }
+  // 浮動文字（升級/傷害數字）；opts: {color, size, big}
+  function flashText(x, y, text, opts) {
+    opts = opts || {};
+    state.particles.push({ x, y, vx: (Math.random() - 0.5) * 20, vy: -55,
+      life: opts.big ? 1.0 : 0.8, color: opts.color || "#fde047", text,
+      size: opts.size || 13, big: opts.big });
+  }
+  // 傷害數字（克制時放大變紅 + 擴張環）
+  function damageNumber(x, y, amount, mult) {
+    const weak = mult > 1.2;     // 克制
+    const resist = mult < 0.9;   // 被抗
+    flashText(x, y - 6, (weak ? "" : "") + Math.round(amount) + (weak ? "!" : ""),
+      { color: weak ? "#fca5a5" : resist ? "#9ca3af" : "#fde047", size: weak ? 17 : 13, big: weak });
   }
 
   function gameOver() {
@@ -703,8 +725,8 @@
     const baseR = CELL * (0.42 + (lv - 1) * 0.03);      // 等級越高底座越大
     const spriteSize = CELL * (0.7 + (lv - 1) * 0.06);  // 塔身放大
     // 等級對應的底座色（白→藍→紫→金）
-    const levelColors = ["rgba(0,0,0,.4)", "rgba(59,130,246,.35)", "rgba(168,85,247,.4)", "rgba(245,158,11,.45)"];
-    const levelGlow = ["transparent", "#3b82f6", "#a855f7", "#facc15"];
+    const levelColors = ["rgba(0,0,0,.4)", "rgba(59,130,246,.35)", "rgba(168,85,247,.4)", "rgba(245,158,11,.45)", "rgba(239,68,68,.45)", "rgba(45,212,191,.5)"];
+    const levelGlow = ["transparent", "#3b82f6", "#a855f7", "#facc15", "#ef4444", "#2dd4bf"];
 
     // 高等級的外圈發光
     if (lv >= 2) {
@@ -767,14 +789,28 @@
     }
   }
   function drawParticle(p) {
-    ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
-    if (p.text) {
-      // 浮動文字（升級提示）
-      ctx.fillStyle = p.color; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
-      ctx.strokeStyle = "rgba(0,0,0,.7)"; ctx.lineWidth = 3; ctx.strokeText(p.text, p.x, p.y);
-      ctx.fillText(p.text, p.x, p.y);
+    const a = Math.max(0, Math.min(1, p.life * 2));
+    ctx.globalAlpha = a;
+    if (p.ring) {
+      // 擴張環：半徑隨時間放大、線漸細
+      const prog = 1 - p.life / 0.5;
+      const r = p.r0 + (p.maxR - p.r0) * prog;
+      ctx.strokeStyle = p.color; ctx.lineWidth = 4 * (1 - prog) + 0.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+    } else if (p.text) {
+      // 傷害/升級數字：剛出現時 scale-in
+      const age = (p.big ? 1.0 : 0.8) - p.life;
+      const scale = age < 0.1 ? 0.6 + age * 4 : 1;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.scale(scale, scale);
+      ctx.font = `900 ${p.size}px "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.strokeStyle = "rgba(0,0,0,.8)"; ctx.lineWidth = 3.5; ctx.strokeText(p.text, 0, 0);
+      ctx.fillStyle = p.color; ctx.fillText(p.text, 0, 0);
+      ctx.restore();
     } else {
-      ctx.fillStyle = p.color; ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      // glow 圓點：發光 + 大小隨機
+      ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(p.x, p.y, (p.r || 2) * a, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
     }
     ctx.globalAlpha = 1;
   }

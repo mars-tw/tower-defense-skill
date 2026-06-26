@@ -47,13 +47,16 @@
 
   // ===== 遊戲狀態 =====
   let state;
+  let lastT = 0;
+  let loopToken = 0;
   function newGame() {
+    loopToken++; // 作廢任何正在跑的舊迴圈
     const end = PATH[PATH.length - 1];
     state = {
       gold: GAME.startGold, wave: 0, score: 0,
       // 守護女神：被保護的核心
       goddess: { level: 1, hp: GODDESS.baseHp, maxHp: GODDESS.baseHp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 },
-      towers: [], enemies: [], bullets: [], particles: [],
+      towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       running: false, over: false, betweenWaves: true,
       selectedTowerType: null,   // 準備建造的塔
@@ -92,7 +95,7 @@
     if (isBoss) queue.push({ type: "boss", hpScale: hpScale * 1.2 }); // Boss 壓軸
     state.spawnQueue = queue;
     state.spawnTimer = 0;
-    if (!state.running) { state.running = true; loop(); }
+    startLoop();
     log(`第 ${w} 波來襲！${isBoss ? "⚠️ Boss 出現！" : ""}`);
     if (typeof window.__tdUI === "function") window.__tdUI();
   }
@@ -108,17 +111,27 @@
   }
 
   // ===== 主迴圈 =====
-  let lastT = 0;
-  function loop(t) {
-    if (!state.running) return;
-    if (!t) t = 0;
-    let dt = (t - lastT) / 1000;
-    lastT = t;
-    if (dt > 0.05) dt = 0.05; // 防止分頁切換造成大跳
-    dt *= state.speed;
-    update(dt);
-    render();
-    if (!state.over) requestAnimationFrame(loop);
+  // loopToken 確保同時只有一個迴圈在跑：每次 startLoop 換新 token，
+  // 舊迴圈發現 token 變了就自行結束（避免 newGame/startWave 造成多重迴圈疊加，
+  // 那會讓 update 每幀被呼叫多次、單位移動量爆增）。lastT/loopToken 已在上方宣告。
+  function startLoop() {
+    if (state.running) return; // 已在跑
+    state.running = true;
+    const myToken = ++loopToken;
+    lastT = 0; // 重置時間基準，避免第一幀 dt 異常
+    function loop(t) {
+      if (myToken !== loopToken || !state.running || state.over) return; // 不是當前迴圈或已結束
+      if (!t) t = 0;
+      if (!lastT) lastT = t; // 第一幀對齊
+      let dt = (t - lastT) / 1000;
+      lastT = t;
+      if (dt > 0.05) dt = 0.05; // 防止分頁切換造成大跳
+      dt *= state.speed;
+      update(dt);
+      render();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
   }
 
   function update(dt) {
@@ -177,6 +190,9 @@
       if (target) { fire(tw, target); tw.cd = 1 / towerStat(tw, "fireRate"); }
     }
 
+    // 英雄：自主尋敵、移動、攻擊
+    for (const h of state.heroes) updateHero(h, dt);
+
     // 子彈移動
     for (const b of state.bullets) {
       if (b.target && !b.target._dead) {
@@ -214,6 +230,102 @@
     burst(state.goddess.x, state.goddess.y, "#ef4444", 14);
     log(`${e.name} 攻擊了${GODDESS.name}！-${dmg} 生命`, "bad");
     if (state.goddess.hp <= 0) { state.goddess.hp = 0; gameOver(); }
+    if (typeof window.__tdUI === "function") window.__tdUI();
+  }
+
+  // ===== 英雄系統 =====
+  // 上場：在女神（終點）附近放一個英雄
+  function deployHero(heroId) {
+    const def = HEROES[heroId];
+    if (!def) return false;
+    const end = PATH[PATH.length - 1];
+    const h = {
+      id: heroId, level: 1, xp: 0,
+      x: end.x - 60 + (Math.random() * 40 - 20), y: end.y - 60 + (Math.random() * 40 - 20),
+      hp: heroStat({ id: heroId, level: 1 }, "hp"), maxHp: heroStat({ id: heroId, level: 1 }, "hp"),
+      facing: "down", cd: 0, hitFlash: 0, uid: "h" + (Math.random() * 1e9 | 0),
+    };
+    state.heroes.push(h);
+    log(`${def.name} 上場！`);
+    if (typeof window.__tdUI === "function") window.__tdUI();
+    return true;
+  }
+
+  function updateHero(h, dt) {
+    const def = HEROES[h.id];
+    if (h.hitFlash > 0) h.hitFlash = Math.max(0, h.hitFlash - dt);
+    // 尋找最近的活著敵人
+    let target = null, best = Infinity;
+    for (const e of state.enemies) {
+      if (e._dead) continue;
+      const d = Math.hypot(e.x - h.x, e.y - h.y);
+      if (d < best) { best = d; target = e; }
+    }
+    h.cd -= dt;
+    if (!target) {
+      // 無敵人：回到女神身邊待命
+      const home = { x: state.goddess.x - 50, y: state.goddess.y - 50 };
+      moveToward(h, home.x, home.y, def.speed, dt);
+      return;
+    }
+    const range = def.range;
+    if (best > range) {
+      // 追向敵人
+      moveToward(h, target.x, target.y, def.speed, dt);
+    } else if (h.cd <= 0) {
+      // 攻擊
+      heroAttack(h, target);
+      h.cd = 1 / def.atkRate;
+    }
+  }
+
+  function moveToward(h, tx, ty, speed, dt) {
+    const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
+    if (d < 2) return;
+    const step = Math.min(d, speed * dt);
+    h.x += (dx / d) * step; h.y += (dy / d) * step;
+    // 朝向（四方向精靈圖切換用）
+    if (Math.abs(dx) > Math.abs(dy)) h.facing = dx > 0 ? "right" : "left";
+    else h.facing = dy > 0 ? "down" : "up";
+  }
+
+  function heroAttack(h, target) {
+    const def = HEROES[h.id];
+    const atk = heroStat(h, "atk");
+    if (def.role === "ranged") {
+      // 遠程：發射子彈
+      state.bullets.push({
+        x: h.x, y: h.y, target, speed: 360, color: def.color,
+        damage: atk, element: def.element, splash: def.splash || 0, slow: def.slow || 0,
+        _heroOwner: h,
+      });
+    } else {
+      // 近戰：直接造成傷害
+      const mult = elementMultiplier(def.element, target.element);
+      target.hp -= atk * mult;
+      burst(target.x, target.y, def.color, 8);
+      if (target.hp <= 0) { killEnemy(target); grantXp(h, target); }
+    }
+    // 牧師治療女神
+    if (def.healGoddess) {
+      state.goddess.hp = Math.min(state.goddess.maxHp, state.goddess.hp + def.healGoddess);
+    }
+  }
+
+  // 英雄獲得經驗並升級
+  function grantXp(h, enemy) {
+    const def = HEROES[h.id];
+    if (h.level >= HERO_LEVEL.maxLevel) return;
+    h.xp += HERO_LEVEL.xpPerKill * (enemy.boss ? 5 : 1);
+    while (h.level < HERO_LEVEL.maxLevel && h.xp >= xpForLevel(h.level)) {
+      h.xp -= xpForLevel(h.level);
+      h.level++;
+      const newMax = heroStat(h, "hp");
+      h.hp = newMax; h.maxHp = newMax; // 升級回滿
+      burst(h.x, h.y, "#fde047", 20);
+      flashText(h.x, h.y, "LV UP!");
+      log(`${def.name} 升到 ${h.level} 級！`);
+    }
     if (typeof window.__tdUI === "function") window.__tdUI();
   }
 
@@ -277,7 +389,7 @@
     const mult = elementMultiplier(b.element, e.element);
     e.hp -= b.damage * mult;
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
-    if (e.hp <= 0) killEnemy(e);
+    if (e.hp <= 0) { killEnemy(e); if (b._heroOwner && state.heroes.includes(b._heroOwner)) grantXp(b._heroOwner, e); }
   }
 
   // ===== 主動技能 =====
@@ -362,6 +474,10 @@
       state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, life: 0.4 + Math.random() * 0.3, color });
     }
   }
+  // 浮動文字（升級提示）— 用 particle 帶 text 欄位實作
+  function flashText(x, y, text) {
+    state.particles.push({ x, y, vx: 0, vy: -40, life: 1.0, color: "#fde047", text });
+  }
 
   function gameOver() {
     state.over = true; state.running = false;
@@ -377,10 +493,41 @@
     if (state.selectedTowerType) drawBuildPreview();
     drawGoddess();
     for (const tw of state.towers) drawTower(tw);
+    for (const h of state.heroes) drawHero(h);
     for (const e of state.enemies) drawEnemy(e);
     for (const b of state.bullets) drawBullet(b);
     for (const p of state.particles) drawParticle(p);
     if (state.selectedTower) drawTowerRange(state.selectedTower);
+  }
+
+  // 英雄繪製（四方向精靈圖：有 sprites 用對應方向圖，否則 emoji）
+  function drawHero(h) {
+    const def = HEROES[h.id];
+    const size = CELL * 0.85;
+    // 圓形光環底（區別於敵人）
+    ctx.strokeStyle = def.color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(h.x, h.y, size * 0.55, 0, Math.PI * 2); ctx.stroke();
+    if (h.hitFlash > 0) { ctx.fillStyle = `rgba(239,68,68,${h.hitFlash})`; ctx.beginPath(); ctx.arc(h.x, h.y, size * 0.6, 0, Math.PI * 2); ctx.fill(); }
+    // 美術接點：sprites 物件存在則用對應方向圖；否則 emoji
+    const spritePath = def.sprites && def.sprites[h.facing];
+    if (spritePath) {
+      const im = getImg(spritePath);
+      if (im && im.complete && im.naturalWidth > 0) {
+        // left 方向用右圖水平翻轉（若只有 right），這裡假設四方向都有
+        ctx.drawImage(im, h.x - size / 2, h.y - size / 2, size, size);
+      } else drawSprite(spritePath, def.emoji, h.x, h.y, size);
+    } else {
+      ctx.font = size * 0.7 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(def.emoji, h.x, h.y);
+    }
+    // 血條
+    const w = size, pct = Math.max(0, h.hp / h.maxHp);
+    ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect(h.x - w / 2, h.y - size / 2 - 8, w, 4);
+    ctx.fillStyle = pct > 0.5 ? "#4ade80" : pct > 0.25 ? "#facc15" : "#ef4444";
+    ctx.fillRect(h.x - w / 2, h.y - size / 2 - 8, w * pct, 4);
+    // 等級
+    ctx.fillStyle = "#fde047"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("Lv" + h.level, h.x, h.y + size / 2 + 8);
   }
 
   // 守護女神（終點核心）
@@ -480,8 +627,16 @@
     ctx.shadowColor = b.color; ctx.shadowBlur = 8; ctx.fill(); ctx.shadowBlur = 0;
   }
   function drawParticle(p) {
-    ctx.globalAlpha = Math.max(0, p.life * 2); ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - 2, p.y - 2, 4, 4); ctx.globalAlpha = 1;
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
+    if (p.text) {
+      // 浮動文字（升級提示）
+      ctx.fillStyle = p.color; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
+      ctx.strokeStyle = "rgba(0,0,0,.7)"; ctx.lineWidth = 3; ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillText(p.text, p.x, p.y);
+    } else {
+      ctx.fillStyle = p.color; ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // ===== 輸入 =====
@@ -519,7 +674,8 @@
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
     upgradeCost, towerStat,
+    deployHero, rollHero,  // 英雄上場與抽卡
     setSpeed: (s) => { state.speed = s; },
-    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS },
+    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA },
   };
 })();

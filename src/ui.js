@@ -39,6 +39,56 @@
     skillList.appendChild(btn);
   });
 
+  // ===== 英雄抽卡與名冊 =====
+  const HERO_SAVE = "td_heroes_owned_v1";
+  let ownedHeroes = loadOwned();            // 擁有的英雄 id 集合
+  let deployedThisGame = new Set();          // 本局已上場的英雄
+
+  function loadOwned() {
+    try { return new Set(JSON.parse(localStorage.getItem(HERO_SAVE)) || []); } catch { return new Set(); }
+  }
+  function saveOwned() {
+    try { localStorage.setItem(HERO_SAVE, JSON.stringify([...ownedHeroes])); } catch {}
+  }
+
+  function doGacha() {
+    const st = TD.state();
+    if (st.gold < TD.config.GACHA.cost) { pushLog("金錢不足以抽卡！", "bad"); return; }
+    st.gold -= TD.config.GACHA.cost;
+    const hero = TD.rollHero();
+    const isNew = !ownedHeroes.has(hero.id);
+    ownedHeroes.add(hero.id); saveOwned();
+    const r = TD.config.HERO_RARITY[hero.rarity];
+    pushLog(`🎲 抽到 ${"★".repeat(r.stars)} ${hero.name}${isNew ? "（新英雄！）" : "（重複）"}`);
+    renderRoster(); refreshUI();
+  }
+
+  function renderRoster() {
+    const box = $("heroRoster"); box.innerHTML = "";
+    const HEROES = TD.config.HEROES, HR = TD.config.HERO_RARITY;
+    if (ownedHeroes.size === 0) {
+      box.innerHTML = '<div style="font-size:11px;color:#8b98a8;padding:4px;">尚未抽到英雄</div>';
+      return;
+    }
+    [...ownedHeroes].forEach((id) => {
+      const h = HEROES[id]; if (!h) return;
+      const r = HR[h.rarity];
+      const deployed = deployedThisGame.has(id);
+      const card = document.createElement("div");
+      card.className = "hero-card" + (deployed ? " deployed" : "");
+      card.style.setProperty("--hr-color", r.color);
+      card.style.setProperty("--hr-glow", r.glow);
+      card.innerHTML = `
+        <span class="hico">${h.emoji}</span>
+        <span class="hinfo"><span class="hname">${h.name}</span> ${"★".repeat(r.stars)}<br><span class="hmeta">${h.desc}</span></span>
+        <span class="hdeploy">${deployed ? "已上場" : "上場▶"}</span>`;
+      if (!deployed) card.onclick = () => {
+        if (TD.deployHero(id)) { deployedThisGame.add(id); renderRoster(); refreshUI(); }
+      };
+      box.appendChild(card);
+    });
+  }
+
   // ===== HUD 與整體刷新 =====
   function refreshUI() {
     const st = TD.state();
@@ -57,6 +107,9 @@
       gBtn.textContent = `👸 升級女神 (${cost}💰) Lv.${st.goddess.level}`;
       gBtn.disabled = st.gold < cost;
     }
+
+    // 抽卡按鈕
+    $("gachaBtn").disabled = st.gold < TD.config.GACHA.cost;
 
     // 建塔按鈕：金錢不足變灰、選中的高亮
     document.querySelectorAll(".tower-btn").forEach((b) => {
@@ -109,7 +162,11 @@
   // ===== 綁定控制 =====
   $("startBtn").onclick = () => { TD.startWave(); refreshUI(); };
   $("goddessBtn").onclick = () => { TD.upgradeGoddess(); refreshUI(); };
-  $("restartBtn").onclick = () => { $("overlay").classList.remove("show"); TD.newGame(); refreshUI(); };
+  $("gachaBtn").onclick = () => { doGacha(); };
+  $("restartBtn").onclick = () => {
+    $("overlay").classList.remove("show"); TD.newGame();
+    deployedThisGame = new Set(); renderRoster(); refreshUI();
+  };
   $("upgBtn").onclick = () => { TD.upgradeSelected(); refreshUI(); };
   $("sellBtn").onclick = () => { TD.sellSelected(); refreshUI(); };
   document.querySelectorAll(".speed").forEach((b) => {
@@ -124,6 +181,7 @@
   window.__tdLog = pushLog;
   window.__tdGameOver = onGameOver;
 
+  renderRoster();
   refreshUI();
-  pushLog("放置砲塔後點「開始下一波」。火克冰、冰克雷、雷克火！");
+  pushLog("放置砲塔、抽英雄上場守護女神！火克冰、冰克雷、雷克火。");
 })();

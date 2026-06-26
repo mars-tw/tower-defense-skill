@@ -53,6 +53,18 @@
   .speed.on { background: #facc15; color: #1a1206; }
   .goddess-btn { background: linear-gradient(180deg,#fde047,#f59e0b); color: #3a2606; width: 100%; }
   .goddess-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
+  .gacha-btn { background: linear-gradient(180deg,#a855f7,#7c3aed); color: #fff; width: 100%; }
+  .gacha-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
+  #heroRoster { display: flex; flex-direction: column; gap: 5px; }
+  .hero-card { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px;
+    background: #16231a; border: 1px solid var(--hr-color,#2a3f30); cursor: pointer; transition: all .12s; }
+  .hero-card:hover { transform: translateX(2px); box-shadow: 0 0 8px var(--hr-glow); }
+  .hero-card.deployed { opacity: .5; cursor: default; }
+  .hero-card .hico { font-size: 20px; width: 24px; text-align: center; }
+  .hero-card .hinfo { flex: 1; font-size: 12px; }
+  .hero-card .hname { font-weight: 700; color: var(--hr-color,#e6edf3); }
+  .hero-card .hmeta { font-size: 9px; color: #8b98a8; }
+  .hero-card .hdeploy { font-size: 10px; font-weight: 800; color: #4ade80; }
 
   /* 選中塔的升級面板 */
   .sel-panel { background: #16231a; border: 1px solid #2a3f30; border-radius: 10px; padding: 10px; font-size: 12px; }
@@ -100,6 +112,10 @@
       <h3>🗼 建造砲塔</h3>
       <div id="towerList"></div>
 
+      <h3>🦸 英雄</h3>
+      <button class="act gacha-btn" id="gachaBtn">🎲 抽英雄 (100💰)</button>
+      <div id="heroRoster"></div>
+
       <h3>✨ 主動技能</h3>
       <div id="skillList"></div>
 
@@ -122,6 +138,7 @@
   </div>
 
   <script src="src/config.js"></script>
+  <script src="src/heroes.js"></script>
   <script src="src/game.js"></script>
   <script src="src/ui.js"></script>
 </body>

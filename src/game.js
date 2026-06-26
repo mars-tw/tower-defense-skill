@@ -591,13 +591,44 @@
     ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(tw.x, tw.y, towerStat(tw, "range"), 0, Math.PI * 2); ctx.stroke();
   }
+  // 圖片快取：載入後做「四角背景色去背」，讓素材的純色方塊背景（紫/白）變透明，
+  // 融入草地。處理結果是一個帶 complete/naturalWidth 的 canvas（可直接 drawImage）。
   const imgCache = {};
   function getImg(path) {
     if (imgCache[path] === undefined) {
-      const im = new Image(); im.src = path; im.onerror = () => (imgCache[path] = null);
-      imgCache[path] = im;
+      imgCache[path] = null; // 預設 null（去背完成前用 emoji 佔位）
+      const im = new Image();
+      im.onload = () => { imgCache[path] = removeBg(im); };
+      im.onerror = () => { imgCache[path] = null; };
+      im.src = path;
     }
     return imgCache[path];
+  }
+  // 去背：取四角平均色當背景色，把相近像素的 alpha 設 0
+  function removeBg(im) {
+    try {
+      const c = document.createElement("canvas");
+      c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const cx = c.getContext("2d");
+      cx.drawImage(im, 0, 0);
+      const W = c.width, H = c.height;
+      const data = cx.getImageData(0, 0, W, H);
+      const p = data.data;
+      // 取四角顏色平均當背景參考色
+      const corners = [[0, 0], [W - 1, 0], [0, H - 1], [W - 1, H - 1]];
+      let br = 0, bg = 0, bb = 0;
+      for (const [x, y] of corners) { const i = (y * W + x) * 4; br += p[i]; bg += p[i + 1]; bb += p[i + 2]; }
+      br /= 4; bg /= 4; bb /= 4;
+      const TOL = 60; // 容差：與背景色距離小於此值的像素去除
+      for (let i = 0; i < p.length; i += 4) {
+        const d = Math.abs(p[i] - br) + Math.abs(p[i + 1] - bg) + Math.abs(p[i + 2] - bb);
+        if (d < TOL) p[i + 3] = 0;
+        else if (d < TOL * 1.8) p[i + 3] = Math.round(p[i + 3] * (d - TOL) / (TOL * 0.8)); // 邊緣半透明過渡
+      }
+      cx.putImageData(data, 0, 0);
+      c.complete = true; c.naturalWidth = W; // 讓後續判斷相容 Image 介面
+      return c;
+    } catch { return im; } // 失敗則退回原圖
   }
   function drawSprite(path, emoji, x, y, size, color) {
     const im = getImg(path);

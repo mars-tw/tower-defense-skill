@@ -59,6 +59,7 @@
       goddess: { level: 1, hp: GODDESS.baseHp, maxHp: GODDESS.baseHp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 },
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
+      combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
       running: false, over: false, betweenWaves: true,
       selectedTowerType: null,   // 準備建造的塔
       selectedTower: null,        // 已選中的塔（看升級）
@@ -92,6 +93,18 @@
         size: CELL * (0.5 + Math.random() * 0.4) });
     }
     return { cols, rows, grass, decor };
+  }
+
+  // 下一波預告（D4）：回傳下一波的敵人數、是否 Boss、主元素傾向
+  function previewNextWave() {
+    const w = state.wave + 1;
+    const isBoss = w % GAME.bossEveryWaves === 0;
+    let count = 5 + Math.floor(w * 1.2);
+    if (isBoss) count = Math.floor(count * 0.5);
+    // 主元素傾向：依波數決定（每 3 波輪一個主元素，逼玩家補對應克制塔）
+    const themes = [null, "physical", "thunder", "ice", "fire"];
+    const theme = w >= 4 ? themes[(Math.floor(w / 3)) % themes.length] : null;
+    return { wave: w, count, isBoss, theme };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -175,6 +188,12 @@
     Object.keys(state.skillCooldowns).forEach((k) => {
       if (state.skillCooldowns[k] > 0) state.skillCooldowns[k] = Math.max(0, state.skillCooldowns[k] - dt);
     });
+
+    // D5 連殺計時：超時未擊殺則 combo 歸零
+    if (state.comboTimer > 0) {
+      state.comboTimer -= dt;
+      if (state.comboTimer <= 0) state.combo = 0;
+    }
 
     // 女神聖光反擊（2 級起解鎖）：定期攻擊終點附近的敵人
     const gd = state.goddess;
@@ -371,9 +390,18 @@
   function killEnemy(e) {
     if (e._dead) return;
     e._dead = true;
-    state.gold += e.reward;
-    state.score += e.reward;
-    burst(e.x, e.y, e.color, e.boss ? 30 : 10);
+    // D5 連殺：累積 combo，倍率提升金錢/分數
+    state.combo++;
+    state.comboTimer = 2.5; // 2.5 秒內再擊殺才接續
+    state.kills++;
+    const comboMul = 1 + Math.min(state.combo - 1, 20) * 0.05; // 每連殺 +5%，上限 +100%
+    const reward = Math.round(e.reward * comboMul);
+    state.gold += reward;
+    state.score += reward;
+    burst(e.x, e.y, e.color, e.boss ? 30 : 12);
+    if (e.boss) { ring(e.x, e.y, "#fde047", 70); screenShake(); }
+    // combo 達門檻時畫面跳大數字
+    if (state.combo >= 3) flashText(e.x, e.y - 12, `COMBO x${state.combo}`, { color: "#fde047", size: 14 + Math.min(state.combo, 10), big: true });
     if (typeof window.__tdUI === "function") window.__tdUI();
   }
 
@@ -431,9 +459,12 @@
   function dealDamage(e, b) {
     if (e._dead) return;
     const mult = elementMultiplier(b.element, e.element);
-    const dmg = b.damage * mult;
+    // D6 塔協同：被減速或冰凍的敵人受傷 +25%（救活寒冰塔 → 成為增傷樞紐）
+    const chilled = (e.slowUntil > state.clock) || (e.frozenUntil > state.clock);
+    const synergy = chilled ? 1.25 : 1;
+    const dmg = b.damage * mult * synergy;
     e.hp -= dmg;
-    damageNumber(e.x, e.y, dmg, mult); // V2：傷害浮字（克制放大變紅）
+    damageNumber(e.x, e.y, dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
     if (e.hp <= 0) { killEnemy(e); if (b._heroOwner && state.heroes.includes(b._heroOwner)) grantXp(b._heroOwner, e); }
   }
@@ -560,6 +591,29 @@
     for (const b of state.bullets) drawBullet(b);
     for (const p of state.particles) drawParticle(p);
     if (state.selectedTower) drawTowerRange(state.selectedTower);
+    drawComboHud();
+  }
+
+  // D5 連殺指示器（畫在 canvas 左上）
+  function drawComboHud() {
+    if (state.combo < 3) return;
+    const x = 16, y = 28;
+    const scale = 1 + Math.min(state.combo, 15) * 0.04;
+    const t = state.comboTimer / 2.5; // 剩餘時間比例（漸隱）
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, t * 2);
+    ctx.font = `900 ${Math.round(26 * scale)}px "Segoe UI", sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "top";
+    ctx.strokeStyle = "rgba(0,0,0,.8)"; ctx.lineWidth = 4;
+    ctx.strokeText(`${state.combo} 連殺!`, x, y);
+    const grad = ctx.createLinearGradient(x, y, x, y + 30);
+    grad.addColorStop(0, "#fde047"); grad.addColorStop(1, "#f59e0b");
+    ctx.fillStyle = grad; ctx.fillText(`${state.combo} 連殺!`, x, y);
+    // combo 倍率
+    const mul = 1 + Math.min(state.combo - 1, 20) * 0.05;
+    ctx.font = '700 13px "Segoe UI", sans-serif';
+    ctx.fillStyle = "#4ade80"; ctx.fillText(`金錢 x${mul.toFixed(2)}`, x, y + 30 * scale);
+    ctx.restore();
   }
 
   // 英雄繪製（四方向精靈圖：有 sprites 用對應方向圖，否則 emoji）
@@ -582,14 +636,12 @@
       ctx.font = size * 0.7 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(def.emoji, h.x, h.y);
     }
-    // 血條
-    const w = size, pct = Math.max(0, h.hp / h.maxHp);
-    ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect(h.x - w / 2, h.y - size / 2 - 8, w, 4);
-    ctx.fillStyle = pct > 0.5 ? "#4ade80" : pct > 0.25 ? "#facc15" : "#ef4444";
-    ctx.fillRect(h.x - w / 2, h.y - size / 2 - 8, w * pct, 4);
-    // 等級
-    ctx.fillStyle = "#fde047"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("Lv" + h.level, h.x, h.y + size / 2 + 8);
+    // 血條（V3 圓角漸層）
+    drawHealthBar(h.x - size / 2, h.y - size / 2 - 9, size, 5, Math.max(0, h.hp / h.maxHp));
+    // 等級（描邊）
+    ctx.font = "900 11px 'Segoe UI', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    ctx.strokeStyle = "rgba(0,0,0,.8)"; ctx.lineWidth = 3; ctx.strokeText("Lv" + h.level, h.x, h.y + size / 2 + 10);
+    ctx.fillStyle = "#fde047"; ctx.fillText("Lv" + h.level, h.x, h.y + size / 2 + 10);
   }
 
   // 守護女神（終點核心）
@@ -635,6 +687,10 @@
         }
       }
     }
+    // V3 場景深度：暗角 vignette（中心透明 → 邊緣壓暗）
+    const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.75);
+    vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,.4)");
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
   }
   function drawPath() {
     // 路徑：先畫底色路（保證可見），再用路徑磚平鋪沿線蓋上
@@ -761,14 +817,36 @@
   function drawEnemy(e) {
     const size = e.boss ? CELL * 1.1 : CELL * 0.6;
     drawSprite(`assets/enemies/${e.id}.png`, e.emoji, e.x, e.y, size);
-    // 血條
-    const w = size, hpPct = Math.max(0, e.hp / e.maxHp);
-    ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect(e.x - w / 2, e.y - size / 2 - 8, w, 4);
-    ctx.fillStyle = hpPct > 0.5 ? "#4ade80" : hpPct > 0.25 ? "#facc15" : "#ef4444";
-    ctx.fillRect(e.x - w / 2, e.y - size / 2 - 8, w * hpPct, 4);
+    // 血條（V3：圓角漸層）
+    drawHealthBar(e.x - size / 2, e.y - size / 2 - 9, size, 5, Math.max(0, e.hp / e.maxHp));
     // 冰凍/減速標記
     if (e.frozenUntil > state.clock) { ctx.fillStyle = "rgba(56,189,248,.4)"; ctx.beginPath(); ctx.arc(e.x, e.y, size / 2, 0, Math.PI * 2); ctx.fill(); }
     else if (e.slowUntil > state.clock) { ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, size / 2, 0, Math.PI * 2); ctx.stroke(); }
+  }
+  // 共用圓角漸層血條（V3 場景深度）
+  function drawHealthBar(x, y, w, h, pct) {
+    const r = h / 2;
+    // 外框背景
+    ctx.fillStyle = "rgba(0,0,0,.6)";
+    roundRect(x - 1, y - 1, w + 2, h + 2, r + 1); ctx.fill();
+    // 血量漸層
+    if (pct > 0) {
+      const c = pct > 0.5 ? ["#86efac", "#22c55e"] : pct > 0.25 ? ["#fde047", "#eab308"] : ["#fca5a5", "#dc2626"];
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, c[0]); g.addColorStop(1, c[1]);
+      ctx.fillStyle = g;
+      roundRect(x, y, w * pct, h, r); ctx.fill();
+    }
+  }
+  function roundRect(x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
   function drawBullet(b) {
     // 有投射物圖 → 畫圖並朝飛行方向旋轉；否則退回發光圓點
@@ -860,6 +938,7 @@
     upgradeGoddess, goddessUpgradeCost,
     upgradeCost, towerStat,
     deployHero, rollHero,  // 英雄上場與抽卡
+    previewNextWave,       // 下一波預告（D4）
     setSpeed: (s) => { state.speed = s; },
     config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA },
   };

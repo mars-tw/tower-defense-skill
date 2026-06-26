@@ -180,8 +180,17 @@
       span.textContent = cd > 0 ? Math.ceil(cd) + "s" : "就緒";
     });
 
-    // 開始按鈕：只有波間可按
-    $("startBtn").disabled = !st.betweenWaves || st.over;
+    // 開始按鈕：只有波間可按，並顯示下一波預告（D4）
+    const startBtn = $("startBtn");
+    startBtn.disabled = !st.betweenWaves || st.over;
+    if (st.betweenWaves && !st.over && TD.previewNextWave) {
+      const p = TD.previewNextWave();
+      const themeLabel = p.theme && p.theme !== "physical"
+        ? ` · 主${ELEM_ICON[p.theme]||""}` : "";
+      startBtn.innerHTML = `▶ 第 ${p.wave} 波 (${p.count}隻${p.isBoss ? " ⚠️BOSS" : ""}${themeLabel})`;
+    } else {
+      startBtn.textContent = "⚔ 防禦中…";
+    }
 
     // 選中塔的升級面板
     const sel = $("selPanel");

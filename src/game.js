@@ -103,7 +103,9 @@
     const hpScale = Math.pow(1 + GAME.hpGrowthPerWave, w - 1); // 血量隨波遞增
 
     const queue = [];
-    const baseCount = 6 + Math.floor(w * 1.5); // 敵人數隨波增加
+    // 敵人數隨波增加（前期較緩）；Boss 波小怪減半，重點在 Boss 本身、避免雙重壓力斷崖
+    let baseCount = 5 + Math.floor(w * 1.2);
+    if (isBoss) baseCount = Math.floor(baseCount * 0.5);
     const pool = ["slime", "goblin", "orc", "bat"];
     for (let i = 0; i < baseCount; i++) {
       // 隨機挑敵人，越後期越偏向強的
@@ -116,7 +118,7 @@
       else pick = "orc";
       queue.push({ type: pick, hpScale });
     }
-    if (isBoss) queue.push({ type: "boss", hpScale: hpScale * 1.2 }); // Boss 壓軸
+    if (isBoss) queue.push({ type: "boss", hpScale: hpScale * (GAME.bossHpMul || 1.0) }); // Boss 壓軸
     state.spawnQueue = queue;
     state.spawnTimer = 0;
     startLoop();
@@ -777,21 +779,30 @@
   }
 
   // ===== 輸入 =====
-  function canvasPos(ev) {
+  function canvasPos(clientX, clientY) {
     const r = canvas.getBoundingClientRect();
-    return { x: (ev.clientX - r.left) * (W / r.width), y: (ev.clientY - r.top) * (H / r.height) };
+    return { x: (clientX - r.left) * (W / r.width), y: (clientY - r.top) * (H / r.height) };
   }
-  canvas.addEventListener("mousemove", (ev) => { state.mouse = canvasPos(ev); });
-  canvas.addEventListener("click", (ev) => {
-    const p = canvasPos(ev);
+  // 點擊/觸控的共用處理（座標已換算，RWD 縮放下也正確）
+  function handleTap(p) {
     if (state.pendingSkill) { castSkill(state.pendingSkill, p.x, p.y); state.pendingSkill = null; canvas.style.cursor = "default"; return; }
     if (state.selectedTowerType) { tryBuildTower(p.x, p.y); return; }
-    // 點既有塔 → 選中
     const cx = Math.floor(p.x / CELL), cy = Math.floor(p.y / CELL);
     const tw = state.towers.find((t) => t.cx === cx && t.cy === cy);
     state.selectedTower = tw || null;
     if (typeof window.__tdUI === "function") window.__tdUI();
-  });
+  }
+  canvas.addEventListener("mousemove", (ev) => { state.mouse = canvasPos(ev.clientX, ev.clientY); });
+  canvas.addEventListener("click", (ev) => { handleTap(canvasPos(ev.clientX, ev.clientY)); });
+  // 觸控支援：tap 建塔/選塔/放技能
+  canvas.addEventListener("touchstart", (ev) => {
+    if (ev.touches.length) { const t = ev.touches[0]; state.mouse = canvasPos(t.clientX, t.clientY); }
+  }, { passive: true });
+  canvas.addEventListener("touchend", (ev) => {
+    ev.preventDefault(); // 避免觸發後續的合成 click（重複觸發）
+    const t = ev.changedTouches[0];
+    if (t) handleTap(canvasPos(t.clientX, t.clientY));
+  }, { passive: false });
 
   function log(msg, kind) { if (typeof window.__tdLog === "function") window.__tdLog(msg, kind); }
 

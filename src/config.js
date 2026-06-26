@@ -26,13 +26,13 @@ const TOWERS = {
             range: 110, damage: 10, fireRate: 2.0, cost: 50, color: "#a3a3a3",
             desc: "單體高射速，便宜萬用。" },
   cannon: { id: "cannon", name: "加農砲", emoji: "💣", element: "fire",
-            range: 95, damage: 22, fireRate: 0.7, cost: 100, splash: 45, color: "#f97316",
+            range: 95, damage: 26, fireRate: 0.75, cost: 100, splash: 50, color: "#f97316",
             desc: "範圍爆破，對成群敵人有效。" },
   frost:  { id: "frost",  name: "寒冰塔", emoji: "❄️", element: "ice",
-            range: 100, damage: 6, fireRate: 1.2, cost: 85, slow: 0.45, color: "#38bdf8",
-            desc: "減速敵人，控場神器。" },
+            range: 105, damage: 11, fireRate: 1.3, cost: 80, slow: 0.5, color: "#38bdf8",
+            desc: "減速敵人 + 穩定輸出，控場神器。" },
   tesla:  { id: "tesla",  name: "電磁塔", emoji: "⚡", element: "thunder",
-            range: 90, damage: 14, fireRate: 1.5, cost: 120, pierce: 3, color: "#facc15",
+            range: 95, damage: 14, fireRate: 1.4, cost: 130, pierce: 3, color: "#facc15",
             desc: "閃電連鎖，貫穿多個敵人。" },
 };
 // 升級：每級提升傷害與射程，造價遞增
@@ -45,7 +45,7 @@ const ENEMIES = {
   goblin: { id: "goblin", name: "哥布林", emoji: "👺", element: "physical", hp: 28,  speed: 80, reward: 10, leak: 1, color: "#84cc16" },
   orc:    { id: "orc",    name: "獸人",   emoji: "👹", element: "physical", hp: 120, speed: 35, reward: 18, leak: 2, color: "#b45309" },
   bat:    { id: "bat",    name: "蝙蝠群", emoji: "🦇", element: "thunder",  hp: 22,  speed: 95, reward: 7,  leak: 1, color: "#7c3aed" },
-  boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 800, speed: 28, reward: 120, leak: 10, color: "#dc2626", boss: true },
+  boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 500, speed: 28, reward: 150, leak: 8, color: "#dc2626", boss: true },
 };
 
 // ===== 主動技能 =====
@@ -73,11 +73,12 @@ const GODDESS = {
 
 // ===== 全域遊戲參數 =====
 const GAME = {
-  startGold: 200,
+  startGold: 220,      // 略提高起始金錢，前期更順
   cellSize: 48,        // 格位大小
-  waveBonus: 25,       // 每波結束獎勵金錢
+  waveBonus: 30,       // 每波結束獎勵金錢（提高，鼓勵長期經營）
   bossEveryWaves: 5,   // 每 5 波出 Boss
-  hpGrowthPerWave: 0.18, // 每波敵人血量成長率（無盡遞增）
+  hpGrowthPerWave: 0.15, // 每波敵人血量成長率（調降，曲線更平滑）
+  bossHpMul: 1.0,      // Boss 額外血量倍率（從 1.2 降到 1.0，緩和斷崖）
   spawnInterval: 0.8,  // 同波敵人生成間隔(秒)
 };
 

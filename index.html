@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>無盡塔防 · Endless Tower Defense</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -122,6 +122,40 @@
   @keyframes chestPop { to { transform: scale(1.8); opacity: 0; } }
   @keyframes beamPulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.7} 50%{transform:translate(-50%,-50%) scale(1.2);opacity:1} }
   @keyframes heroRise { 0%{transform:translateY(40px) scale(.5);opacity:0} 100%{transform:translateY(0) scale(1);opacity:1} }
+
+  /* ===== RWD 響應式 ===== */
+  /* canvas 維持 3:2 比例自適應，最大不超過容器 */
+  canvas { width: 100%; max-width: 960px; height: auto; aspect-ratio: 3 / 2; touch-action: none; }
+  .wrap { width: 100%; max-width: 1200px; }
+
+  /* 平板/手機（窄於 900px）：側欄移到 canvas 下方、橫向排列 */
+  @media (max-width: 900px) {
+    body { padding: 4px; gap: 6px; }
+    h1 { font-size: 16px; }
+    .wrap { flex-direction: column; align-items: stretch; }
+    .panel { width: 100%; }
+    /* 建塔/技能/英雄列改橫向可滑動 */
+    #towerList, #skillList, #heroRoster {
+      display: flex; flex-direction: row; gap: 6px; overflow-x: auto;
+      -webkit-overflow-scrolling: touch; padding-bottom: 4px;
+    }
+    #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card {
+      flex: 0 0 auto; min-width: 150px; width: auto;
+    }
+    .panel h3 { margin-top: 4px; }
+    .controls { flex-wrap: nowrap; }
+  }
+
+  /* 手機（窄於 560px）：再縮小字級、HUD 緊湊 */
+  @media (max-width: 560px) {
+    h1 { font-size: 14px; letter-spacing: 1px; }
+    .hud { gap: 8px; padding: 6px 10px; }
+    .hud .stat { font-size: 13px; }
+    .tower-btn .meta, .skill-btn .meta, .hero-card .hmeta { display: none; } /* 手機隱藏說明文字省空間 */
+    #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card { min-width: 120px; }
+    .reveal-hero { font-size: 80px; } .reveal-hero img { width: 110px; height: 110px; }
+    .chest-body { font-size: 80px; }
+  }
 </style>
 </head>
 <body>

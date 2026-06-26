@@ -49,7 +49,7 @@ const HEROES = {
              desc: "傳說戰神，高速強攻。", sprites: heroSprites("valkyrie") },
   cleric:  { id: "cleric",  name: "牧師",   emoji: "✨", rarity: "common", element: "physical", role: "ranged",
              hp: 110, atk: 8, speed: 70, range: 90, atkRate: 1.0, color: "#a3e635",
-             desc: "攻擊偏弱，但會治療女神。", sprites: heroSprites("cleric"), healGoddess: 6 },
+             desc: "攻擊偏弱，但每次攻擊治療女神。", sprites: heroSprites("cleric"), healGoddess: 10 },
 };
 
 // 英雄升級曲線：每級數值成長

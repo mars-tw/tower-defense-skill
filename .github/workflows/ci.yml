@@ -27,6 +27,8 @@ jobs:
           node-version: 20
       - name: 執行 config.js 測試
         run: node scripts/test-config.js
+      - name: 執行平衡模擬驗證
+        run: node scripts/sim-balance.js
 
   deploy:
     name: 部署 GitHub Pages

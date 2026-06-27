@@ -557,6 +557,12 @@
   function ring(x, y, color, maxR) {
     state.particles.push({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: maxR || 60, r0: 6 });
   }
+  // 螢幕震動（Boss 擊殺、清場技等強回饋）— 對 canvas 加 CSS 震動 class
+  function screenShake() {
+    if (!canvas) return;
+    canvas.classList.add("shake");
+    setTimeout(() => canvas.classList.remove("shake"), 300);
+  }
   // 浮動文字（升級/傷害數字）；opts: {color, size, big}
   function flashText(x, y, text, opts) {
     opts = opts || {};

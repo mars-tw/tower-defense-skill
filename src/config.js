@@ -83,16 +83,35 @@ const GAME = {
   bossHpMul: 1.0,      // Boss 額外血量倍率
   spawnInterval: 0.8,  // 同波敵人生成間隔(秒)
 };
-// 計算某波的金錢獎勵與血量倍率（D2 修碾壓的核心）
-function waveGoldBonus(wave) { return Math.round(GAME.waveBonusBase * Math.pow(GAME.waveBonusGrowth, wave)); }
+// ===== 難度模式（社群鉤子：主流可過 + 高難挑戰）=====
+// hpMul 敵人血量倍率、goldMul 金錢倍率、goddessMul 女神血量倍率、bossEvery Boss 頻率
+const DIFFICULTIES = {
+  normal: { id: "normal", label: "普通", emoji: "🛡️", color: "#4ade80",
+            hpMul: 1.0, goldMul: 1.0, goddessMul: 1.0, bossEvery: 5,
+            desc: "主流玩家能過，輕鬆上手享受塔防樂趣。" },
+  brutal: { id: "brutal", label: "嚴酷", emoji: "🔥", color: "#f97316",
+            hpMul: 1.5, goldMul: 0.85, goddessMul: 0.8, bossEvery: 4,
+            desc: "敵人更強、資源更緊、Boss 更頻繁。需要真正研究搭配才過得了——值得寫攻略！" },
+  endless:{ id: "endless", label: "無盡煉獄", emoji: "💀", color: "#dc2626",
+            hpMul: 1.3, goldMul: 0.9, goddessMul: 0.7, bossEvery: 3,
+            desc: "極限挑戰，比拼最高波數。撐得越久越強，看你能撐到第幾波？" },
+};
+let _difficulty = "normal";
+function setDifficulty(id) { if (DIFFICULTIES[id]) _difficulty = id; }
+function getDifficulty() { return DIFFICULTIES[_difficulty] || DIFFICULTIES.normal; }
+
+// 計算某波的金錢獎勵與血量倍率（D2 修碾壓 + 難度修正）
+function waveGoldBonus(wave) { return Math.round(GAME.waveBonusBase * Math.pow(GAME.waveBonusGrowth, wave) * getDifficulty().goldMul); }
 function waveHpScale(wave) {
-  if (wave <= 10) return Math.pow(1 + GAME.hpGrowthEarly, wave - 1);
-  return Math.pow(1 + GAME.hpGrowthEarly, 9) * Math.pow(1 + GAME.hpGrowthLate, wave - 10);
+  const base = wave <= 10
+    ? Math.pow(1 + GAME.hpGrowthEarly, wave - 1)
+    : Math.pow(1 + GAME.hpGrowthEarly, 9) * Math.pow(1 + GAME.hpGrowthLate, wave - 10);
+  return base * getDifficulty().hpMul;
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty };
 }

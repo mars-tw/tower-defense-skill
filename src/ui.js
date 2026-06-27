@@ -223,25 +223,45 @@
   }
   function saveMeta(m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch {} }
 
-  // ===== 遊戲結束（含 meta 結算）=====
+  // ===== 遊戲結束（含 meta 結算 + 分享鉤子）=====
   function onGameOver(wave, score) {
     const meta = loadMeta();
-    const isRecord = wave > meta.bestWave;
-    if (isRecord) meta.bestWave = wave;
-    const earned = Math.max(1, Math.round(wave * 1.5)); // 本局魂晶 = 波數×1.5
+    const diff = TD.getDifficulty();
+    if (!meta.bestByDiff) meta.bestByDiff = {};
+    const prevBest = meta.bestByDiff[diff.id] || 0;
+    const isRecord = wave > prevBest;
+    if (isRecord) meta.bestByDiff[diff.id] = wave;
+    if (wave > (meta.bestWave || 0)) meta.bestWave = wave;
+    const earned = Math.max(1, Math.round(wave * 1.5));
     meta.soulCrystal += earned;
     meta.games += 1;
     saveMeta(meta);
 
     $("finalWave").textContent = wave;
     $("finalScore").textContent = score;
-    // 注入 meta 結算資訊
     const metaLine = $("metaResult");
     if (metaLine) {
+      // 高波數或高難度 → 強化「分享攻略」鉤子
+      const isHard = diff.id !== "normal";
+      const repoUrl = "https://github.com/mars-tw/tower-defense-skill";
+      const shareText = `我在「無盡塔防」${diff.label}難度撐到第 ${wave} 波！得分 ${score} 🏰`;
       metaLine.innerHTML = `
-        ${isRecord ? '<div class="record">🎉 新紀錄！</div>' : `<div>歷史最高：第 ${meta.bestWave} 波</div>`}
+        <div class="diff-tag" style="color:${diff.color}">${diff.emoji} ${diff.label}難度</div>
+        ${isRecord ? '<div class="record">🎉 新紀錄！</div>' : `<div>此難度最高：第 ${meta.bestByDiff[diff.id]} 波</div>`}
         <div>💎 獲得魂晶 +${earned}（共 ${meta.soulCrystal}）</div>
-        <div class="meta-sub">第 ${meta.games} 場 · 魂晶可在下次開局前永久強化</div>`;
+        <div class="hook">${isHard || wave >= 10 ? "覺得難？" : ""}<b>分享你的攻略</b>，讓大家膜拜你的塔陣！</div>
+        <div class="share-row">
+          <button class="share-btn" id="copyResult">📋 複製戰績</button>
+          <a class="share-btn" href="${repoUrl}/discussions" target="_blank">💬 發攻略</a>
+        </div>`;
+      // 複製戰績
+      setTimeout(() => {
+        const cp = $("copyResult");
+        if (cp) cp.onclick = () => {
+          try { navigator.clipboard.writeText(shareText + " " + repoUrl); cp.textContent = "✓ 已複製！"; }
+          catch { cp.textContent = "（請手動複製）"; }
+        };
+      }, 0);
     }
     $("overlay").classList.add("show");
   }
@@ -269,14 +289,51 @@
   window.__tdGameOver = onGameOver;
 
   // 首次遊玩引導（D3）：只顯示一次，存 localStorage
+  // 各難度的最高紀錄（meta 依難度分開存）
+  function bestForDiff(diffId) {
+    const m = loadMeta();
+    return (m.bestByDiff && m.bestByDiff[diffId]) || 0;
+  }
+  // 渲染難度選擇
+  function renderDifficulties() {
+    const box = $("diffOptions"); box.innerHTML = "";
+    Object.values(TD.config.DIFFICULTIES).forEach((d) => {
+      const best = bestForDiff(d.id);
+      const opt = document.createElement("button");
+      opt.className = "diff-opt"; opt.style.setProperty("--diff-c", d.color);
+      opt.innerHTML = `
+        <span class="demoji">${d.emoji}</span>
+        <span class="dinfo">
+          <span class="dname">${d.label}</span>
+          <span class="ddesc">${d.desc}</span>
+          ${best > 0 ? `<span class="dbest">🏆 你的最高：第 ${best} 波</span>` : ""}
+        </span>`;
+      opt.onclick = () => {
+        TD.setDifficulty(d.id);
+        try { localStorage.setItem("td_difficulty", d.id); } catch {}
+        $("diffOverlay").classList.remove("show");
+        TD.newGame();
+        const el = $("bestWave"); if (el) el.textContent = bestForDiff(d.id);
+        refreshUI();
+      };
+      box.appendChild(opt);
+    });
+  }
+
   (function setupTutorial() {
     let seen = false;
     try { seen = localStorage.getItem("td_tutorial_seen") === "1"; } catch {}
-    if (!seen) $("tutorial").classList.add("show");
-    $("tutorialOk").onclick = () => {
-      $("tutorial").classList.remove("show");
-      try { localStorage.setItem("td_tutorial_seen", "1"); } catch {}
-    };
+    if (!seen) {
+      $("tutorial").classList.add("show");
+      $("tutorialOk").onclick = () => {
+        $("tutorial").classList.remove("show");
+        try { localStorage.setItem("td_tutorial_seen", "1"); } catch {}
+        renderDifficulties(); $("diffOverlay").classList.add("show"); // 引導後選難度
+      };
+    } else {
+      // 看過引導：直接顯示難度選擇
+      renderDifficulties(); $("diffOverlay").classList.add("show");
+    }
   })();
 
   // 顯示歷史最高波數（D1 meta）

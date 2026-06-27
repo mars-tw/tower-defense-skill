@@ -124,6 +124,14 @@
   .meta-result { display: flex; flex-direction: column; gap: 6px; align-items: center; font-size: 15px; color: var(--ink); }
   .meta-result .record { font-size: 22px; font-weight: 900; color: #fde047; text-shadow: 0 0 16px #f59e0b; }
   .meta-result .meta-sub { font-size: 12px; color: var(--ink-dim); }
+  .meta-result .diff-tag { font-size: 15px; font-weight: 800; }
+  .meta-result .hook { font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
+  .meta-result .hook b { color: var(--gold); }
+  .meta-result .share-row { display: flex; gap: 8px; margin-top: 6px; }
+  .share-btn { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-hi);
+    padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
+    text-decoration: none; transition: all .12s; }
+  .share-btn:hover { background: var(--surface-3); border-color: var(--accent); }
   .overlay button { background: #4ade80; color: #06210f; border: none; padding: 12px 32px;
     border-radius: 24px; font-size: 16px; font-weight: 800; cursor: pointer; }
 
@@ -180,6 +188,28 @@
     padding: 10px 12px; border-radius: 10px; margin-bottom: 16px; }
   .tutorial-card button { width: 100%; background: linear-gradient(180deg,#4ade80,#22c55e); color: #06210f;
     border: none; padding: 13px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; }
+
+  /* 難度選擇（鉤子）*/
+  .diff-overlay { position: fixed; inset: 0; background: rgba(6,12,10,.92); display: none;
+    align-items: center; justify-content: center; z-index: 115; padding: 16px; }
+  .diff-overlay.show { display: flex; }
+  .diff-card { background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+    border: 1px solid var(--border-hi); border-radius: 18px; padding: 24px 28px; max-width: 460px; width: 100%;
+    box-shadow: var(--shadow-pop); }
+  .diff-card h2 { color: var(--accent); font-size: 24px; margin-bottom: 16px; text-align: center; }
+  #diffOptions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .diff-opt { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 12px;
+    background: var(--surface-1); border: 2px solid var(--diff-c, var(--border-soft)); cursor: pointer;
+    transition: all .12s; text-align: left; color: var(--ink); font-family: inherit; }
+  .diff-opt:hover { background: var(--surface-2); transform: translateX(3px); box-shadow: 0 0 12px var(--diff-c); }
+  .diff-opt .demoji { font-size: 28px; }
+  .diff-opt .dinfo { flex: 1; }
+  .diff-opt .dname { font-weight: 900; font-size: 17px; color: var(--diff-c); }
+  .diff-opt .ddesc { font-size: 12px; color: var(--ink-dim); line-height: 1.4; margin-top: 3px; }
+  .diff-opt .dbest { font-size: 11px; color: var(--gold); font-weight: 700; margin-top: 4px; }
+  .diff-hint { font-size: 12px; color: var(--ink-dim); line-height: 1.5; background: rgba(249,115,22,.1);
+    padding: 10px 12px; border-radius: 10px; }
+  .diff-hint b { color: var(--gold); }
 
   /* ===== RWD 響應式 ===== */
   /* canvas 維持 3:2 比例自適應，最大不超過容器 */
@@ -298,7 +328,16 @@
         <li><b>④ 守護女神</b>：別讓怪物漏到終點的女神！</li>
       </ol>
       <p class="tut-tip">💡 元素克制：火克冰、冰克雷、雷克火（克制造成 1.5 倍傷害）。抽英雄上場一起打怪！</p>
-      <button id="tutorialOk">開始遊戲 ▶</button>
+      <button id="tutorialOk">下一步 ▶</button>
+    </div>
+  </div>
+
+  <!-- 難度選擇（社群鉤子）-->
+  <div class="diff-overlay" id="diffOverlay">
+    <div class="diff-card">
+      <h2>⚔️ 選擇難度</h2>
+      <div id="diffOptions"></div>
+      <p class="diff-hint">💡 嚴酷/無盡需要研究塔陣搭配才過得了。撐到高波數？<b>分享你的攻略</b>讓大家膜拜！</p>
     </div>
   </div>
 

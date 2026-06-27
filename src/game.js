@@ -56,7 +56,7 @@
     state = {
       gold: GAME.startGold, wave: 0, score: 0,
       // 守護女神：被保護的核心
-      goddess: { level: 1, hp: GODDESS.baseHp, maxHp: GODDESS.baseHp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 },
+      goddess: (() => { const gm = getDifficulty().goddessMul; const hp = Math.round(GODDESS.baseHp * gm); return { level: 1, hp, maxHp: hp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 }; })(),
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
@@ -98,7 +98,7 @@
   // 下一波預告（D4）：回傳下一波的敵人數、是否 Boss、主元素傾向
   function previewNextWave() {
     const w = state.wave + 1;
-    const isBoss = w % GAME.bossEveryWaves === 0;
+    const isBoss = w % getDifficulty().bossEvery === 0;
     let count = 5 + Math.floor(w * 1.2);
     if (isBoss) count = Math.floor(count * 0.5);
     // 主元素傾向：依波數決定（每 3 波輪一個主元素，逼玩家補對應克制塔）
@@ -113,7 +113,7 @@
     state.wave++;
     state.betweenWaves = false;
     const w = state.wave;
-    const isBoss = w % GAME.bossEveryWaves === 0;
+    const isBoss = w % getDifficulty().bossEvery === 0;
     const hpScale = waveHpScale(w); // 血量隨波遞增（分段成長，D2）
 
     const queue = [];
@@ -945,7 +945,8 @@
     upgradeCost, towerStat,
     deployHero, rollHero,  // 英雄上場與抽卡
     previewNextWave,       // 下一波預告（D4）
+    setDifficulty, getDifficulty,  // 難度模式（鉤子）
     setSpeed: (s) => { state.speed = s; },
-    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA },
+    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES },
   };
 })();

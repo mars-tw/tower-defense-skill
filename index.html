@@ -40,6 +40,8 @@
     font-variant-numeric: tabular-nums; }
   .hud .gold { color: var(--gold); } .hud .lives { color: var(--hp); }
   .hud .wave { color: var(--accent); } .hud .score { color: var(--info); } .hud .best { color: var(--gold); }
+  .hud .lives.danger { animation: dangerBlink .6s infinite; }
+  @keyframes dangerBlink { 0%,100%{color:var(--hp);transform:scale(1)} 50%{color:#fff;transform:scale(1.12);text-shadow:0 0 12px var(--hp)} }
 
   canvas { background: radial-gradient(ellipse at 50% 30%, #14241c, #0a130e);
     border: 1px solid var(--border-hi); border-radius: 14px;
@@ -86,6 +88,8 @@
   .start:disabled { filter: grayscale(1) brightness(.6); cursor: not-allowed; }
   .speed { background: var(--surface-2); color: var(--ink); }
   .speed.on { background: var(--gold); color: #1a1206; }
+  .pause { background: var(--surface-2); color: var(--ink); flex: 0 0 48px; }
+  .pause.paused { background: var(--info); color: #06210f; }
   .goddess-btn { background: linear-gradient(180deg,#fde047,#f59e0b); color: #3a2606; width: 100%; }
   .goddess-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
   .gacha-btn { background: linear-gradient(180deg,#a855f7,#7c3aed); color: #fff; width: 100%; }
@@ -267,6 +271,7 @@
       <div class="controls">
         <button class="act speed on" id="speed1" data-s="1">1×</button>
         <button class="act speed" id="speed2" data-s="2">2×</button>
+        <button class="act pause" id="pauseBtn">⏸</button>
       </div>
       <button class="act goddess-btn" id="goddessBtn">👸 升級女神</button>
 

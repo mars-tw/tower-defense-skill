@@ -99,12 +99,14 @@
   function previewNextWave() {
     const w = state.wave + 1;
     const isBoss = w % getDifficulty().bossEvery === 0;
+    // 事件波（與 startWave 用同一個確定性 seed）
+    const ev = getEventWave(w, isBoss, ((w * 2654435761) % 1000) / 1000);
     let count = 5 + Math.floor(w * 1.2);
     if (isBoss) count = Math.floor(count * 0.5);
-    // 主元素傾向：依波數決定（每 3 波輪一個主元素，逼玩家補對應克制塔）
+    if (ev) count = Math.max(2, Math.round(count * ev.countMul));
     const themes = [null, "physical", "thunder", "ice", "fire"];
     const theme = w >= 4 ? themes[(Math.floor(w / 3)) % themes.length] : null;
-    return { wave: w, count, isBoss, theme };
+    return { wave: w, count, isBoss, theme, event: ev };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -115,37 +117,57 @@
     const w = state.wave;
     const isBoss = w % getDifficulty().bossEvery === 0;
     const hpScale = waveHpScale(w); // 血量隨波遞增（分段成長，D2）
+    // D8 事件波：用波數當 seed 確定性決定（與預告一致）
+    const ev = getEventWave(w, isBoss, ((w * 2654435761) % 1000) / 1000);
+    state.currentEvent = ev;
 
     const queue = [];
-    // 敵人數隨波增加（前期較緩）；Boss 波小怪減半，重點在 Boss 本身、避免雙重壓力斷崖
+    // 敵人數隨波增加（前期較緩）；Boss 波小怪減半
     let baseCount = 5 + Math.floor(w * 1.2);
     if (isBoss) baseCount = Math.floor(baseCount * 0.5);
-    const pool = ["slime", "goblin", "orc", "bat"];
+    if (ev) baseCount = Math.max(2, Math.round(baseCount * ev.countMul)); // 事件波調整數量
+    const evHpScale = hpScale * (ev ? ev.hpMul : 1);
     for (let i = 0; i < baseCount; i++) {
-      // 隨機挑敵人，越後期越偏向強的
       let pick;
-      const r = Math.random();
-      if (w < 3) pick = r < 0.7 ? "slime" : "goblin";
-      else if (r < 0.35) pick = "slime";
-      else if (r < 0.6) pick = "goblin";
-      else if (r < 0.8) pick = "bat";
-      else pick = "orc";
-      queue.push({ type: pick, hpScale });
+      if (ev && ev.forceType) { pick = ev.forceType; } // 蟲潮波強制蝙蝠
+      else {
+        const r = Math.random();
+        if (w < 3) pick = r < 0.7 ? "slime" : "goblin";
+        else if (r < 0.35) pick = "slime";
+        else if (r < 0.6) pick = "goblin";
+        else if (r < 0.8) pick = "bat";
+        else pick = "orc";
+      }
+      queue.push({ type: pick, hpScale: evHpScale, event: ev });
     }
     if (isBoss) queue.push({ type: "boss", hpScale: hpScale * (GAME.bossHpMul || 1.0) }); // Boss 壓軸
     state.spawnQueue = queue;
     state.spawnTimer = 0;
     startLoop();
-    log(`第 ${w} 波來襲！${isBoss ? "⚠️ Boss 出現！" : ""}`);
+    if (ev) {
+      log(`${ev.emoji} 第 ${w} 波【${ev.label}】${ev.desc}`);
+      flashBanner(`${ev.emoji} ${ev.label}`, ev.color); // 畫面橫幅提示
+    } else {
+      log(`第 ${w} 波來襲！${isBoss ? "⚠️ Boss 出現！" : ""}`);
+      if (isBoss) flashBanner("⚠️ BOSS 來襲", "#dc2626");
+    }
     if (typeof window.__tdUI === "function") window.__tdUI();
+  }
+  // 事件波橫幅提示（畫面中央短暫顯示）
+  function flashBanner(text, color) {
+    state.banner = { text, color, life: 2.0 };
   }
 
   function spawnEnemy(spec) {
     const def = ENEMIES[spec.type];
+    const ev = spec.event;
     const maxHp = Math.round(def.hp * spec.hpScale);
     state.enemies.push({
       ...def, x: PATH[0].x, y: PATH[0].y, wp: 1,
+      speed: def.speed * (ev ? ev.speedMul : 1),         // 事件波速度
+      reward: Math.round(def.reward * (ev ? ev.goldMul : 1)), // 事件波金錢
       hp: maxHp, maxHp, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
+      event: ev, color: ev && ev.id === "elite" ? "#a855f7" : def.color, // 精英波變色
       uid: "e" + (Math.random() * 1e9 | 0),
     });
   }
@@ -166,12 +188,23 @@
       let dt = (t - lastT) / 1000;
       lastT = t;
       if (dt > 0.05) dt = 0.05; // 防止分頁切換造成大跳
-      dt *= state.speed;
-      update(dt);
+      if (!state.paused) { dt *= state.speed; update(dt); } // 暫停時不更新邏輯
       render();
+      if (state.paused) drawPauseOverlay();
       requestAnimationFrame(loop);
     }
     requestAnimationFrame(loop);
+  }
+  // D10 暫停切換
+  function togglePause() { state.paused = !state.paused; return state.paused; }
+  function drawPauseOverlay() {
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,.5)"; ctx.fillRect(0, 0, W, H);
+    ctx.font = '900 40px "Segoe UI", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff"; ctx.fillText("⏸ 暫停中", W / 2, H / 2);
+    ctx.font = '600 16px "Segoe UI", sans-serif'; ctx.fillStyle = "#9fb0a4";
+    ctx.fillText("點 ⏸ 或按空白鍵繼續", W / 2, H / 2 + 36);
+    ctx.restore();
   }
 
   function update(dt) {
@@ -194,6 +227,8 @@
       state.comboTimer -= dt;
       if (state.comboTimer <= 0) state.combo = 0;
     }
+    // D8 事件波橫幅倒數
+    if (state.banner && state.banner.life > 0) state.banner.life -= dt;
 
     // 女神聖光反擊（2 級起解鎖）：定期攻擊終點附近的敵人
     const gd = state.goddess;
@@ -598,6 +633,26 @@
     for (const p of state.particles) drawParticle(p);
     if (state.selectedTower) drawTowerRange(state.selectedTower);
     drawComboHud();
+    drawBanner();
+  }
+
+  // D8 事件波橫幅（畫面中央，淡入淡出）
+  function drawBanner() {
+    if (!state.banner || state.banner.life <= 0) return;
+    const b = state.banner;
+    const t = b.life / 2.0;
+    const alpha = t > 0.7 ? (1 - t) / 0.3 : t < 0.3 ? t / 0.3 : 1; // 淡入→持續→淡出
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    // 背景帶
+    ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, H * 0.32, W, 56);
+    ctx.fillStyle = b.color; ctx.fillRect(0, H * 0.32, W, 3);
+    ctx.fillStyle = b.color; ctx.fillRect(0, H * 0.32 + 53, W, 3);
+    // 文字
+    ctx.font = '900 34px "Segoe UI", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.strokeStyle = "rgba(0,0,0,.8)"; ctx.lineWidth = 5; ctx.strokeText(b.text, W / 2, H * 0.32 + 28);
+    ctx.fillStyle = b.color; ctx.fillText(b.text, W / 2, H * 0.32 + 28);
+    ctx.restore();
   }
 
   // D5 連殺指示器（畫在 canvas 左上）
@@ -946,6 +1001,8 @@
     deployHero, rollHero,  // 英雄上場與抽卡
     previewNextWave,       // 下一波預告（D4）
     setDifficulty, getDifficulty,  // 難度模式（鉤子）
+    togglePause,                   // 暫停（D10）
+    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
     setSpeed: (s) => { state.speed = s; },
     config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES },
   };

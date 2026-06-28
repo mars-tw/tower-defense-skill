@@ -96,6 +96,26 @@ const DIFFICULTIES = {
             hpMul: 1.3, goldMul: 0.9, goddessMul: 0.7, bossEvery: 3,
             desc: "極限挑戰，比拼最高波數。撐得越久越強，看你能撐到第幾波？" },
 };
+
+// ===== 特殊事件波（D8：詞綴波增加變化與驚喜）=====
+// 非 Boss 波有機率變成事件波。每種有獨特規則與獎勵。
+const EVENT_WAVES = {
+  rush:    { id: "rush",    label: "狂奔波", emoji: "💨", color: "#38bdf8",
+             desc: "敵人全速衝刺！", speedMul: 1.8, hpMul: 0.7, countMul: 1.2, goldMul: 1.3 },
+  elite:   { id: "elite",   label: "精英波", emoji: "💪", color: "#a855f7",
+             desc: "少量高血精英", speedMul: 0.8, hpMul: 2.5, countMul: 0.5, goldMul: 1.6 },
+  swarm:   { id: "swarm",   label: "蟲潮波", emoji: "🦇", color: "#7c3aed",
+             desc: "大量快速小怪", speedMul: 1.3, hpMul: 0.5, countMul: 2.0, goldMul: 1.1, forceType: "bat" },
+  treasure:{ id: "treasure",label: "寶藏波", emoji: "💰", color: "#facc15",
+             desc: "擊殺獲得大量金錢", speedMul: 1.0, hpMul: 0.8, countMul: 0.8, goldMul: 3.0 },
+};
+// 決定某波是否為事件波（每 3 波檢查、避開 Boss 波、第 4 波後才有）
+function getEventWave(wave, isBoss, rng) {
+  if (isBoss || wave < 4 || wave % 3 !== 0) return null;
+  const keys = Object.keys(EVENT_WAVES);
+  return EVENT_WAVES[keys[Math.floor((rng || Math.random()) * keys.length)]];
+}
+
 let _difficulty = "normal";
 function setDifficulty(id) { if (DIFFICULTIES[id]) _difficulty = id; }
 function getDifficulty() { return DIFFICULTIES[_difficulty] || DIFFICULTIES.normal; }
@@ -110,8 +130,8 @@ function waveHpScale(wave) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave };
 }

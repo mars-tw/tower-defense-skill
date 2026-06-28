@@ -149,6 +149,9 @@
     $("gold").textContent = st.gold;
     $("goddessHp").textContent = Math.max(0, Math.round(st.goddess.hp));
     $("goddessMax").textContent = st.goddess.maxHp;
+    // D11 女神低血告警：低於 30% 閃紅
+    const livesStat = document.querySelector(".hud .lives");
+    if (livesStat) livesStat.classList.toggle("danger", st.goddess.hp / st.goddess.maxHp < 0.3 && st.goddess.hp > 0);
     $("wave").textContent = st.wave;
     $("score").textContent = st.score;
 
@@ -185,9 +188,13 @@
     startBtn.disabled = !st.betweenWaves || st.over;
     if (st.betweenWaves && !st.over && TD.previewNextWave) {
       const p = TD.previewNextWave();
-      const themeLabel = p.theme && p.theme !== "physical"
-        ? ` · 主${ELEM_ICON[p.theme]||""}` : "";
-      startBtn.innerHTML = `▶ 第 ${p.wave} 波 (${p.count}隻${p.isBoss ? " ⚠️BOSS" : ""}${themeLabel})`;
+      if (p.event) {
+        // 事件波預告（最醒目）
+        startBtn.innerHTML = `▶ 第 ${p.wave} 波 ${p.event.emoji}${p.event.label}!`;
+      } else {
+        const themeLabel = p.theme && p.theme !== "physical" ? ` · 主${ELEM_ICON[p.theme]||""}` : "";
+        startBtn.innerHTML = `▶ 第 ${p.wave} 波 (${p.count}隻${p.isBoss ? " ⚠️BOSS" : ""}${themeLabel})`;
+      }
     } else {
       startBtn.textContent = "⚔ 防禦中…";
     }
@@ -281,6 +288,16 @@
       TD.setSpeed(Number(b.dataset.s));
       document.querySelectorAll(".speed").forEach((x) => x.classList.toggle("on", x === b));
     };
+  });
+  // D10 暫停按鈕 + 鍵盤（空白鍵暫停、Esc 取消選取）
+  $("pauseBtn").onclick = () => {
+    const paused = TD.togglePause();
+    $("pauseBtn").textContent = paused ? "▶" : "⏸";
+    $("pauseBtn").classList.toggle("paused", paused);
+  };
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.key === "p" || e.key === "P") { e.preventDefault(); $("pauseBtn").click(); }
+    else if (e.code === "Escape") { TD.cancelSelect(); }
   });
 
   // 把回呼掛給 game.js

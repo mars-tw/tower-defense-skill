@@ -336,29 +336,33 @@
     return true;
   }
 
+  const HERO_GUARD_RADIUS = 130; // 駐守英雄的防守範圍
   function updateHero(h, dt) {
     const def = HEROES[h.id];
     if (h.hitFlash > 0) h.hitFlash = Math.max(0, h.hitFlash - dt);
-    // 尋找最近的活著敵人
+    // 待命/駐守點：有 guardPoint 用駐守點，否則女神身邊
+    const home = h.guardPoint || { x: state.goddess.x - 50, y: state.goddess.y - 50 };
+    // 尋找敵人；駐守模式只鎖定駐守範圍內的敵人
     let target = null, best = Infinity;
     for (const e of state.enemies) {
       if (e._dead) continue;
       const d = Math.hypot(e.x - h.x, e.y - h.y);
+      // 駐守模式：只打駐守點半徑內的敵人（不追遠的）
+      if (h.guardPoint) {
+        const dh = Math.hypot(e.x - home.x, e.y - home.y);
+        if (dh > HERO_GUARD_RADIUS + def.range) continue;
+      }
       if (d < best) { best = d; target = e; }
     }
     h.cd -= dt;
     if (!target) {
-      // 無敵人：回到女神身邊待命
-      const home = { x: state.goddess.x - 50, y: state.goddess.y - 50 };
-      moveToward(h, home.x, home.y, def.speed, dt);
+      moveToward(h, home.x, home.y, def.speed, dt); // 無目標：回家/駐守點
       return;
     }
     const range = def.range;
     if (best > range) {
-      // 追向敵人
-      moveToward(h, target.x, target.y, def.speed, dt);
+      moveToward(h, target.x, target.y, def.speed, dt); // 追敵
     } else {
-      // 在攻擊範圍內：面向目標（即使不移動也轉向）
       faceToward(h, target.x, target.y);
       if (h.cd <= 0) { heroAttack(h, target); h.cd = 1 / def.atkRate; }
     }
@@ -632,8 +636,27 @@
     for (const b of state.bullets) drawBullet(b);
     for (const p of state.particles) drawParticle(p);
     if (state.selectedTower) drawTowerRange(state.selectedTower);
+    drawGuardPoints();
     drawComboHud();
     drawBanner();
+  }
+
+  // D9 駐守點視覺（旗標 + 範圍圈）
+  function drawGuardPoints() {
+    for (const h of state.heroes) {
+      if (!h.guardPoint) continue;
+      const def = HEROES[h.id];
+      ctx.strokeStyle = "rgba(74,222,128,.3)"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.arc(h.guardPoint.x, h.guardPoint.y, HERO_GUARD_RADIUS, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = "18px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("🚩", h.guardPoint.x, h.guardPoint.y);
+    }
+    // 選中待設駐守的英雄：高亮
+    if (state.pendingHero) {
+      const h = state.heroes.find((x) => x.uid === state.pendingHero);
+      if (h) { ctx.strokeStyle = "#facc15"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(h.x, h.y, CELL * 0.6, 0, Math.PI * 2); ctx.stroke(); }
+    }
   }
 
   // D8 事件波橫幅（畫面中央，淡入淡出）
@@ -963,6 +986,26 @@
   function handleTap(p) {
     if (state.pendingSkill) { castSkill(state.pendingSkill, p.x, p.y); state.pendingSkill = null; canvas.style.cursor = "default"; return; }
     if (state.selectedTowerType) { tryBuildTower(p.x, p.y); return; }
+    // D9 駐守：已選中英雄 → 點地圖設駐守點（點英雄自己=取消駐守）
+    if (state.pendingHero) {
+      const h = state.heroes.find((x) => x.uid === state.pendingHero);
+      if (h) {
+        const onSelf = Math.hypot(p.x - h.x, p.y - h.y) < CELL * 0.6;
+        h.guardPoint = onSelf ? null : { x: p.x, y: p.y };
+        log(onSelf ? `${HEROES[h.id].name} 解除駐守，自由作戰。` : `${HEROES[h.id].name} 駐守此地！`);
+      }
+      state.pendingHero = null; canvas.style.cursor = "default";
+      if (typeof window.__tdUI === "function") window.__tdUI();
+      return;
+    }
+    // 點到地圖上的英雄 → 選中它（準備設駐守點）
+    const hero = state.heroes.find((x) => Math.hypot(p.x - x.x, p.y - x.y) < CELL * 0.5);
+    if (hero) {
+      state.pendingHero = hero.uid; canvas.style.cursor = "crosshair";
+      log(`已選 ${HEROES[hero.id].name}，點地圖指定駐守點（點它自己取消駐守）。`);
+      if (typeof window.__tdUI === "function") window.__tdUI();
+      return;
+    }
     const cx = Math.floor(p.x / CELL), cy = Math.floor(p.y / CELL);
     const tw = state.towers.find((t) => t.cx === cx && t.cy === cy);
     state.selectedTower = tw || null;

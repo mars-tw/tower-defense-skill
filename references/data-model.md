@@ -103,8 +103,13 @@ const GODDESS = {
 | **血量分段成長** | `config.js` `waveHpScale()` | 前 10 波 `hpGrowthEarly`、之後 `hpGrowthLate`，消除後期斷崖 |
 | **塔協同增傷** | `game.js` `dealDamage()` | 被減速/冰凍的敵人受傷 +25%（救活寒冰塔，鼓勵塔陣搭配）|
 | **連殺 combo** | `game.js` `killEnemy()` | 2.5 秒內連殺累積，每殺 +5% 金錢（上限 +100%）|
-| **波次預告** | `game.js` `previewNextWave()` | 波間顯示下一波敵人數、Boss 預警、主元素傾向 |
-| **Meta 進度** | `ui.js` `loadMeta/saveMeta` | localStorage 存 bestWave/魂晶，死亡結算 + HUD 最高紀錄 |
+| **波次預告** | `game.js` `previewNextWave()` | 波間顯示下一波敵人數、Boss 預警、事件波、主元素傾向 |
+| **Meta 進度** | `ui.js` `loadMeta/saveMeta` | localStorage 存 bestWave(依難度)/魂晶，死亡結算 + HUD 最高紀錄 |
+| **難度模式** | `config.js` `DIFFICULTIES` | 普通/嚴酷/無盡，改 hpMul/goldMul/goddessMul/bossEvery。社群鉤子 |
+| **特殊事件波** | `config.js` `EVENT_WAVES`/`getEventWave()` | 狂奔/精英/蟲潮/寶藏波，每 3 波出現（避開 Boss），改 speedMul/hpMul/countMul/goldMul |
+| **英雄駐守** | `game.js` `updateHero()` 的 `guardPoint` | 點英雄→點地圖設駐守點，英雄留守只打範圍內敵人 |
+| **暫停/告警** | `game.js` `togglePause()` / `ui.js` danger class | 空白鍵暫停、Esc 取消選取、女神低血 HUD 閃紅 |
+| **戰績分享** | `ui.js` `onGameOver` | 死亡顯示難度/紀錄、複製戰績、發攻略連 Discussions |
 
 ## 改完數值務必驗證
 

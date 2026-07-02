@@ -68,12 +68,29 @@ async function run() {
     await page.reload();
     await page.waitForFunction(() => window.TD && window.TD.state);
     await sleep(300);
-    // 難度浮層：點「普通」
+    // 難度浮層：點「普通」→ 地圖浮層：點「迂迴峽谷」
     await page.evaluate(() => {
       const opt = [...document.querySelectorAll(".diff-opt")].find((o) => o.textContent.includes("普通"));
       if (opt) opt.click();
     });
     await sleep(300);
+    const mapSelect = await page.evaluate(() => {
+      const opt = [...document.querySelectorAll(".map-opt")].find((o) => o.textContent.includes("迂迴峽谷"));
+      if (opt) opt.click();
+      const st = window.TD.state();
+      return {
+        mapId: st.mapId,
+        pathLen: st.path.length,
+        plainsLen: window.TD.config.MAPS.plains.path.length,
+        gold: st.gold,
+        expectedGold: Math.round(window.TD.config.GAME.startGold * window.TD.config.MAPS.canyon.goldMul),
+      };
+    });
+    assert(mapSelect.mapId === "canyon" && mapSelect.pathLen !== mapSelect.plainsLen,
+      `地圖選擇後開局路徑不同（${mapSelect.mapId}，節點 ${mapSelect.pathLen} vs ${mapSelect.plainsLen}）`);
+    assert(mapSelect.gold === mapSelect.expectedGold,
+      `迂迴峽谷套用資源倍率（${mapSelect.gold}/${mapSelect.expectedGold}）`);
+    await sleep(200);
 
     // 1. 建塔準備階段畫面會重繪（idle render loop）——先確認迴圈真的沒在跑主迴圈
     const idleRender = await page.evaluate(async () => {
@@ -90,6 +107,47 @@ async function run() {
     });
     assert(idleRender.running === false, "第一波開始前主迴圈未跑（準備階段）");
     assert(idleRender.towers === 1, `準備階段可放塔（場上 ${idleRender.towers} 座）`);
+
+    // Stage 4：毒霧塔 DoT 與聖光塔 buff
+    const stage4Combat = await page.evaluate(() => {
+      const st = window.TD.state();
+      const saved = {
+        towers: st.towers,
+        enemies: st.enemies,
+        bullets: st.bullets,
+        spawnQueue: st.spawnQueue,
+        particles: st.particles,
+      };
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+
+      const e = window.TD.debug.spawnEnemy("slime", { x: 220, y: 220, wp: 1, hp: 200, maxHp: 200, speed: 0 });
+      const poison = { type: "poison", level: 1, x: 220, y: 220, cx: 4, cy: 4, cd: 999 };
+      st.towers.push(poison);
+      window.TD.debug.fireTower(poison, e);
+      window.TD.debug.step(0.2);
+      const afterHit = e.hp;
+      const stacks = e.poisonStacks.length;
+      window.TD.debug.step(1.0);
+      const afterDot = e.hp;
+
+      const arrow = { type: "arrow", level: 1, x: 200, y: 200, cx: 4, cy: 4, cd: 0 };
+      const support = { type: "support", level: 1, x: 230, y: 200, cx: 5, cy: 4, cd: 0 };
+      st.towers = [arrow, support];
+      const base = window.TD.towerStat(arrow, "damage");
+      const buff = window.TD.getTowerBuff(arrow);
+      const effective = window.TD.effectiveTowerDamage(arrow);
+
+      st.towers = saved.towers;
+      st.enemies = saved.enemies;
+      st.bullets = saved.bullets;
+      st.spawnQueue = saved.spawnQueue;
+      st.particles = saved.particles;
+      return { afterHit, afterDot, stacks, base, buff, effective };
+    });
+    assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
+      `毒霧塔 DoT 生效（命中後 ${stage4Combat.afterHit.toFixed(1)} → tick 後 ${stage4Combat.afterDot.toFixed(1)}，層數 ${stage4Combat.stacks}）`);
+    assert(stage4Combat.buff >= 0.25 && stage4Combat.effective > stage4Combat.base,
+      `聖光塔 buff 生效（base ${stage4Combat.base}，buff ${stage4Combat.buff}，effective ${stage4Combat.effective}）`);
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gacha1 = await page.evaluate(() => {
@@ -182,13 +240,14 @@ async function run() {
         boardWave: after.board.normal[0].wave,
         boardScore: after.board.normal[0].score,
         boardKills: after.board.normal[0].kills,
+        boardMap: after.board.normal[0].map,
         wave10: after.achievements.wave10 === true,
         kills100: after.achievements.kills100 === true,
         metaText: document.getElementById("metaResult").innerText,
       };
     });
-    assert(stage3Result.boardLen === 1 && stage3Result.boardWave === 10 && stage3Result.boardScore === 1234 && stage3Result.boardKills === 100,
-      `排行榜寫入本場紀錄（${stage3Result.boardWave} 波 / ${stage3Result.boardScore} 分 / ${stage3Result.boardKills} 殺）`);
+    assert(stage3Result.boardLen === 1 && stage3Result.boardWave === 10 && stage3Result.boardScore === 1234 && stage3Result.boardKills === 100 && stage3Result.boardMap === "canyon",
+      `排行榜寫入本場紀錄與地圖（${stage3Result.boardWave} 波 / ${stage3Result.boardScore} 分 / ${stage3Result.boardKills} 殺 / ${stage3Result.boardMap}）`);
     assert(stage3Result.wave10 && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名"),
       "結算畫面顯示本場名次與新解鎖成就");
     assert(stage3Result.crystal === stage3Result.expectedCrystal,
@@ -206,7 +265,7 @@ async function run() {
       document.getElementById("progressClose").click();
       return { shown, pausedOpen, pausedClose: window.TD.state().paused, boardText, achText };
     });
-    assert(progressOverlay.shown && progressOverlay.boardText.includes("第 10 波") && progressOverlay.boardText.includes("1234"),
+    assert(progressOverlay.shown && progressOverlay.boardText.includes("第 10 波") && progressOverlay.boardText.includes("1234") && progressOverlay.boardText.includes("迂迴峽谷"),
       "排行榜 overlay 顯示結算後的前 10 名紀錄");
     assert(progressOverlay.achText.includes("站穩防線") && progressOverlay.achText.includes("百人斬"),
       "成就 overlay 顯示已解鎖與未解鎖清單");

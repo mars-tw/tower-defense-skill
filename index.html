@@ -257,6 +257,32 @@
     padding: 10px 12px; border-radius: 10px; }
   .diff-hint b { color: var(--gold); }
 
+  /* 地圖選擇 */
+  .map-overlay { position: fixed; inset: 0; background: rgba(6,12,10,.92); display: none;
+    align-items: center; justify-content: center; z-index: 114; padding: 16px; }
+  .map-overlay.show { display: flex; }
+  .map-card { background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+    border: 1px solid var(--border-hi); border-radius: 18px; padding: 24px 28px; max-width: 500px; width: 100%;
+    box-shadow: var(--shadow-pop); }
+  .map-card h2 { color: var(--accent); font-size: 24px; margin-bottom: 16px; text-align: center; }
+  #mapOptions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .map-opt { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 12px;
+    background: var(--surface-1); border: 2px solid var(--border-soft); cursor: pointer;
+    transition: all .12s; text-align: left; color: var(--ink); font-family: inherit; }
+  .map-opt:hover, .map-opt.active { background: var(--surface-2); transform: translateX(3px); border-color: var(--accent); box-shadow: 0 0 12px rgba(74,222,128,.35); }
+  .map-opt .demoji { font-size: 28px; }
+  .map-opt .dinfo { flex: 1; }
+  .map-opt .dname { font-weight: 900; font-size: 17px; color: var(--accent); }
+  .map-opt .ddesc { font-size: 12px; color: var(--ink-dim); line-height: 1.4; margin-top: 3px; }
+  .map-opt .dbest { display: block; font-size: 11px; color: var(--gold); font-weight: 700; margin-top: 4px; }
+  .map-hint { font-size: 12px; color: var(--ink-dim); line-height: 1.5; background: rgba(74,222,128,.08);
+    padding: 10px 12px; border-radius: 10px; }
+
+  .series-footer { width: min(960px, 96vw); padding: 4px 8px 8px; color: var(--ink-meta);
+    font-size: 12px; text-align: center; }
+  .series-footer a { color: var(--ink-dim); text-decoration: none; margin: 0 6px; white-space: nowrap; }
+  .series-footer a:hover { color: var(--gold); }
+
   /* ===== RWD 響應式 ===== */
   /* canvas 維持 3:2 比例自適應，最大不超過容器 */
   canvas { width: 100%; max-width: 960px; height: auto; aspect-ratio: 3 / 2; touch-action: none; }
@@ -345,6 +371,12 @@
 
   <div id="log"></div>
 
+  <footer class="series-footer">
+    🎮 阿軒的小遊戲系列
+    <a href="https://mars-tw.github.io/web-card-game-skill/templates/card-battle/" target="_blank" rel="noopener">卡牌對戰</a>
+    <a href="https://mars-tw.github.io/pixel-idle-farm-skill/" target="_blank" rel="noopener">像素農場</a>
+  </footer>
+
   <div class="overlay" id="overlay">
     <h2>💀 防線崩潰</h2>
     <div class="res">撐到第 <span id="finalWave">0</span> 波 · 得分 <span id="finalScore">0</span></div>
@@ -412,6 +444,15 @@
       <h2>⚔️ 選擇難度</h2>
       <div id="diffOptions"></div>
       <p class="diff-hint">💡 嚴酷/無盡需要研究塔陣搭配才過得了。撐到高波數？<b>分享你的攻略</b>讓大家膜拜！</p>
+    </div>
+  </div>
+
+  <!-- 地圖選擇 -->
+  <div class="map-overlay" id="mapOverlay">
+    <div class="map-card">
+      <h2>🗺️ 選擇地圖</h2>
+      <div id="mapOptions"></div>
+      <p class="map-hint">迂迴峽谷路徑更長，但資源較少；排行榜仍依難度統計，紀錄會附上地圖名稱。</p>
     </div>
   </div>
 

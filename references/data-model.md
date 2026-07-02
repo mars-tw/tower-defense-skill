@@ -10,6 +10,12 @@
 | `cannon` | 加農砲 | `fire` | 95 | 26 | 0.75 | 100 | `splash: 50` |
 | `frost` | 寒冰塔 | `ice` | 105 | 11 | 1.3 | 80 | `slow: 0.5` |
 | `tesla` | 電磁塔 | `thunder` | 95 | 14 | 1.4 | 130 | `pierce: 3` |
+| `poison` | 毒霧塔 | `physical` | 100 | 7 | 1.15 | 90 | `poisonDps: 6`、`poisonDuration: 4`、`poisonMaxStacks: 3` |
+| `support` | 聖光塔 | `physical` | 125 | 0 | 0 | 140 | `support: true`、`buff: 0.25`、`buffPerLevel: 0.03` |
+
+毒霧塔命中後附加毒素 DoT，毒素是狀態不是元素：直接傷害仍走 `physical`，DoT 每秒扣本體血量、最多 3 層、持續 4 秒。Boss 受到毒素 DoT 傷害減半。盾兵護盾不會吸收 DoT，毒只咬本體血。毒傷浮字由每敵累積傷害後顯示整數，避免每幀出現 0 傷害浮字。
+
+聖光塔不攻擊敵人；攻擊塔發射時會查詢範圍內所有聖光塔，只套用最高增傷，不疊加多座聖光塔。升級會透過 `UPGRADE.rangeMul` 提升範圍，並以 `buffPerLevel` 每級增加 3% 增傷。
 
 升級曲線 `UPGRADE`：
 
@@ -30,6 +36,8 @@
 | `bat` | 蝙蝠群 | `thunder` | 22 | 95 | 7 | 1 | 快速雷系 |
 | `frostwolf` | 冰霜狼 | `ice` | 60 | 65 | 12 | 1 | Stage 1 補冰系 |
 | `imp` | 火焰小鬼 | `fire` | 45 | 70 | 10 | 1 | Stage 1 補火系 |
+| `shieldman` | 盾兵 | `physical` | 85 + 65 護盾 | 42 | 16 | 2 | 先扣盾再扣血，DoT 不扣盾 |
+| `medic` | 醫官 | `physical` | 70 | 32 | 20 | 1 | 每 2 秒治療 80px 內其他敵人 14 HP |
 | `boss` | 魔王 | `fire` | 500 | 28 | 150 | 8 | `boss: true` |
 
 漏過傷害在 `game.js` 計算：一般敵人 `leak * 3`，Boss `leak * 4`。
@@ -98,6 +106,24 @@ waveHpScale(wave) =
     : (1 + hpGrowthEarly) ** 9 * (1 + hpGrowthLate) ** (wave - 10) * difficulty.hpMul
 ```
 
+## 地圖 `MAPS`
+
+地圖由 `config.js` 的 `MAPS` 定義，`game.js` 開局時依目前選擇呼叫 `getMap()`，並把 `path` 存到 `state.path`。路徑格會依所選地圖重新標記，因此建塔阻擋與 Canvas 路徑渲染都是動態的。
+
+| id | 名稱 | `goldMul` | path 節點 | 定位 |
+|---|---|---:|---:|---|
+| `plains` | 翠綠平原 | 1.00 | 10 | 標準蜿蜒路線，資源完整 |
+| `canyon` | 迂迴峽谷 | 0.85 | 13 | 更長更曲折，但資源較少的高難地圖 |
+
+`goldMul` 影響起始金錢與清波獎勵：
+
+```js
+startGold = round(GAME.startGold * map.goldMul)
+clearBonus = round(waveGoldBonus(wave) * map.goldMul)
+```
+
+玩家上次選擇的地圖存於 meta 的 `lastMap`；排行榜仍依難度分榜，但 entry 可附上 `map` 供顯示。
+
 ## 難度 `DIFFICULTIES`
 
 | id | 名稱 | `hpMul` | `goldMul` | `goddessMul` | `bossEvery` |
@@ -121,7 +147,7 @@ waveHpScale(wave) =
 |---|---|---:|---:|---:|---:|---|
 | `rush` | 狂奔波 | 1.8 | 0.7 | 1.2 | 1.3 | 快速低血 |
 | `elite` | 精英波 | 0.8 | 2.5 | 0.5 | 1.6 | 少量高血 |
-| `swarm` | 蟲潮波 | 1.3 | 0.5 | 2.0 | 1.1 | `forceType: "bat"` |
+| `swarm` | 蟲潮波 | 1.3 | 0.6 | 2.0 | 1.1 | `forceType: "bat"` |
 | `treasure` | 寶藏波 | 1.0 | 0.8 | 0.8 | 3.0 | 高金錢 |
 
 ## 主題波
@@ -133,7 +159,7 @@ waveTheme(wave) =
   wave >= 4 ? WAVE_THEMES[Math.floor(wave / 3) % WAVE_THEMES.length] : null
 ```
 
-`generateWaveQueue(wave, difficulty, rng)` 會在有主題池時，以 55% 機率從 `themeEnemyPool(theme)` 選敵人。事件波若有 `forceType`，會優先強制該敵人。
+`generateWaveQueue(wave, difficulty, rng)` 會在有主題池時，以 55% 機率從 `themeEnemyPool(theme)` 選敵人。事件波若有 `forceType`，會優先強制該敵人。Stage 4 新敵採分級入池：盾兵第 5 波起、醫官第 7 波起才會進預設池與主題池，避免第 4 波第一個 physical 主題波突然塞入高有效血量敵人。
 
 ## 波次組隊 `generateWaveQueue`
 
@@ -173,10 +199,12 @@ if (event) baseCount = Math.max(2, Math.round(baseCount * event.countMul))
 | `wave < 3` 且 `roll < 0.7` | `slime` |
 | `wave < 3` 且其他 | `goblin` |
 | `roll < 0.30` | `slime` |
-| `roll < 0.52` | `goblin` |
-| `roll < 0.68` | `bat` |
-| `roll < 0.80` | `frostwolf` |
-| `roll < 0.90` | `imp` |
+| `roll < 0.48` | `goblin` |
+| `roll < 0.62` | `bat` |
+| `roll < 0.72` | `frostwolf` |
+| `roll < 0.81` | `imp` |
+| `wave >= 5 && roll < 0.90` | `shieldman` |
+| `wave >= 7 && roll < 0.95` | `medic` |
 | 其他 | `orc` |
 
 Boss 波會在 queue 尾端追加 `{ type: "boss", hpScale: hpScale * GAME.bossHpMul }`，事件波與 Boss 波互斥。
@@ -259,17 +287,18 @@ localStorage key 仍為 `td_meta_v1`，資料本體由 `rules.js` 加入 `versio
   gachaCount: 0,
   bestByDiff: {},
   board: {},
-  achievements: {}
+  achievements: {},
+  lastMap: "plains"
 }
 ```
 
-`migrateMeta(raw)` 會用 `DEFAULT + Object.assign` 補欄位，並把非數字、`NaN`、`Infinity` 的數值欄位修回預設值；`bestByDiff` 只保留有限數字。v1（無 version）與 v2 存檔會無損升級到 v3。
+`migrateMeta(raw)` 會用 `DEFAULT + Object.assign` 補欄位，並把非數字、`NaN`、`Infinity` 的數值欄位修回預設值；`bestByDiff` 只保留有限數字，`lastMap` 只保留存在於 `MAPS` 的地圖 id。v1（無 version）與 v2 存檔會無損升級到 v3。
 
 新增巢狀欄位：
 
 ```js
 board: {
-  [diffId]: [{ wave, score, kills, at }]
+  [diffId]: [{ wave, score, kills, at, map }]
 },
 achievements: {
   [achId]: true
@@ -329,5 +358,5 @@ earnedSoulCrystal = Math.max(1, Math.round(wave * 1.5))
 | `node scripts/test-heroes.js` | 抽卡、權重、保底 |
 | `node scripts/test-rules.js` | meta 遷移、死亡結算、波次組隊、難度係數 |
 | `node scripts/test-board.js` | 排行榜排序/截斷/名次、成就獎勵、v3 遷移污染清洗 |
-| `node scripts/sim-balance.js` | 三難度平衡煙霧測試 |
-| `node scripts/test-td-e2e.js` | 真瀏覽器流程、抽卡經濟、主題波、排行榜/成就 overlay、RWD |
+| `node scripts/sim-balance.js` | 兩張地圖 × 三難度平衡煙霧測試、毒塔 DoT CP、聖光塔支援價值 |
+| `node scripts/test-td-e2e.js` | 真瀏覽器流程、抽卡經濟、主題波、排行榜/成就 overlay、地圖選擇、毒塔 DoT、聖光 buff、RWD |

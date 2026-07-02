@@ -34,6 +34,12 @@ const TOWERS = {
   tesla:  { id: "tesla",  name: "電磁塔", emoji: "⚡", element: "thunder",
             range: 95, damage: 14, fireRate: 1.4, cost: 130, pierce: 3, color: "#facc15",
             desc: "閃電連鎖，貫穿多個敵人。" },
+  poison: { id: "poison", name: "毒霧塔", emoji: "☠️", element: "physical",
+            range: 100, damage: 7, fireRate: 1.15, cost: 90, poisonDps: 6, poisonDuration: 4, poisonMaxStacks: 3, color: "#22c55e",
+            desc: "命中附加可疊加毒素，持續咬血。" },
+  support:{ id: "support",name: "聖光塔", emoji: "✨", element: "physical",
+            range: 125, damage: 0, fireRate: 0, cost: 140, support: true, buff: 0.25, buffPerLevel: 0.03, color: "#fde047",
+            desc: "不攻擊，強化範圍內其他塔的傷害。" },
 };
 // 升級：每級提升傷害與射程，造價遞增。maxLevel 6 + 傷害倍率提高，給後期金錢出口（D2 修碾壓）
 const UPGRADE = { damageMul: 1.55, rangeMul: 1.1, costMul: 1.5, maxLevel: 6 };
@@ -50,6 +56,9 @@ const ENEMIES = {
   // 加農砲(火)→冰霜狼、寒冰塔(冰)→蝙蝠、電磁塔(雷)→火焰小鬼（無 PNG 時自動用 emoji 畫）
   frostwolf: { id: "frostwolf", name: "冰霜狼",   emoji: "🐺", element: "ice",  hp: 60, speed: 65, reward: 12, leak: 1, color: "#38bdf8" },
   imp:       { id: "imp",       name: "火焰小鬼", emoji: "👿", element: "fire", hp: 45, speed: 70, reward: 10, leak: 1, color: "#f97316" },
+  shieldman: { id: "shieldman", name: "盾兵",     emoji: "🛡️", element: "physical", hp: 85, shield: 65, speed: 42, reward: 16, leak: 2, color: "#64748b" },
+  medic:     { id: "medic",     name: "醫官",     emoji: "💚", element: "physical", hp: 70, speed: 32, reward: 20, leak: 1,
+               healRadius: 80, healAmount: 14, healInterval: 2, color: "#4ade80" },
   boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 500, speed: 28, reward: 150, leak: 8, color: "#dc2626", boss: true },
 };
 
@@ -88,6 +97,36 @@ const GAME = {
   bossHpMul: 1.0,      // Boss 額外血量倍率
   spawnInterval: 0.8,  // 同波敵人生成間隔(秒)
 };
+
+// ===== 地圖 =====
+// path 是 Canvas 像素座標；goldMul 影響起始金錢與通關波次獎勵。
+const MAPS = {
+  plains: {
+    id: "plains", label: "翠綠平原", emoji: "🌿", goldMul: 1.0,
+    desc: "標準蜿蜒路線，資源完整，適合熟悉塔陣。",
+    path: [
+      { x: 0,   y: 120 }, { x: 360, y: 120 }, { x: 360, y: 300 },
+      { x: 120, y: 300 }, { x: 120, y: 460 }, { x: 600, y: 460 },
+      { x: 600, y: 220 }, { x: 840, y: 220 }, { x: 840, y: 556 }, { x: 900, y: 556 },
+    ],
+  },
+  canyon: {
+    id: "canyon", label: "迂迴峽谷", emoji: "⛰️", goldMul: 0.85,
+    desc: "更長更曲折，但補給較少，適合挑戰精密佈陣。",
+    path: [
+      { x: 0, y: 80 }, { x: 200, y: 80 }, { x: 200, y: 220 },
+      { x: 70, y: 220 }, { x: 70, y: 380 }, { x: 320, y: 380 },
+      { x: 320, y: 150 }, { x: 520, y: 150 }, { x: 520, y: 500 },
+      { x: 760, y: 500 }, { x: 760, y: 280 }, { x: 900, y: 280 }, { x: 900, y: 556 },
+    ],
+  },
+};
+
+let _map = "plains";
+function hasOwn(obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); }
+function setMap(id) { if (hasOwn(MAPS, id)) _map = id; }
+function getMap() { return hasOwn(MAPS, _map) ? MAPS[_map] : MAPS.plains; }
+
 // ===== 難度模式（社群鉤子：主流可過 + 高難挑戰）=====
 // hpMul 敵人血量倍率、goldMul 金錢倍率、goddessMul 女神血量倍率、bossEvery Boss 頻率
 const DIFFICULTIES = {
@@ -110,7 +149,7 @@ const EVENT_WAVES = {
   elite:   { id: "elite",   label: "精英波", emoji: "💪", color: "#a855f7",
              desc: "少量高血精英", speedMul: 0.8, hpMul: 2.5, countMul: 0.5, goldMul: 1.6 },
   swarm:   { id: "swarm",   label: "蟲潮波", emoji: "🦇", color: "#7c3aed",
-             desc: "大量快速小怪", speedMul: 1.3, hpMul: 0.5, countMul: 2.0, goldMul: 1.1, forceType: "bat" },
+             desc: "大量快速小怪", speedMul: 1.3, hpMul: 0.6, countMul: 2.0, goldMul: 1.1, forceType: "bat" },
   treasure:{ id: "treasure",label: "寶藏波", emoji: "💰", color: "#facc15",
              desc: "擊殺獲得大量金錢", speedMul: 1.0, hpMul: 0.8, countMul: 0.8, goldMul: 3.0 },
 };
@@ -174,8 +213,8 @@ function waveHpScale(wave) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS };
 }

@@ -7,6 +7,7 @@
   "use strict";
   const { TOWERS, SKILLS } = TD.config;
   const $ = (id) => document.getElementById(id);
+  const hasOwn = (obj, key) => !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   const RULES = window.TDRules;
   let selectedBoardDiff = TD.getDifficulty().id;
   let progressWasPaused = false;
@@ -21,11 +22,16 @@
   }
 
   // ===== 建塔選單（補關鍵數值與元素，D3 資訊透明）=====
+  function towerMetaText(t) {
+    if (t.support) return `範圍 ${t.range} · 增傷 +${Math.round(t.buff * 100)}%`;
+    const extra = t.poisonDps ? ` · 毒 ${t.poisonDps}/秒` : "";
+    return `傷 ${t.damage} · 程 ${t.range} · 速 ${t.fireRate}/秒${extra}`;
+  }
   const towerList = $("towerList");
   Object.values(TOWERS).forEach((t) => {
     const btn = document.createElement("button");
     btn.className = "tower-btn"; btn.dataset.type = t.id;
-    const stats = `傷${t.damage} ・ 程${t.range} ・ 速${t.fireRate}/s`;
+    const stats = towerMetaText(t);
     btn.innerHTML = `
       <span class="ico">${t.emoji}</span>
       <span class="info"><span class="nm">${t.name}</span> ${elemChip(t.element)}<br><span class="meta">${stats}</span></span>
@@ -231,9 +237,18 @@
     if (st.selectedTower) {
       const tw = st.selectedTower, def = TOWERS[tw.type];
       const maxed = tw.level >= TD.config.UPGRADE.maxLevel;
+      let statLine;
+      if (def.support) {
+        statLine = `增傷 +${Math.round(TD.towerStat(tw, "buff") * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}`;
+      } else {
+        const buff = TD.getTowerBuff ? TD.getTowerBuff(tw) : 0;
+        const effective = TD.effectiveTowerDamage ? TD.effectiveTowerDamage(tw) : TD.towerStat(tw, "damage");
+        const poison = def.poisonDps ? `<br>毒素 ${def.poisonDps}/秒 · ${def.poisonDuration} 秒 · 最多 ${def.poisonMaxStacks} 層` : "";
+        statLine = `傷害 ${Math.round(effective)}${buff > 0 ? `（聖光 +${Math.round(buff * 100)}%）` : ""} · 射程 ${Math.round(TD.towerStat(tw, "range"))}${poison}`;
+      }
       $("selInfo").innerHTML = `
         <b>${def.emoji} ${def.name}</b> Lv.${tw.level}<br>
-        傷害 ${Math.round(TD.towerStat(tw, "damage"))} · 射程 ${Math.round(TD.towerStat(tw, "range"))}`;
+        ${statLine}`;
       $("upgBtn").textContent = maxed ? "已滿級" : `升級 (${TD.upgradeCost(tw)}💰)`;
       $("upgBtn").disabled = maxed;
       sel.classList.remove("hidden");
@@ -287,9 +302,11 @@
     entries.forEach((entry, idx) => {
       const row = document.createElement("div");
       row.className = "board-row";
+      const map = hasOwn(TD.config.MAPS, entry.map) ? TD.config.MAPS[entry.map] : null;
+      const mapText = map ? ` · ${map.label}` : "";
       row.innerHTML = `
         <div class="board-rank">#${idx + 1}</div>
-        <div class="board-main"><b>第 ${entry.wave} 波</b> · ${entry.score} 分<br><span class="board-sub">擊殺 ${entry.kills} 名敵人</span></div>
+        <div class="board-main"><b>第 ${entry.wave} 波</b> · ${entry.score} 分<br><span class="board-sub">擊殺 ${entry.kills} 名敵人${mapText}</span></div>
         <div class="board-date">${formatDate(entry.at)}</div>`;
       box.appendChild(row);
     });
@@ -348,7 +365,8 @@
       kills,
       difficulty: (run && run.difficulty) || diff,
     });
-    const boardResult = RULES.updateBoard(settlement.meta.board, diff.id, { wave, score, kills, at: Date.now() });
+    const currentMap = TD.getMap ? TD.getMap() : null;
+    const boardResult = RULES.updateBoard(settlement.meta.board, diff.id, { wave, score, kills, at: Date.now(), map: currentMap && currentMap.id });
     const withBoard = Object.assign({}, settlement.meta, { board: boardResult.board });
     const achievementResult = RULES.evaluateAchievements(withBoard, {
       wave,
@@ -447,6 +465,36 @@
     const m = loadMeta();
     return (m.bestByDiff && m.bestByDiff[diffId]) || 0;
   }
+  function renderMaps() {
+    const box = $("mapOptions"); if (!box) return;
+    box.innerHTML = "";
+    const meta = loadMeta();
+    const lastMap = hasOwn(TD.config.MAPS, meta.lastMap) ? meta.lastMap : (TD.getMap && TD.getMap().id);
+    Object.values(TD.config.MAPS).forEach((m) => {
+      const opt = document.createElement("button");
+      opt.className = "map-opt" + (m.id === lastMap ? " active" : "");
+      const goldText = m.goldMul === 1 ? "標準資源" : `資源 ${Math.round(m.goldMul * 100)}%`;
+      opt.innerHTML = `
+        <span class="demoji">${m.emoji}</span>
+        <span class="dinfo">
+          <span class="dname">${m.label}</span>
+          <span class="ddesc">${m.desc}</span>
+          <span class="dbest">${goldText} · 路徑節點 ${m.path.length}</span>
+        </span>`;
+      opt.onclick = () => {
+        TD.setMap(m.id);
+        const nextMeta = loadMeta();
+        nextMeta.lastMap = m.id;
+        saveMeta(nextMeta);
+        $("mapOverlay").classList.remove("show");
+        TD.newGame();
+        deployedThisGame = new Set(); renderRoster();
+        const el = $("bestWave"); if (el) el.textContent = bestForDiff(TD.getDifficulty().id);
+        refreshUI();
+      };
+      box.appendChild(opt);
+    });
+  }
   // 渲染難度選擇
   function renderDifficulties() {
     const box = $("diffOptions"); box.innerHTML = "";
@@ -465,13 +513,24 @@
         TD.setDifficulty(d.id);
         try { localStorage.setItem("td_difficulty", d.id); } catch {}
         $("diffOverlay").classList.remove("show");
-        TD.newGame();
+        renderMaps();
+        $("mapOverlay").classList.add("show");
         const el = $("bestWave"); if (el) el.textContent = bestForDiff(d.id);
         refreshUI();
       };
       box.appendChild(opt);
     });
   }
+
+  (function restorePrefs() {
+    try {
+      const savedDiff = localStorage.getItem("td_difficulty");
+      if (savedDiff) TD.setDifficulty(savedDiff);
+    } catch {}
+    const meta = loadMeta();
+    if (meta.lastMap && TD.setMap) TD.setMap(meta.lastMap);
+    selectedBoardDiff = TD.getDifficulty().id;
+  })();
 
   (function setupTutorial() {
     let seen = false;

@@ -34,6 +34,11 @@ function constantRng(value) {
   return () => value;
 }
 
+function sequenceRng(values) {
+  let i = 0;
+  return () => values[Math.min(i++, values.length - 1)];
+}
+
 console.log("== 純函式邊界 ==");
 {
   const source = fs.readFileSync(path.join(__dirname, "..", "src", "rules.js"), "utf8");
@@ -74,6 +79,15 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
   assert(bad.version === META_VERSION, "NaN version 會修成目前版本");
   assert(bad.bestWave === 0 && bad.totalKills === 0 && bad.soulCrystal === 0 && bad.games === 0 && bad.gachaPity === 0, "NaN/非數字欄位回預設值");
   assert(bad.gachaCount === 5 && bad.bestByDiff.brutal === 8 && bad.bestByDiff.normal == null, "有效數字保留，巢狀 NaN 紀錄丟棄");
+
+  const mapMeta = migrateMeta({ lastMap: "canyon" });
+  const badMapMeta = migrateMeta({ lastMap: "missing-map" });
+  assert(mapMeta.lastMap === "canyon", "lastMap 合法值會保留");
+  assert(badMapMeta.lastMap === "plains", "lastMap 非法值會回預設地圖");
+  for (const pollutedKey of ["__proto__", "toString", "constructor"]) {
+    const polluted = migrateMeta({ lastMap: pollutedKey });
+    assert(polluted.lastMap === "plains", `lastMap 原型鍵 ${pollutedKey} 會回預設地圖`);
+  }
 }
 
 console.log("\n== settleRunRewards 死亡結算 ==");
@@ -113,6 +127,22 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   const themed = generateWaveQueue(9, cfg.DIFFICULTIES.normal, constantRng(0.1));
   const themeCount = themed.queue.filter((spec) => cfg.ENEMIES[spec.type].element === themed.theme).length;
   assert(themeCount === themed.count && themed.count > 0, `主題偏置生效（${themeCount}/${themed.count} 為 ${themed.theme} 系）`);
+
+  const seen = new Set();
+  for (let w = 3; w <= 50; w++) {
+    generateWaveQueue(w, cfg.DIFFICULTIES.normal, makeRng(w * 17)).queue.forEach((spec) => seen.add(spec.type));
+  }
+  assert(seen.has("shieldman") && seen.has("medic"), `固定 rng 掃描可產出新敵人（${[...seen].join(",")}）`);
+
+  const wave4Physical = generateWaveQueue(4, cfg.DIFFICULTIES.normal, sequenceRng([0.1, 0.99]));
+  assert(!wave4Physical.queue.some((spec) => spec.type === "shieldman" || spec.type === "medic"),
+    "第 4 波物理主題池尚未放入盾兵/醫官，避免前期跳變");
+  const wave5Shield = generateWaveQueue(5, cfg.DIFFICULTIES.normal, sequenceRng([0.1, 0.8]));
+  assert(wave5Shield.queue.some((spec) => spec.type === "shieldman"),
+    "第 5 波起盾兵可進主題/預設池");
+  const wave7Medic = generateWaveQueue(7, cfg.DIFFICULTIES.normal, sequenceRng([0.9, 0.92]));
+  assert(wave7Medic.queue.some((spec) => spec.type === "medic"),
+    "第 7 波起醫官可進預設池");
 }
 
 console.log("\n== 事件波與 Boss 波互斥（三難度） ==");

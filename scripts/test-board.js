@@ -30,9 +30,10 @@ console.log("== updateBoard 排序、截斷、名次、不 mutate ==");
     ],
   };
   const before = clone(board);
-  const result = updateBoard(board, "normal", { wave: 12, score: 800, kills: 41, at: 1300 }, 10);
+  const result = updateBoard(board, "normal", { wave: 12, score: 800, kills: 41, at: 1300, map: "canyon" }, 10);
   assert(result.rank === 2, `同 wave 依 score 排序，名次為 ${result.rank}`);
   assert(result.board.normal.map((e) => `${e.wave}/${e.score}`).join(",") === "12/900,12/800,12/700,11/2000", "排行榜依 wave 降冪、同 wave 依 score 降冪");
+  assert(result.board.normal[1].map === "canyon", "排行榜 entry 會保留可選的 map id");
   assert(JSON.stringify(board) === JSON.stringify(before), "updateBoard 不改動原 board");
 
   const full = { brutal: [] };
@@ -87,6 +88,12 @@ console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
     bestByDiff: { normal: 14 },
   });
   assert(v2.version === 3 && v2.totalKills === 120 && v2.gachaCount === 6, "v2 存檔無損升級到 version 3");
+  const mapMeta = migrateMeta({ lastMap: "canyon" });
+  const badMapMeta = migrateMeta({ lastMap: "unknown" });
+  assert(mapMeta.lastMap === "canyon" && badMapMeta.lastMap === "plains", "lastMap 合法保留、非法回預設");
+  for (const pollutedKey of ["__proto__", "toString", "constructor"]) {
+    assert(migrateMeta({ lastMap: pollutedKey }).lastMap === "plains", `lastMap 原型鍵 ${pollutedKey} 會回預設`);
+  }
 
   const polluted = migrateMeta({
     version: 3,

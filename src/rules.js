@@ -28,6 +28,7 @@
     bestByDiff: {},
     board: {},
     achievements: {},
+    lastMap: "plains",
   };
 
   function isFiniteNumber(value) {
@@ -36,6 +37,10 @@
 
   function safeNumber(value, fallback) {
     return isFiniteNumber(value) ? value : fallback;
+  }
+
+  function hasOwn(obj, key) {
+    return !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   }
 
   function sanitizeBestByDiff(value) {
@@ -55,6 +60,7 @@
       score: Math.max(0, Math.floor(entry.score)),
       kills: Math.max(0, Math.floor(entry.kills)),
       at: entry.at,
+      map: typeof entry.map === "string" ? entry.map : undefined,
     };
   }
 
@@ -95,11 +101,12 @@
     meta.bestByDiff = sanitizeBestByDiff(meta.bestByDiff);
     meta.board = sanitizeBoard(meta.board);
     meta.achievements = sanitizeAchievements(meta.achievements);
+    if (!hasOwn(cfg.MAPS, meta.lastMap)) meta.lastMap = META_DEFAULT.lastMap;
     return meta;
   }
 
   function normalizeDifficulty(difficulty) {
-    if (typeof difficulty === "string" && cfg.DIFFICULTIES && cfg.DIFFICULTIES[difficulty]) return cfg.DIFFICULTIES[difficulty];
+    if (typeof difficulty === "string" && hasOwn(cfg.DIFFICULTIES, difficulty)) return cfg.DIFFICULTIES[difficulty];
     if (difficulty && typeof difficulty === "object") return difficulty;
     return (cfg.DIFFICULTIES && cfg.DIFFICULTIES.normal) || { id: "normal", hpMul: 1, goldMul: 1, goddessMul: 1, bossEvery: 5 };
   }
@@ -153,11 +160,19 @@
   function pickDefaultEnemy(wave, roll) {
     if (wave < 3) return roll < 0.7 ? "slime" : "goblin";
     if (roll < 0.30) return "slime";
-    if (roll < 0.52) return "goblin";
-    if (roll < 0.68) return "bat";
-    if (roll < 0.80) return "frostwolf";
-    if (roll < 0.90) return "imp";
+    if (roll < 0.48) return "goblin";
+    if (roll < 0.62) return "bat";
+    if (roll < 0.72) return "frostwolf";
+    if (roll < 0.81) return "imp";
+    if (wave >= 5 && roll < 0.90) return "shieldman";
+    if (wave >= 7 && roll < 0.95) return "medic";
     return "orc";
+  }
+
+  function enemyAvailableInWave(type, wave) {
+    if (type === "shieldman") return wave >= 5;
+    if (type === "medic") return wave >= 7;
+    return true;
   }
 
   function generateWaveQueue(wave, difficulty, rng) {
@@ -168,7 +183,7 @@
     const hpScale = applyDifficulty({ hpScale: baseWaveHpScale(w) }, diff).hpScale;
     const event = cfg.getEventWave(w, isBoss, eventWaveSeed(w));
     const theme = cfg.waveTheme(w);
-    const themePool = theme ? cfg.themeEnemyPool(theme) : null;
+    const themePool = theme ? (cfg.themeEnemyPool(theme) || []).filter((type) => enemyAvailableInWave(type, w)) : null;
     const rand = makeRng(rng, w);
 
     let baseCount = 5 + Math.floor(w * 1.2);
@@ -181,7 +196,7 @@
       let type;
       if (event && event.forceType) {
         type = event.forceType;
-      } else if (themePool && rand() < 0.55) {
+      } else if (themePool && themePool.length && rand() < 0.55) {
         type = themePool[Math.floor(rand() * themePool.length)];
       } else {
         type = pickDefaultEnemy(w, rand());
@@ -211,6 +226,7 @@
       score: item.score,
       kills: item.kills,
       at: item.at,
+      map: item.map,
     }));
     return { board: nextBoard, rank };
   }

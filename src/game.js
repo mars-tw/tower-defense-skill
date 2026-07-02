@@ -17,20 +17,13 @@
   const W = canvas.width, H = canvas.height;
   const CELL = GAME.cellSize;
 
-  // 路徑 waypoints（像素座標）— 一條蜿蜒路徑
-  // 終點內縮到 (900,556)，留邊距讓守護女神完整顯示、不被畫布邊緣截斷
-  const PATH = [
-    { x: 0,   y: 120 }, { x: 360, y: 120 }, { x: 360, y: 300 },
-    { x: 120, y: 300 }, { x: 120, y: 460 }, { x: 600, y: 460 },
-    { x: 600, y: 220 }, { x: 840, y: 220 }, { x: 840, y: 556 }, { x: 900, y: 556 },
-  ];
-
-  // 預先算出「禁止建塔」的格位（路徑經過的格）
+  // 依目前地圖即時計算「禁止建塔」的格位（路徑經過的格）
   const blocked = new Set();
   function cellKey(cx, cy) { return cx + "," + cy; }
-  (function markPathCells() {
-    for (let i = 0; i < PATH.length - 1; i++) {
-      const a = PATH[i], b = PATH[i + 1];
+  function markPathCells(path) {
+    blocked.clear();
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
       const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 10);
       for (let s = 0; s <= steps; s++) {
         const x = a.x + (b.x - a.x) * (s / steps);
@@ -44,7 +37,7 @@
         blocked.add(cellKey(Math.floor(x / CELL), Math.floor((y + CELL * 0.4) / CELL)));
       }
     }
-  })();
+  }
 
   // ===== 遊戲狀態 =====
   let state;
@@ -52,13 +45,17 @@
   let loopToken = 0;
   function newGame() {
     loopToken++; // 作廢任何正在跑的舊迴圈
-    const end = PATH[PATH.length - 1];
+    const mapDef = getMap();
+    const path = mapDef.path;
+    markPathCells(path);
+    const end = path[path.length - 1];
     state = {
-      gold: GAME.startGold, wave: 0, score: 0,
+      gold: Math.round(GAME.startGold * (mapDef.goldMul || 1)), wave: 0, score: 0,
       // 守護女神：被保護的核心
       goddess: (() => { const gm = getDifficulty().goddessMul; const hp = Math.round(GODDESS.baseHp * gm); return { level: 1, hp, maxHp: hp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 }; })(),
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
+      mapId: mapDef.id, mapDef, path,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
       running: false, over: false, betweenWaves: true,
       selectedTowerType: null,   // 準備建造的塔
@@ -132,17 +129,99 @@
   }
 
   function spawnEnemy(spec) {
+    const enemy = createEnemy(spec);
+    state.enemies.push(enemy);
+    return enemy;
+  }
+
+  function createEnemy(spec, overrides) {
+    if (typeof spec === "string") spec = { type: spec, hpScale: 1 };
+    spec = spec || { type: "slime", hpScale: 1 };
     const def = ENEMIES[spec.type];
     const ev = spec.event;
-    const maxHp = Math.round(def.hp * spec.hpScale);
-    state.enemies.push({
-      ...def, x: PATH[0].x, y: PATH[0].y, wp: 1,
+    const scale = spec.hpScale || 1;
+    const maxHp = Math.round(def.hp * scale);
+    const maxShield = def.shield ? Math.round(def.shield * scale) : 0;
+    return Object.assign({
+      ...def, x: state.path[0].x, y: state.path[0].y, wp: 1,
       speed: def.speed * (ev ? ev.speedMul : 1),         // 事件波速度
       reward: Math.round(def.reward * (ev ? ev.goldMul : 1)), // 事件波金錢
-      hp: maxHp, maxHp, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
+      hp: maxHp, maxHp, shield: maxShield, maxShield, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
+      poisonStacks: [], _poisonAcc: 0, _poisonFloatAt: 0, healCd: def.healInterval || 0,
       event: ev, color: ev && ev.id === "elite" ? "#a855f7" : def.color, // 精英波變色
       uid: "e" + (Math.random() * 1e9 | 0),
-    });
+    }, overrides || {});
+  }
+
+  function applyDamage(e, amount, opts) {
+    if (!e || e._dead || e._leaked) return 0;
+    opts = opts || {};
+    let dmg = Math.max(0, amount || 0);
+    if (dmg <= 0) return 0;
+    const hpBefore = e.hp;
+    if (!opts.bypassShield && e.shield > 0) {
+      const shieldHit = Math.min(e.shield, dmg);
+      e.shield -= shieldHit;
+      dmg -= shieldHit;
+    }
+    if (dmg > 0) e.hp -= dmg;
+    return Math.max(0, hpBefore - Math.max(0, e.hp));
+  }
+
+  function applyPoison(e, poison) {
+    if (!e || e._dead || !poison || !(poison.dps > 0) || !(poison.duration > 0)) return;
+    const stacks = e.poisonStacks || (e.poisonStacks = []);
+    const stack = { dps: poison.dps, until: state.clock + poison.duration };
+    const maxStacks = Math.max(1, poison.maxStacks || 1);
+    if (stacks.length < maxStacks) stacks.push(stack);
+    else {
+      let replaceAt = 0;
+      for (let i = 1; i < stacks.length; i++) if (stacks[i].until < stacks[replaceAt].until) replaceAt = i;
+      stacks[replaceAt] = stack;
+    }
+    ring(e.x, e.y, "#22c55e", 28);
+  }
+
+  function updateEnemyStatuses(dt) {
+    for (const e of state.enemies) {
+      if (e._dead || !e.poisonStacks || !e.poisonStacks.length) continue;
+      e.poisonStacks = e.poisonStacks.filter((s) => s.until > state.clock && s.dps > 0);
+      if (!e.poisonStacks.length) continue;
+      const dps = e.poisonStacks.reduce((sum, s) => sum + s.dps, 0) * (e.boss ? 0.5 : 1);
+      const dealt = applyDamage(e, dps * dt, { bypassShield: true });
+      if (dealt > 0) {
+        e._poisonAcc = (e._poisonAcc || 0) + dealt;
+        const due = state.clock - (e._poisonFloatAt || 0) >= 1;
+        const shown = Math.floor(e._poisonAcc);
+        if (shown >= 1 || (due && e._poisonAcc >= 0.5)) {
+          damageNumber(e.x, e.y - 10, shown >= 1 ? shown : Math.round(e._poisonAcc), 1);
+          e._poisonAcc = 0;
+          e._poisonFloatAt = state.clock;
+        }
+      }
+      if (e.hp <= 0) killEnemy(e);
+    }
+  }
+
+  function updateEnemyAbilities(dt) {
+    for (const e of state.enemies) {
+      if (e._dead || !e.healRadius || !e.healAmount || !e.healInterval) continue;
+      e.healCd -= dt;
+      if (e.healCd > 0) continue;
+      e.healCd += e.healInterval;
+      let healed = 0;
+      for (const ally of state.enemies) {
+        if (ally === e || ally._dead || ally.hp >= ally.maxHp) continue;
+        if (Math.hypot(ally.x - e.x, ally.y - e.y) > e.healRadius) continue;
+        const before = ally.hp;
+        ally.hp = Math.min(ally.maxHp, ally.hp + e.healAmount);
+        healed += ally.hp - before;
+      }
+      if (healed > 0) {
+        ring(e.x, e.y, "#4ade80", e.healRadius);
+        flashText(e.x, e.y - 18, "+" + Math.round(healed), { color: "#86efac", size: 13 });
+      }
+    }
   }
 
   // ===== 主迴圈 =====
@@ -212,7 +291,7 @@
         const targets = state.enemies.filter((e) => !e._dead && Math.hypot(e.x - gd.x, e.y - gd.y) <= GODDESS.smiteRange);
         if (targets.length) {
           const t = targets.sort((a, b) => b.wp - a.wp)[0]; // 打最接近終點的
-          t.hp -= GODDESS.smiteDamage;
+          applyDamage(t, GODDESS.smiteDamage);
           state.bullets.push({ x: gd.x, y: gd.y, target: t, speed: 500, color: "#fde047", damage: 0, element: "physical", _holy: true });
           burst(t.x, t.y, "#fde047", 8);
           if (t.hp <= 0) killEnemy(t);
@@ -221,23 +300,28 @@
       }
     }
 
+    updateEnemyStatuses(dt);
+    updateEnemyAbilities(dt);
+
     // 敵人移動
     for (const e of state.enemies) {
+      if (e._dead) continue;
       const frozen = e.frozenUntil > state.clock;
       const slowed = e.slowUntil > state.clock;
       const spd = frozen ? 0 : e.speed * (slowed ? e.slowFactor : 1);
-      const target = PATH[e.wp];
+      const target = state.path[e.wp];
       if (!target) { leak(e); continue; }
       const dx = target.x - e.x, dy = target.y - e.y;
       const dist = Math.hypot(dx, dy);
       const step = spd * dt;
-      if (step >= dist) { e.x = target.x; e.y = target.y; e.wp++; if (e.wp >= PATH.length) leak(e); }
+      if (step >= dist) { e.x = target.x; e.y = target.y; e.wp++; if (e.wp >= state.path.length) leak(e); }
       else { e.x += (dx / dist) * step; e.y += (dy / dist) * step; }
     }
     state.enemies = state.enemies.filter((e) => !e._dead && !e._leaked);
 
     // 塔射擊
     for (const tw of state.towers) {
+      if (TOWERS[tw.type].support) continue;
       tw.cd -= dt;
       if (tw.cd > 0) continue;
       const target = acquireTarget(tw);
@@ -271,7 +355,7 @@
     // 波次結束判定
     if (!state.betweenWaves && state.spawnQueue.length === 0 && state.enemies.length === 0) {
       state.betweenWaves = true;
-      const bonus = waveGoldBonus(state.wave); // 指數成長獎勵（D2）
+      const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1)); // 指數成長獎勵（D2）
       state.gold += bonus;
       state.score += state.wave * 10;
       log(`第 ${state.wave} 波清空！+${bonus} 金`);
@@ -296,7 +380,7 @@
   function deployHero(heroId) {
     const def = HEROES[heroId];
     if (!def) return false;
-    const end = PATH[PATH.length - 1];
+    const end = state.path[state.path.length - 1];
     const h = {
       id: heroId, level: 1, xp: 0,
       x: end.x - 60 + (Math.random() * 40 - 20), y: end.y - 60 + (Math.random() * 40 - 20),
@@ -371,7 +455,7 @@
     } else {
       // 近戰：直接造成傷害
       const mult = elementMultiplier(def.element, target.element);
-      target.hp -= atk * mult;
+      applyDamage(target, atk * mult);
       burst(target.x, target.y, def.color, 8);
       if (target.hp <= 0) { killEnemy(target); grantXp(h, target); }
     }
@@ -420,9 +504,22 @@
   // ===== 塔瞄準與射擊 =====
   function towerStat(tw, key) {
     const base = TOWERS[tw.type][key];
-    if (key === "damage") return base * Math.pow(UPGRADE.damageMul, tw.level - 1);
+    if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1);
     if (key === "range") return base * Math.pow(UPGRADE.rangeMul, tw.level - 1);
+    if (key === "buff") return (base || 0) + (tw.level - 1) * (TOWERS[tw.type].buffPerLevel || 0);
     return base;
+  }
+  function supportBuffFor(tw) {
+    let best = 0;
+    for (const support of state.towers) {
+      if (support === tw || !TOWERS[support.type].support) continue;
+      const range = towerStat(support, "range");
+      if (Math.hypot(support.x - tw.x, support.y - tw.y) <= range) best = Math.max(best, towerStat(support, "buff"));
+    }
+    return best;
+  }
+  function effectiveTowerDamage(tw) {
+    return towerStat(tw, "damage") * (1 + supportBuffFor(tw));
   }
   function acquireTarget(tw) {
     const range = towerStat(tw, "range");
@@ -438,15 +535,16 @@
     return best;
   }
   // 塔/元素對應的投射物圖
-  const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning" };
+  const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning", poison: "arrow" };
   const PROJECTILE_BY_ELEMENT = { physical: "arrow", fire: "fireball", ice: "iceshard", thunder: "lightning" };
 
   function fire(tw, target) {
     const def = TOWERS[tw.type];
     state.bullets.push({
       x: tw.x, y: tw.y, target, speed: 320, color: def.color,
-      damage: towerStat(tw, "damage"), element: def.element,
+      damage: effectiveTowerDamage(tw), element: def.element,
       splash: def.splash || 0, slow: def.slow || 0, pierce: def.pierce || 0, type: tw.type,
+      poison: def.poisonDps ? { dps: def.poisonDps, duration: def.poisonDuration, maxStacks: def.poisonMaxStacks } : null,
       projectile: PROJECTILE_BY_TOWER[tw.type] || PROJECTILE_BY_ELEMENT[def.element],
     });
   }
@@ -478,8 +576,9 @@
     const chilled = (e.slowUntil > state.clock) || (e.frozenUntil > state.clock);
     const synergy = chilled ? 1.25 : 1;
     const dmg = b.damage * mult * synergy;
-    e.hp -= dmg;
+    applyDamage(e, dmg);
     damageNumber(e.x, e.y, dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
+    if (b.poison) applyPoison(e, b.poison);
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
     if (e.hp <= 0) { killEnemy(e); if (b._heroOwner && state.heroes.includes(b._heroOwner)) grantXp(b._heroOwner, e); }
   }
@@ -493,7 +592,7 @@
       if (e._dead) continue;
       if (Math.hypot(e.x - x, e.y - y) <= sk.radius) {
         const mult = elementMultiplier(sk.element, e.element);
-        e.hp -= sk.damage * mult;
+        applyDamage(e, sk.damage * mult);
         if (sk.freezeDur) e.frozenUntil = state.clock + sk.freezeDur;
         if (e.hp <= 0) killEnemy(e);
       }
@@ -756,8 +855,9 @@
   function drawPath() {
     // 路徑：先畫底色路（保證可見），再用路徑磚平鋪沿線蓋上
     ctx.strokeStyle = "#3b2f1f"; ctx.lineWidth = CELL * 0.9; ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.beginPath(); ctx.moveTo(PATH[0].x, PATH[0].y);
-    for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+    const path = state.path || getMap().path;
+    ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
+    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
     ctx.stroke();
     // 路徑磚塊圖蓋在路徑格上
     const pathImg = getImg("assets/tiles/path.png", true);
@@ -880,9 +980,16 @@
     drawSprite(`assets/enemies/${e.id}.png`, e.emoji, e.x, e.y, size);
     // 血條（V3：圓角漸層）
     drawHealthBar(e.x - size / 2, e.y - size / 2 - 9, size, 5, Math.max(0, e.hp / e.maxHp));
+    if (e.maxShield > 0) {
+      drawShieldBar(e.x - size / 2, e.y - size / 2 - 15, size, 4, Math.max(0, e.shield / e.maxShield));
+    }
     // 冰凍/減速標記
     if (e.frozenUntil > state.clock) { ctx.fillStyle = "rgba(56,189,248,.4)"; ctx.beginPath(); ctx.arc(e.x, e.y, size / 2, 0, Math.PI * 2); ctx.fill(); }
     else if (e.slowUntil > state.clock) { ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, size / 2, 0, Math.PI * 2); ctx.stroke(); }
+    if (e.poisonStacks && e.poisonStacks.length) {
+      ctx.strokeStyle = "#22c55e"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(e.x, e.y, size * 0.62, 0, Math.PI * 2); ctx.stroke();
+    }
   }
   // 共用圓角漸層血條（V3 場景深度）
   function drawHealthBar(x, y, w, h, pct) {
@@ -897,6 +1004,16 @@
       g.addColorStop(0, c[0]); g.addColorStop(1, c[1]);
       ctx.fillStyle = g;
       roundRect(x, y, w * pct, h, r); ctx.fill();
+    }
+  }
+  function drawShieldBar(x, y, w, h, pct) {
+    ctx.fillStyle = "rgba(15,23,42,.75)";
+    roundRect(x - 1, y - 1, w + 2, h + 2, h / 2 + 1); ctx.fill();
+    if (pct > 0) {
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, "#bfdbfe"); g.addColorStop(1, "#60a5fa");
+      ctx.fillStyle = g;
+      roundRect(x, y, w * pct, h, h / 2); ctx.fill();
     }
   }
   function roundRect(x, y, w, h, r) {
@@ -1025,15 +1142,25 @@
     upgradeSelected: () => { if (state.selectedTower) upgradeTower(state.selectedTower); },
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
-    upgradeCost, towerStat,
+    upgradeCost, towerStat, getTowerBuff: supportBuffFor, effectiveTowerDamage,
     deployHero, rollHero,  // 英雄上場與抽卡
     rollHeroWithPity,      // 含保底的抽卡（Stage 1：pity 由 ui.js 的 meta 持久化）
     previewNextWave,       // 下一波預告（D4）
     setDifficulty, getDifficulty,  // 難度模式（鉤子）
+    setMap, getMap,
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
     cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
     setSpeed: (s) => { state.speed = s; },
-    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, ACHIEVEMENTS },
+    debug: {
+      spawnEnemy: (type, overrides) => {
+        const e = createEnemy({ type, hpScale: 1 }, overrides);
+        state.enemies.push(e);
+        return e;
+      },
+      step: (dt) => { update(dt || 0.016); render(); },
+      fireTower: (tw, target) => fire(tw, target),
+    },
+    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, ACHIEVEMENTS },
   };
 })();

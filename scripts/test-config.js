@@ -5,7 +5,7 @@
 
 const path = require("path");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
-const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, ACHIEVEMENTS } = cfg;
+const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, MAPS, ACHIEVEMENTS } = cfg;
 
 let failed = 0;
 function assert(cond, msg) {
@@ -14,8 +14,8 @@ function assert(cond, msg) {
 }
 
 console.log("== 結構 ==");
-assert(Object.keys(TOWERS).length >= 4, `砲塔 ≥4 種（${Object.keys(TOWERS).length}）`);
-assert(Object.keys(ENEMIES).length >= 4, `敵人 ≥4 種（${Object.keys(ENEMIES).length}）`);
+assert(Object.keys(TOWERS).length >= 6, `砲塔 ≥6 種（${Object.keys(TOWERS).length}）`);
+assert(Object.keys(ENEMIES).length >= 9, `敵人 ≥9 種（${Object.keys(ENEMIES).length}）`);
 assert(Object.keys(SKILLS).length >= 3, `技能 ≥3 種（${Object.keys(SKILLS).length}）`);
 assert(Object.values(ENEMIES).some((e) => e.boss), "至少有一個 Boss");
 
@@ -26,6 +26,10 @@ for (const t of Object.values(TOWERS)) {
   if (!ELEMENTS[t.element]) badT++;
 }
 assert(badT === 0, `砲塔欄位完整且元素合法（異常 ${badT}）`);
+assert(TOWERS.poison && TOWERS.poison.poisonDps > 0 && TOWERS.poison.poisonDuration > 0 && TOWERS.poison.poisonMaxStacks === 3,
+  "毒霧塔有 DoT 欄位（DPS/持續/最多 3 層）");
+assert(TOWERS.support && TOWERS.support.support === true && TOWERS.support.buff > 0 && TOWERS.support.damage === 0 && TOWERS.support.fireRate === 0,
+  "聖光塔為不攻擊支援塔，且有 buff 欄位");
 
 console.log("== 敵人欄位 ==");
 let badE = 0;
@@ -33,6 +37,27 @@ for (const e of Object.values(ENEMIES)) {
   if (!e.id || e.hp == null || e.speed == null || e.reward == null || !e.element) badE++;
 }
 assert(badE === 0, `敵人欄位完整（異常 ${badE}）`);
+assert(ENEMIES.shieldman && ENEMIES.shieldman.shield > 0 && ENEMIES.shieldman.element === "physical",
+  "盾兵有護盾且歸物理系");
+assert(ENEMIES.medic && ENEMIES.medic.healRadius === 80 && ENEMIES.medic.healAmount > 0 && ENEMIES.medic.healInterval === 2,
+  "醫官有治療半徑、治療量與 2 秒間隔");
+
+console.log("== Stage 4：地圖資料 ==");
+let badMap = 0;
+for (const m of Object.values(MAPS || {})) {
+  if (!m.id || !m.label || !(m.goldMul > 0) || !Array.isArray(m.path) || m.path.length < 2) badMap++;
+  if (Array.isArray(m.path) && m.path.some((p) => typeof p.x !== "number" || typeof p.y !== "number")) badMap++;
+}
+assert(Object.keys(MAPS || {}).length >= 2, `至少 2 張地圖（實際 ${Object.keys(MAPS || {}).length}）`);
+assert(badMap === 0, `地圖欄位完整且 path 合法（異常 ${badMap}）`);
+assert(MAPS.plains && MAPS.canyon && MAPS.canyon.path.length > MAPS.plains.path.length && MAPS.canyon.goldMul < MAPS.plains.goldMul,
+  "迂迴峽谷路徑較曲折且資源較少");
+for (const pollutedKey of ["__proto__", "toString", "constructor"]) {
+  cfg.setMap("canyon");
+  cfg.setMap(pollutedKey);
+  assert(cfg.getMap().id === "canyon", `setMap 忽略原型鍵 ${pollutedKey}`);
+}
+cfg.setMap("plains");
 
 console.log("== 元素克制 ==");
 assert(elementMultiplier("fire", "ice") === 1.5, "火克冰 = 1.5");
@@ -67,6 +92,11 @@ assert(themesSeen.size >= 3, `波次主題輪替涵蓋多元素（${[...themesSe
 for (const t of themesSeen) {
   assert(themeEnemyPool(t) !== null, `主題「${t}」有對應敵人池（${(themeEnemyPool(t) || []).join(",")}）`);
 }
+{
+  const physicalPool = themeEnemyPool("physical") || [];
+  assert(physicalPool.includes("shieldman"), "物理主題池包含盾兵");
+  assert(physicalPool.includes("medic"), "物理主題池包含醫官");
+}
 
 console.log("== Stage 1：事件波在所有難度都會出現 ==");
 // 修正前 wave%3===0 撞上無盡難度 bossEvery=3，事件波在該難度永遠不觸發
@@ -100,8 +130,9 @@ let badEv = 0;
 for (const e of Object.values(EVENT_WAVES)) {
   if (!(e.speedMul > 0) || !(e.hpMul > 0) || !(e.countMul > 0) || !(e.goldMul > 0)) badEv++;
   if (e.forceType && !ENEMIES[e.forceType]) badEv++;
+  if (e.forceType === "medic") badEv++;
 }
-assert(badEv === 0, `事件波欄位完整、forceType 指向存在的敵人（異常 ${badEv}）`);
+assert(badEv === 0, `事件波欄位完整、forceType 指向存在敵人且不強制醫官（異常 ${badEv}）`);
 
 console.log("== Stage 3：成就目錄 ==");
 let badAch = 0;

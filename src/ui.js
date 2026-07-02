@@ -314,8 +314,11 @@
       document.querySelectorAll(".speed").forEach((x) => x.classList.toggle("on", x === b));
     };
   });
-  // D10 暫停按鈕 + 鍵盤（空白鍵暫停、Esc 取消選取）
+  // D10 暫停按鈕 + 鍵盤（空白鍵暫停、Esc 取消選取）。
+  // 抽卡盲盒開著時忽略暫停熱鍵：動畫期間是強制暫停，玩家再按 P/空白鍵切換會讓
+  // playGachaAnimation 記錄的 wasPaused 對不上，關閉浮層後戰場暫停狀態錯亂
   $("pauseBtn").onclick = () => {
+    if ($("gachaOverlay").classList.contains("show")) return;
     const paused = TD.togglePause();
     $("pauseBtn").textContent = paused ? "▶" : "⏸";
     $("pauseBtn").classList.toggle("paused", paused);

@@ -121,7 +121,10 @@ const EVENT_WAVES = {
 function getEventWave(wave, isBoss, rng) {
   if (isBoss || wave < 5 || wave % 3 !== 2) return null;
   const keys = Object.keys(EVENT_WAVES);
-  return EVENT_WAVES[keys[Math.floor((rng || Math.random()) * keys.length)]];
+  // rng 是 0~1 的 seed 數值：用 == null 判斷，不能用 ||——seed 剛好為 0 時
+  // 會被當 falsy 改走真隨機，破壞「預告與實際出怪同 seed」的確定性
+  const r = rng == null ? Math.random() : rng;
+  return EVENT_WAVES[keys[Math.floor(r * keys.length)]];
 }
 
 // ===== 波次主元素傾向（D4 預告 + Stage 1 讓預告真的生效）=====

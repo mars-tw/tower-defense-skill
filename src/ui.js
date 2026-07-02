@@ -61,21 +61,34 @@
     try { localStorage.setItem(HERO_SAVE, JSON.stringify([...ownedHeroes])); } catch {}
   }
 
+  // 抽卡花「魂晶」（跨局永久貨幣），不是場內金錢——場內金錢每局重置，
+  // 拿它買永久英雄等於重開新局就能無限白嫖。首抽免費讓新玩家先體驗盲盒。
+  function gachaCostNow(meta) {
+    return (TD.config.GACHA.firstFree && (meta.gachaCount || 0) === 0) ? 0 : TD.config.GACHA.cost;
+  }
   function doGacha() {
-    const st = TD.state();
-    if (st.gold < TD.config.GACHA.cost) { pushLog("金錢不足以抽卡！", "bad"); return; }
-    st.gold -= TD.config.GACHA.cost;
-    const hero = TD.rollHero();
+    const meta = loadMeta();
+    const cost = gachaCostNow(meta);
+    if (meta.soulCrystal < cost) { pushLog(`魂晶不足（需 ${cost}💎，戰敗結算可獲得）`, "bad"); return; }
+    meta.soulCrystal -= cost;
+    const { hero, pity } = TD.rollHeroWithPity(meta.gachaPity || 0);
+    meta.gachaPity = pity;
+    meta.gachaCount = (meta.gachaCount || 0) + 1;
     const isNew = !ownedHeroes.has(hero.id);
+    let refund = 0;
+    if (!isNew) { refund = TD.config.GACHA.dupRefund; meta.soulCrystal += refund; } // 重複補償
+    saveMeta(meta);
     ownedHeroes.add(hero.id); saveOwned();
     refreshUI();
-    playGachaAnimation(hero, isNew);  // 盲盒動畫
+    playGachaAnimation(hero, isNew, refund);  // 盲盒動畫
   }
 
-  // 盲盒開箱動畫：寶箱 → 點擊開啟 → 稀有度光柱 → 英雄登場
-  function playGachaAnimation(hero, isNew) {
+  // 盲盒開箱動畫：寶箱 → 點擊開啟 → 稀有度光柱 → 英雄登場（動畫期間暫停戰場，敵人不會偷跑）
+  function playGachaAnimation(hero, isNew, refund) {
     const ov = $("gachaOverlay"), chest = $("chest"), reveal = $("reveal");
     const r = TD.config.HERO_RARITY[hero.rarity];
+    const wasPaused = TD.state().paused;
+    TD.setPaused(true);
     // 重置
     chest.className = "chest"; reveal.className = "reveal";
     ov.classList.add("show");
@@ -89,7 +102,7 @@
         ov.style.setProperty("--rev-glow", r.glow);
         const sp = hero.sprites;
         $("revealHero").innerHTML = sp ? `<img src="${sp.down}" alt="${hero.name}" onerror="this.replaceWith(document.createTextNode('${hero.emoji}'))">` : hero.emoji;
-        $("revealName").textContent = hero.name + (isNew ? " ✨新英雄" : "");
+        $("revealName").textContent = hero.name + (isNew ? " ✨新英雄" : refund ? ` （重複 +${refund}💎）` : "");
         $("revealRarity").textContent = "★".repeat(r.stars) + " " + r.label;
         reveal.classList.add("show");
         if (hero.rarity === "legendary" || hero.rarity === "epic") gachaConfetti();
@@ -97,8 +110,9 @@
     };
     $("revealOk").onclick = () => {
       ov.classList.remove("show");
+      if (!wasPaused) TD.setPaused(false); // 收下英雄後恢復戰場（原本就手動暫停的除外）
       const r2 = TD.config.HERO_RARITY[hero.rarity];
-      pushLog(`🎲 獲得 ${"★".repeat(r2.stars)} ${hero.name}${isNew ? "（新英雄！）" : "（重複）"}`);
+      pushLog(`🎲 獲得 ${"★".repeat(r2.stars)} ${hero.name}${isNew ? "（新英雄！）" : `（重複，退還 ${refund}💎）`}`);
       renderRoster(); refreshUI();
     };
   }
@@ -165,8 +179,12 @@
       gBtn.disabled = st.gold < cost;
     }
 
-    // 抽卡按鈕
-    $("gachaBtn").disabled = st.gold < TD.config.GACHA.cost;
+    // 抽卡按鈕（花魂晶，跨局貨幣；首抽免費）
+    const meta = loadMeta();
+    const gcost = gachaCostNow(meta);
+    const gBtn2 = $("gachaBtn");
+    gBtn2.textContent = gcost === 0 ? "🎲 抽英雄（首抽免費！）" : `🎲 抽英雄 (${gcost}💎 持有 ${meta.soulCrystal})`;
+    gBtn2.disabled = meta.soulCrystal < gcost;
 
     // 建塔按鈕：金錢不足變灰、選中的高亮
     document.querySelectorAll(".tower-btn").forEach((b) => {
@@ -223,10 +241,17 @@
   }
 
   // ===== Meta 進度系統（D1：最高紀錄 + 魂晶）=====
+  // 讀檔一律用預設 shape 補齊欄位並驗證數字——舊存檔缺 soulCrystal/gachaPity 等欄位時，
+  // 直接 += 會把 meta 打成 NaN 並寫回（存檔遷移最小版，同卡牌/農場專案慣例）
   const META_KEY = "td_meta_v1";
+  const META_DEFAULT = { bestWave: 0, totalKills: 0, soulCrystal: 0, games: 0, gachaPity: 0, gachaCount: 0 };
   function loadMeta() {
-    try { return JSON.parse(localStorage.getItem(META_KEY)) || { bestWave: 0, totalKills: 0, soulCrystal: 0, games: 0 }; }
-    catch { return { bestWave: 0, totalKills: 0, soulCrystal: 0, games: 0 }; }
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(META_KEY)); } catch {}
+    const m = Object.assign({}, META_DEFAULT, raw || {});
+    for (const k of Object.keys(META_DEFAULT)) if (typeof m[k] !== "number" || isNaN(m[k])) m[k] = META_DEFAULT[k];
+    if (!m.bestByDiff || typeof m.bestByDiff !== "object") m.bestByDiff = {};
+    return m;
   }
   function saveMeta(m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch {} }
 

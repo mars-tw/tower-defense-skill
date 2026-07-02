@@ -11,7 +11,8 @@
 
 const path = require("path");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
-const { TOWERS, UPGRADE, ENEMIES, GAME, GODDESS, elementMultiplier, waveHpScale, waveGoldBonus } = cfg;
+const { TOWERS, UPGRADE, ENEMIES, GAME, GODDESS, elementMultiplier, waveHpScale, waveGoldBonus,
+        DIFFICULTIES, setDifficulty, getDifficulty } = cfg;
 
 // ===== 1. 各塔 DPS 與 CP 值分析 =====
 function towerDPS(t, level = 1) {
@@ -42,30 +43,35 @@ const cpRatio = Math.max(...cps) / Math.min(...cps);
 console.log(`  → Lv1 CP 值最高/最低比 = ${cpRatio.toFixed(2)}（建議 < 2.0，避免某塔廢掉）`);
 
 // ===== 2. 波次敵人總血量曲線 =====
-console.log("\n===== 波次強度曲線（敵人總血量）=====");
+// Boss 頻率用實際遊戲走的 getDifficulty().bossEvery，不用 GAME.bossEveryWaves——
+// 後者只是預設值，難度模式（嚴酷 bossEvery=4、無盡=3）之前完全沒被模擬到。
+console.log("\n===== 波次強度曲線（敵人總血量，普通難度）=====");
+function bossEvery() { return getDifficulty().bossEvery || GAME.bossEveryWaves; }
 function waveEnemyHp(wave) {
   const hpScale = waveHpScale(wave);
   let count = 5 + Math.floor(wave * 1.2);
-  if (wave % GAME.bossEveryWaves === 0) count = Math.floor(count * 0.5); // Boss 波小怪減半
-  // 平均敵人血量（粗估各怪混合）
-  const avgBase = (ENEMIES.slime.hp + ENEMIES.goblin.hp + ENEMIES.bat.hp + ENEMIES.orc.hp) / 4;
+  if (wave % bossEvery() === 0) count = Math.floor(count * 0.5); // Boss 波小怪減半
+  // 平均敵人血量（粗估各非 Boss 怪混合，含 Stage 1 新增的冰霜狼/火焰小鬼）
+  const normals = Object.values(ENEMIES).filter((e) => !e.boss);
+  const avgBase = normals.reduce((s, e) => s + e.hp, 0) / normals.length;
   let total = count * avgBase * hpScale;
-  if (wave % GAME.bossEveryWaves === 0) total += ENEMIES.boss.hp * hpScale * (GAME.bossHpMul || 1.0);
+  if (wave % bossEvery() === 0) total += ENEMIES.boss.hp * hpScale * (GAME.bossHpMul || 1.0);
   return Math.round(total);
 }
+setDifficulty("normal");
 const waveData = [];
 for (let w = 1; w <= 20; w++) {
   const hp = waveEnemyHp(w);
   const growth = w > 1 ? ((hp / waveData[w - 2].hp - 1) * 100).toFixed(0) : "-";
   waveData.push({ wave: w, hp, growth });
-  if (w <= 12 || w % 5 === 0) console.log(`  第 ${w} 波: 總血量 ${hp}${w % GAME.bossEveryWaves === 0 ? " (Boss波)" : ""} 較前波 +${growth}%`);
+  if (w <= 12 || w % 5 === 0) console.log(`  第 ${w} 波: 總血量 ${hp}${w % bossEvery() === 0 ? " (Boss波)" : ""} 較前波 +${growth}%`);
 }
 
-// ===== 3. 模擬：玩家防線輸出 vs 波次強度 =====
+// ===== 3. 模擬：玩家防線輸出 vs 波次強度（三個難度都要模擬）=====
 console.log("\n===== 撐波模擬（理想玩法：每波把金錢花在最高 CP 塔）=====");
 function simulate() {
   let gold = GAME.startGold;
-  let goddessHp = GODDESS.baseHp;
+  let goddessHp = GODDESS.baseHp * (getDifficulty().goddessMul || 1);
   const bestTower = Object.values(TOWERS).sort((a, b) => towerDPS(b, 1) / b.cost - towerDPS(a, 1) / a.cost)[0];
   const myTowers = []; // 場上塔（含等級），可升級
   for (let w = 1; w <= 50; w++) {
@@ -90,11 +96,17 @@ function simulate() {
     if (goddessHp <= 0) return { survivedWave: w, totalDPS: Math.round(totalDPS), towers: myTowers.length };
   }
   const totalDPS = myTowers.reduce((s, m) => s + towerDPS(m.t, m.level), 0);
-  return { survivedWave: "50+", totalDPS: Math.round(totalDPS), towers: myTowers.length };
+  return { survivedWave: 50, totalDPS: Math.round(totalDPS), towers: myTowers.length };
 }
-const result = simulate();
 console.log(`  主力塔: ${Object.values(TOWERS).sort((a,b)=>towerDPS(b,1)/b.cost-towerDPS(a,1)/a.cost)[0].name}`);
-console.log(`  純塔防（無英雄）大約撐到: 第 ${result.survivedWave} 波`);
+const simByDiff = {};
+for (const dId of Object.keys(DIFFICULTIES)) {
+  setDifficulty(dId);
+  simByDiff[dId] = simulate();
+  console.log(`  【${DIFFICULTIES[dId].label}】純塔防（無英雄）大約撐到: 第 ${simByDiff[dId].survivedWave} 波`);
+}
+setDifficulty("normal");
+const result = simByDiff.normal;
 
 // ===== 4. 健全性斷言 =====
 console.log("\n===== 平衡健全性檢查 =====");
@@ -111,9 +123,12 @@ const bossGrowths = waveData.slice(1).filter((d) => d.wave % GAME.bossEveryWaves
 const maxBoss = Math.max(...bossGrowths);
 check(maxBoss < 150, `Boss 波強度合理（最大 +${maxBoss}% < 150%，是挑戰非猝死）`);
 check(GODDESS.baseHp >= 80, `女神起始血量足夠新手（${GODDESS.baseHp}）`);
-const survived = typeof result.survivedWave === "number" ? result.survivedWave : 50;
-// D2 目標：純塔防（理想玩法）能撐 20~50 波（後期靠升級維持輸出，非第 11 波撞牆）
-check(survived >= 20, `純塔防撐波數達標（${result.survivedWave}，目標 ≥20，無中期撞牆）`);
+// D2 目標：普通難度純塔防（理想玩法）能撐 20~50 波（後期靠升級維持輸出，非第 11 波撞牆）
+check(simByDiff.normal.survivedWave >= 20, `【普通】純塔防撐波數達標（${simByDiff.normal.survivedWave}，目標 ≥20，無中期撞牆）`);
+// 高難度可以更早死（那是設計），但至少要能玩到有感（≥10 波），且不能比普通更輕鬆
+check(simByDiff.brutal.survivedWave >= 10, `【嚴酷】可玩到有感（${simByDiff.brutal.survivedWave}，目標 ≥10）`);
+check(simByDiff.endless.survivedWave >= 10, `【無盡】可玩到有感（${simByDiff.endless.survivedWave}，目標 ≥10）`);
+check(simByDiff.brutal.survivedWave <= simByDiff.normal.survivedWave, `嚴酷不比普通輕鬆（${simByDiff.brutal.survivedWave} ≤ ${simByDiff.normal.survivedWave}）`);
 
 console.log(warns === 0 ? "\n✅ 平衡檢查全部通過" : `\n⚠ ${warns} 項需注意`);
 // 有失衡警告時讓 CI 失敗，確保未來改數值不會破壞平衡

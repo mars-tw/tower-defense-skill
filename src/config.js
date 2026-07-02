@@ -45,6 +45,11 @@ const ENEMIES = {
   goblin: { id: "goblin", name: "哥布林", emoji: "👺", element: "physical", hp: 28,  speed: 80, reward: 10, leak: 1, color: "#84cc16" },
   orc:    { id: "orc",    name: "獸人",   emoji: "👹", element: "physical", hp: 120, speed: 35, reward: 18, leak: 2, color: "#b45309" },
   bat:    { id: "bat",    name: "蝙蝠群", emoji: "🦇", element: "thunder",  hp: 22,  speed: 95, reward: 7,  leak: 1, color: "#7c3aed" },
+  // Stage 1 補元素克制閉環：原本沒有冰/火系普通敵人，「火克冰」在實戰永遠打不出來，
+  // 加農砲（火）拿不到克制加成、教學跟實際對不上。現在每種元素塔都有明確克制目標：
+  // 加農砲(火)→冰霜狼、寒冰塔(冰)→蝙蝠、電磁塔(雷)→火焰小鬼（無 PNG 時自動用 emoji 畫）
+  frostwolf: { id: "frostwolf", name: "冰霜狼",   emoji: "🐺", element: "ice",  hp: 60, speed: 65, reward: 12, leak: 1, color: "#38bdf8" },
+  imp:       { id: "imp",       name: "火焰小鬼", emoji: "👿", element: "fire", hp: 45, speed: 70, reward: 10, leak: 1, color: "#f97316" },
   boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 500, speed: 28, reward: 150, leak: 8, color: "#dc2626", boss: true },
 };
 
@@ -109,11 +114,26 @@ const EVENT_WAVES = {
   treasure:{ id: "treasure",label: "寶藏波", emoji: "💰", color: "#facc15",
              desc: "擊殺獲得大量金錢", speedMul: 1.0, hpMul: 0.8, countMul: 0.8, goldMul: 3.0 },
 };
-// 決定某波是否為事件波（每 3 波檢查、避開 Boss 波、第 4 波後才有）
+// 決定某波是否為事件波（避開 Boss 波、第 5 波後才有）。
+// 條件用 wave % 3 === 2，不能用 % 3 === 0：無盡煉獄的 bossEvery=3 會讓所有
+// 3 的倍數波都是 Boss 波，事件波在該難度永遠不會出現（狂奔/精英/蟲潮/寶藏全消失）。
+// ≡2 mod 3（8,11,14,17…）跟任何 3 的倍數永不相撞，其他難度只有零星撞 Boss（該波跳過）。
 function getEventWave(wave, isBoss, rng) {
-  if (isBoss || wave < 4 || wave % 3 !== 0) return null;
+  if (isBoss || wave < 5 || wave % 3 !== 2) return null;
   const keys = Object.keys(EVENT_WAVES);
   return EVENT_WAVES[keys[Math.floor((rng || Math.random()) * keys.length)]];
+}
+
+// ===== 波次主元素傾向（D4 預告 + Stage 1 讓預告真的生效）=====
+// 之前 previewNextWave 顯示的「主🔥/❄️/⚡」是假的——startWave 出怪完全沒用它。
+// 抽成共用純函式讓預告與實際出怪讀同一個來源，並提供該主題的敵人池給出怪偏壓。
+const WAVE_THEMES = [null, "physical", "thunder", "ice", "fire"];
+function waveTheme(wave) {
+  return wave >= 4 ? WAVE_THEMES[Math.floor(wave / 3) % WAVE_THEMES.length] : null;
+}
+function themeEnemyPool(theme) {
+  const pool = Object.values(ENEMIES).filter((e) => !e.boss && e.element === theme).map((e) => e.id);
+  return pool.length ? pool : null;
 }
 
 let _difficulty = "normal";
@@ -130,8 +150,8 @@ function waveHpScale(wave) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool };
 }

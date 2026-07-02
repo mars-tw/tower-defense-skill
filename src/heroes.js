@@ -62,22 +62,43 @@ const HERO_LEVEL = {
   xpPerKill: 6,        // 每擊殺獲得經驗（乘敵人等級係數）
 };
 
-// 抽卡
+// 抽卡經濟：花「魂晶」（跨局永久貨幣，死亡結算獲得），不是每局重置的金錢——
+// 之前用場內金錢買永久英雄，重開新局就能用起始金反覆白嫖，經濟完全穿底。
+// 這同時給了魂晶第一個消耗口（原本只進不出）。
 const GACHA = {
-  cost: 100,           // 單抽花費（金錢）
-  pityLegendary: 30,   // 30 抽保底傳說（簡單保底）
+  cost: 20,            // 單抽花費（魂晶）
+  firstFree: true,     // 首抽免費（新玩家 30 秒內就能體驗盲盒，跟卡包首包免費同一套家族慣例）
+  pityLegendary: 30,   // 30 抽保底傳說
+  dupRefund: 10,       // 抽到重複英雄退還魂晶（半價補償）
 };
 
-function rollHero() {
+// rng 可注入（不給就用 Math.random）——跟農場專案同一套慣例，Node 測試才能餵固定序列
+function rollHero(rng) {
+  const rand = rng || Math.random;
   const total = Object.values(HERO_RARITY).reduce((s, r) => s + r.weight, 0);
-  let roll = Math.random() * total;
+  let roll = rand() * total;
   let picked = "common";
   for (const [key, r] of Object.entries(HERO_RARITY)) {
     if (roll < r.weight) { picked = key; break; }
     roll -= r.weight;
   }
   const pool = Object.values(HEROES).filter((h) => h.rarity === picked);
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pool[Math.floor(rand() * pool.length)];
+}
+
+// 含保底的抽卡：pityCount 是「距離上一次傳說已累積的抽數」。
+// 這一抽若達到第 pityLegendary 抽仍沒出傳說 → 強制傳說；抽到傳說（自然或保底）歸零。
+// 純函式（不碰 storage），呼叫端負責持久化回傳的 pity。
+function rollHeroWithPity(pityCount, rng) {
+  const rand = rng || Math.random;
+  let hero = rollHero(rand);
+  let pity = (pityCount || 0) + 1;
+  if (hero.rarity !== "legendary" && pity >= GACHA.pityLegendary) {
+    const pool = Object.values(HEROES).filter((h) => h.rarity === "legendary");
+    hero = pool[Math.floor(rand() * pool.length)];
+  }
+  if (hero.rarity === "legendary") pity = 0;
+  return { hero, pity };
 }
 
 // 升級所需經驗
@@ -93,8 +114,8 @@ function heroStat(hero, key) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, xpForLevel, heroStat });
+  Object.assign(window, { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, rollHeroWithPity, xpForLevel, heroStat });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, xpForLevel, heroStat };
+  module.exports = { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, rollHeroWithPity, xpForLevel, heroStat };
 }

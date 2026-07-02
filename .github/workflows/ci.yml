@@ -27,12 +27,32 @@ jobs:
           node-version: 20
       - name: 執行 config.js 測試
         run: node scripts/test-config.js
-      - name: 執行平衡模擬驗證
+      - name: 執行英雄抽卡/保底測試
+        run: node scripts/test-heroes.js
+      - name: 執行平衡模擬驗證（三難度）
         run: node scripts/sim-balance.js
+      - name: 語法檢查所有 JS
+        run: |
+          for f in src/*.js scripts/*.js; do node -c "$f" && echo "✓ $f"; done
+
+  e2e:
+    name: 塔防 E2E（真瀏覽器 桌機+手機）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 安裝 playwright + chromium
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+      - name: 跑塔防 Stage 1 E2E（魂晶經濟/首抽免費/保底/暫停/主題波/建塔重繪/RWD）
+        run: node scripts/test-td-e2e.js
 
   deploy:
     name: 部署 GitHub Pages
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:

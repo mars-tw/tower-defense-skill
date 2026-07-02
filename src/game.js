@@ -95,7 +95,8 @@
     return { cols, rows, grass, decor };
   }
 
-  // 下一波預告（D4）：回傳下一波的敵人數、是否 Boss、主元素傾向
+  // 下一波預告（D4）：回傳下一波的敵人數、是否 Boss、主元素傾向。
+  // theme 用 config 的共用 waveTheme()——startWave 出怪讀同一個來源，預告才不會是假的
   function previewNextWave() {
     const w = state.wave + 1;
     const isBoss = w % getDifficulty().bossEvery === 0;
@@ -104,9 +105,7 @@
     let count = 5 + Math.floor(w * 1.2);
     if (isBoss) count = Math.floor(count * 0.5);
     if (ev) count = Math.max(2, Math.round(count * ev.countMul));
-    const themes = [null, "physical", "thunder", "ice", "fire"];
-    const theme = w >= 4 ? themes[(Math.floor(w / 3)) % themes.length] : null;
-    return { wave: w, count, isBoss, theme, event: ev };
+    return { wave: w, count, isBoss, theme: waveTheme(w), event: ev };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -127,15 +126,22 @@
     if (isBoss) baseCount = Math.floor(baseCount * 0.5);
     if (ev) baseCount = Math.max(2, Math.round(baseCount * ev.countMul)); // 事件波調整數量
     const evHpScale = hpScale * (ev ? ev.hpMul : 1);
+    const theme = waveTheme(w);                    // 主元素傾向（與預告同一來源）
+    const themePool = theme ? themeEnemyPool(theme) : null;
     for (let i = 0; i < baseCount; i++) {
       let pick;
       if (ev && ev.forceType) { pick = ev.forceType; } // 蟲潮波強制蝙蝠
-      else {
+      else if (themePool && Math.random() < 0.55) {
+        // 主題波：過半敵人來自該元素池——預告寫「主❄️」，場上就真的以冰系為主
+        pick = themePool[Math.floor(Math.random() * themePool.length)];
+      } else {
         const r = Math.random();
         if (w < 3) pick = r < 0.7 ? "slime" : "goblin";
-        else if (r < 0.35) pick = "slime";
-        else if (r < 0.6) pick = "goblin";
-        else if (r < 0.8) pick = "bat";
+        else if (r < 0.30) pick = "slime";
+        else if (r < 0.52) pick = "goblin";
+        else if (r < 0.68) pick = "bat";
+        else if (r < 0.80) pick = "frostwolf";
+        else if (r < 0.90) pick = "imp";
         else pick = "orc";
       }
       queue.push({ type: pick, hpScale: evHpScale, event: ev });
@@ -486,10 +492,13 @@
       }
       burst(b.target.x, b.target.y, b.color, 12);
     } else if (b.pierce) {
-      // 穿透：打最近的 pierce 個
-      const near = state.enemies.filter((e) => !e._dead && Math.hypot(e.x - b.target.x, e.y - b.target.y) < 60)
-        .slice(0, b.pierce);
-      (near.length ? near : [b.target]).forEach((e) => dealDamage(e, b));
+      // 穿透：主目標一定要吃到傷害，其餘依「距主目標的距離」排序取最近的——
+      // 原本取 filter 後的前 N 個（＝生成順序），被瞄準的敵人可能反而完全沒受傷
+      const near = state.enemies
+        .filter((e) => !e._dead && Math.hypot(e.x - b.target.x, e.y - b.target.y) < 60)
+        .sort((a, c) => Math.hypot(a.x - b.target.x, a.y - b.target.y) - Math.hypot(c.x - b.target.x, c.y - b.target.y));
+      const hits = near.includes(b.target) ? near : [b.target, ...near];
+      hits.slice(0, b.pierce).forEach((e) => dealDamage(e, b));
     } else {
       dealDamage(b.target, b);
       burst(b.target.x, b.target.y, b.color, 5); // 命中爆裂小特效
@@ -618,6 +627,7 @@
   }
 
   function gameOver() {
+    if (state.over) return; // 重入保護：同一幀多隻敵人 leak 會觸發多次，魂晶/場次會被重複結算
     state.over = true; state.running = false;
     log(`💀 遊戲結束！撐到第 ${state.wave} 波，得分 ${state.score}`, "bad");
     if (typeof window.__tdGameOver === "function") window.__tdGameOver(state.wave, state.score);
@@ -1029,6 +1039,14 @@
   function bootstrap() { newGame(); state.clock = 0; state.mouse = null; render(); }
   bootstrap();
 
+  // 閒置渲染迴圈：主迴圈只在波次進行中跑（startLoop/state.running），
+  // 第一波開始前的建塔準備階段與 gameOver 後畫面完全不會重繪——
+  // 放了塔看不到、滑鼠 hover 的建塔預覽也不會動。這個迴圈只在主迴圈沒跑時輕量補渲染。
+  (function idleLoop() {
+    if (!state.running) render();
+    requestAnimationFrame(idleLoop);
+  })();
+
   // ===== 對外接口（給 UI 與測試）=====
   window.TD = {
     state: () => state,
@@ -1042,9 +1060,11 @@
     upgradeGoddess, goddessUpgradeCost,
     upgradeCost, towerStat,
     deployHero, rollHero,  // 英雄上場與抽卡
+    rollHeroWithPity,      // 含保底的抽卡（Stage 1：pity 由 ui.js 的 meta 持久化）
     previewNextWave,       // 下一波預告（D4）
     setDifficulty, getDifficulty,  // 難度模式（鉤子）
     togglePause,                   // 暫停（D10）
+    setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
     cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
     setSpeed: (s) => { state.speed = s; },
     config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES },

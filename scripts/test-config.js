@@ -5,7 +5,7 @@
 
 const path = require("path");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
-const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE } = cfg;
+const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, ACHIEVEMENTS } = cfg;
 
 let failed = 0;
 function assert(cond, msg) {
@@ -102,6 +102,14 @@ for (const e of Object.values(EVENT_WAVES)) {
   if (e.forceType && !ENEMIES[e.forceType]) badEv++;
 }
 assert(badEv === 0, `事件波欄位完整、forceType 指向存在的敵人（異常 ${badEv}）`);
+
+console.log("== Stage 3：成就目錄 ==");
+let badAch = 0;
+for (const a of Object.values(ACHIEVEMENTS || {})) {
+  if (!a.id || !a.label || !a.desc || typeof a.check !== "function" || !(a.reward >= 0)) badAch++;
+}
+assert(Object.keys(ACHIEVEMENTS || {}).length >= 8, `成就至少 8 個（實際 ${Object.keys(ACHIEVEMENTS || {}).length}）`);
+assert(badAch === 0, `成就欄位完整且 reward 合法（異常 ${badAch}）`);
 
 console.log("");
 if (failed === 0) { console.log("✅ 全部測試通過"); process.exit(0); }

@@ -1,12 +1,13 @@
 /* =========================================================================
- * test-td-e2e.js — 塔防 gate E2E（真瀏覽器）
+ * test-td-e2e.js — 塔防 E2E gate（真瀏覽器）
  *
- * 對應 Stage 1（經濟修復 + 規則一致性）驗收：
+ * 覆蓋經濟、規則一致性、排行榜/成就與 RWD：
  *   1. 抽卡花魂晶（跨局貨幣）不花場內金錢；首抽免費；魂晶不足被擋；重複退魂晶
  *   2. 抽卡動畫期間戰場暫停（敵人不偷跑）
  *   3. 建塔準備階段（第一波前）畫面有重繪——放塔立刻看得到（idle render loop）
  *   4. 波次預告的主元素跟實際出怪一致（主題波過半敵人來自該元素池）
- *   5. 開波跑起來無 console error；桌機+手機無水平溢出
+ *   5. 排行榜/成就：結算寫榜、成就發獎、overlay 暫停恢復
+ *   6. 開波跑起來無 console error；桌機+手機無水平溢出
  * 執行：node scripts/test-td-e2e.js   （需 devDependency: playwright）
  * ========================================================================= */
 const http = require("http");
@@ -163,11 +164,76 @@ async function run() {
     const running = await page.evaluate(() => ({ enemies: window.TD.state().enemies.length, over: window.TD.state().over }));
     assert(running.enemies > 0 && !running.over, `波次進行中有敵人生成（${running.enemies} 隻）`);
 
-    // 7. RWD：無水平溢出
+    // 7. Stage 3：模擬結算 → 排行榜寫入、成就解鎖與魂晶獎勵
+    const stage3Result = await page.evaluate(() => {
+      const before = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const beforeCrystal = before.soulCrystal;
+      window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty() });
+      const after = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const expectedCrystal = beforeCrystal
+        + Math.max(1, Math.round(10 * 1.5))
+        + window.ACHIEVEMENTS.wave10.reward
+        + window.ACHIEVEMENTS.kills100.reward;
+      return {
+        beforeCrystal,
+        crystal: after.soulCrystal,
+        expectedCrystal,
+        boardLen: after.board.normal.length,
+        boardWave: after.board.normal[0].wave,
+        boardScore: after.board.normal[0].score,
+        boardKills: after.board.normal[0].kills,
+        wave10: after.achievements.wave10 === true,
+        kills100: after.achievements.kills100 === true,
+        metaText: document.getElementById("metaResult").innerText,
+      };
+    });
+    assert(stage3Result.boardLen === 1 && stage3Result.boardWave === 10 && stage3Result.boardScore === 1234 && stage3Result.boardKills === 100,
+      `排行榜寫入本場紀錄（${stage3Result.boardWave} 波 / ${stage3Result.boardScore} 分 / ${stage3Result.boardKills} 殺）`);
+    assert(stage3Result.wave10 && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名"),
+      "結算畫面顯示本場名次與新解鎖成就");
+    assert(stage3Result.crystal === stage3Result.expectedCrystal,
+      `成就與結算魂晶正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
+
+    // 8. Stage 3：排行榜/成就 overlay 顯示資料，開啟暫停、關閉恢復
+    const progressOverlay = await page.evaluate(() => {
+      document.getElementById("overlay").classList.remove("show");
+      window.TD.setPaused(false);
+      document.getElementById("boardBtn").click();
+      const pausedOpen = window.TD.state().paused;
+      const shown = document.getElementById("progressOverlay").classList.contains("show");
+      const boardText = document.getElementById("boardList").innerText;
+      const achText = document.getElementById("achievementList").innerText;
+      document.getElementById("progressClose").click();
+      return { shown, pausedOpen, pausedClose: window.TD.state().paused, boardText, achText };
+    });
+    assert(progressOverlay.shown && progressOverlay.boardText.includes("第 10 波") && progressOverlay.boardText.includes("1234"),
+      "排行榜 overlay 顯示結算後的前 10 名紀錄");
+    assert(progressOverlay.achText.includes("站穩防線") && progressOverlay.achText.includes("百人斬"),
+      "成就 overlay 顯示已解鎖與未解鎖清單");
+    assert(progressOverlay.pausedOpen === true && progressOverlay.pausedClose === false,
+      "排行榜 overlay 開啟時暫停，關閉後恢復");
+
+    // 9. Stage 3 回歸：overlay 開啟後 Enter 不得重入或觸發底下按鈕
+    await page.click("#boardBtn");
+    await page.keyboard.press("Enter");
+    const progressEnter = await page.evaluate(() => ({
+      progressShown: document.getElementById("progressOverlay").classList.contains("show"),
+      gachaShown: document.getElementById("gachaOverlay").classList.contains("show"),
+      pausedAfterEnter: window.TD.state().paused,
+    }));
+    await page.click("#progressClose");
+    const progressAfterClose = await page.evaluate(() => ({
+      paused: window.TD.state().paused,
+      gachaShown: document.getElementById("gachaOverlay").classList.contains("show"),
+    }));
+    assert(progressEnter.progressShown && progressEnter.pausedAfterEnter === true && progressAfterClose.paused === false && progressEnter.gachaShown === false && progressAfterClose.gachaShown === false,
+      "排行榜 overlay 開啟後按 Enter 不重入，關閉後恢復且不會同時開啟抽卡 overlay");
+
+    // 10. RWD：無水平溢出
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(overflow <= 2, `無水平溢出（${overflow}）`);
 
-    // 8. 全程無 console error / pageerror
+    // 11. 全程無 console error / pageerror
     assert(errors.length === 0, "無 console 錯誤 / pageerror" + (errors.length ? "：" + errors.slice(0, 3).join(" | ") : ""));
 
     await page.close();
@@ -177,7 +243,7 @@ async function run() {
     server.close();
   }
   if (failed > 0) { console.error("\n❌ " + failed + " 項失敗"); process.exit(1); }
-  console.log("\n✅ 塔防 Stage 1 E2E 全部通過");
+  console.log("\n✅ 塔防 E2E 全部通過");
 }
 
 run().catch((err) => { console.error(err); process.exit(1); });

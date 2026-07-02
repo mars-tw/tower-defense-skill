@@ -8,6 +8,8 @@
   const { TOWERS, SKILLS } = TD.config;
   const $ = (id) => document.getElementById(id);
   const RULES = window.TDRules;
+  let selectedBoardDiff = TD.getDifficulty().id;
+  let progressWasPaused = false;
 
   // 元素圖示與克制提示（D3 元素克制可見化）
   const ELEM_ICON = { physical: "⚔️", fire: "🔥", ice: "❄️", thunder: "⚡" };
@@ -62,12 +64,18 @@
     try { localStorage.setItem(HERO_SAVE, JSON.stringify([...ownedHeroes])); } catch {}
   }
 
+  function syncPauseButton(paused) {
+    $("pauseBtn").textContent = paused ? "▶" : "⏸";
+    $("pauseBtn").classList.toggle("paused", paused);
+  }
+
   // 抽卡花「魂晶」（跨局永久貨幣），不是場內金錢——場內金錢每局重置，
   // 拿它買永久英雄等於重開新局就能無限白嫖。首抽免費讓新玩家先體驗盲盒。
   function gachaCostNow(meta) {
     return (TD.config.GACHA.firstFree && (meta.gachaCount || 0) === 0) ? 0 : TD.config.GACHA.cost;
   }
   function doGacha() {
+    if ($("progressOverlay").classList.contains("show")) return;
     const meta = loadMeta();
     const cost = gachaCostNow(meta);
     if (meta.soulCrystal < cost) { pushLog(`魂晶不足（需 ${cost}💎，戰敗結算可獲得）`, "bad"); return; }
@@ -253,17 +261,104 @@
     try { localStorage.setItem(META_KEY, JSON.stringify(RULES.migrateMeta(m))); } catch {}
   }
 
+  function formatDate(ts) {
+    try { return new Date(ts).toLocaleDateString("zh-TW"); }
+    catch { return "未知日期"; }
+  }
+
+  function renderBoardTabs(meta) {
+    const box = $("boardTabs"); box.innerHTML = "";
+    Object.values(TD.config.DIFFICULTIES).forEach((d) => {
+      const btn = document.createElement("button");
+      btn.className = "progress-tab" + (selectedBoardDiff === d.id ? " active" : "");
+      btn.textContent = `${d.emoji} ${d.label}`;
+      btn.onclick = () => { selectedBoardDiff = d.id; renderProgressOverlay(loadMeta()); };
+      box.appendChild(btn);
+    });
+  }
+
+  function renderBoardList(meta) {
+    const box = $("boardList"); box.innerHTML = "";
+    const entries = (meta.board && meta.board[selectedBoardDiff]) || [];
+    if (!entries.length) {
+      box.innerHTML = '<div class="empty-state">還沒有紀錄，完成一局就會寫入排行榜。</div>';
+      return;
+    }
+    entries.forEach((entry, idx) => {
+      const row = document.createElement("div");
+      row.className = "board-row";
+      row.innerHTML = `
+        <div class="board-rank">#${idx + 1}</div>
+        <div class="board-main"><b>第 ${entry.wave} 波</b> · ${entry.score} 分<br><span class="board-sub">擊殺 ${entry.kills} 名敵人</span></div>
+        <div class="board-date">${formatDate(entry.at)}</div>`;
+      box.appendChild(row);
+    });
+  }
+
+  function renderAchievements(meta) {
+    const box = $("achievementList"); box.innerHTML = "";
+    Object.values(TD.config.ACHIEVEMENTS).forEach((ach) => {
+      const unlocked = meta.achievements && meta.achievements[ach.id] === true;
+      const row = document.createElement("div");
+      row.className = "achievement-row" + (unlocked ? "" : " locked");
+      row.innerHTML = `
+        <div class="achievement-icon">${unlocked ? "✅" : "🔒"}</div>
+        <div>
+          <div class="achievement-name">${ach.label}</div>
+          <div class="achievement-desc">${ach.desc}</div>
+        </div>
+        <div class="achievement-reward">+${ach.reward}💎</div>`;
+      box.appendChild(row);
+    });
+  }
+
+  function renderProgressOverlay(meta) {
+    const m = meta || loadMeta();
+    renderBoardTabs(m);
+    renderBoardList(m);
+    renderAchievements(m);
+  }
+
+  function openProgressOverlay() {
+    if ($("progressOverlay").classList.contains("show")) return;
+    selectedBoardDiff = TD.getDifficulty().id;
+    progressWasPaused = !!TD.state().paused;
+    TD.setPaused(true);
+    syncPauseButton(true);
+    renderProgressOverlay();
+    $("progressOverlay").classList.add("show");
+  }
+
+  function closeProgressOverlay() {
+    $("progressOverlay").classList.remove("show");
+    if (!progressWasPaused && !TD.state().over) {
+      TD.setPaused(false);
+      syncPauseButton(false);
+    }
+  }
+
   // ===== 遊戲結束（含 meta 結算 + 分享鉤子）=====
   function onGameOver(wave, score, run) {
     const diff = TD.getDifficulty();
+    const kills = (run && run.kills) || 0;
     const settlement = RULES.settleRunRewards({
       meta: loadMeta(),
       wave,
       score,
-      kills: run && run.kills,
+      kills,
       difficulty: (run && run.difficulty) || diff,
     });
-    const meta = settlement.meta;
+    const boardResult = RULES.updateBoard(settlement.meta.board, diff.id, { wave, score, kills, at: Date.now() });
+    const withBoard = Object.assign({}, settlement.meta, { board: boardResult.board });
+    const achievementResult = RULES.evaluateAchievements(withBoard, {
+      wave,
+      score,
+      kills,
+      difficultyId: diff.id,
+      ownedHeroCount: ownedHeroes.size,
+      totalHeroCount: Object.keys(TD.config.HEROES).length,
+    });
+    const meta = achievementResult.meta;
     const earned = settlement.earned;
     const isRecord = settlement.isRecord;
     saveMeta(meta);
@@ -276,10 +371,18 @@
       const isHard = diff.id !== "normal";
       const repoUrl = "https://github.com/mars-tw/tower-defense-skill";
       const shareText = `我在「無盡塔防」${diff.label}難度撐到第 ${wave} 波！得分 ${score} 🏰`;
+      const rankLine = boardResult.rank
+        ? `<div class="rank-line">🏆 本場第 ${boardResult.rank} 名！</div>`
+        : '<div class="meta-sub">這場未進榜，再調整塔陣挑戰前 10 名。</div>';
+      const unlockLine = achievementResult.unlocked.length
+        ? `<div class="unlock-list">${achievementResult.unlocked.map((ach) => `<div>🎖️ 解鎖「${ach.label}」 +${ach.reward}💎</div>`).join("")}</div>`
+        : '<div class="meta-sub">本場沒有新成就。</div>';
       metaLine.innerHTML = `
         <div class="diff-tag" style="color:${diff.color}">${diff.emoji} ${diff.label}難度</div>
+        ${rankLine}
         ${isRecord ? '<div class="record">🎉 新紀錄！</div>' : `<div>此難度最高：第 ${meta.bestByDiff[diff.id]} 波</div>`}
         <div>💎 獲得魂晶 +${earned}（共 ${meta.soulCrystal}）</div>
+        ${unlockLine}
         <div class="hook">${isHard || wave >= 10 ? "覺得難？" : ""}<b>分享你的攻略</b>，讓大家膜拜你的塔陣！</div>
         <div class="share-row">
           <button class="share-btn" id="copyResult">📋 複製戰績</button>
@@ -301,6 +404,8 @@
   $("startBtn").onclick = () => { TD.startWave(); refreshUI(); };
   $("goddessBtn").onclick = () => { TD.upgradeGoddess(); refreshUI(); };
   $("gachaBtn").onclick = () => { doGacha(); };
+  $("boardBtn").onclick = () => { openProgressOverlay(); };
+  $("progressClose").onclick = () => { closeProgressOverlay(); };
   $("restartBtn").onclick = () => {
     $("overlay").classList.remove("show"); TD.newGame();
     deployedThisGame = new Set(); renderRoster(); refreshUI();
@@ -317,12 +422,16 @@
   // 抽卡盲盒開著時忽略暫停熱鍵：動畫期間是強制暫停，玩家再按 P/空白鍵切換會讓
   // playGachaAnimation 記錄的 wasPaused 對不上，關閉浮層後戰場暫停狀態錯亂
   $("pauseBtn").onclick = () => {
-    if ($("gachaOverlay").classList.contains("show")) return;
+    if ($("gachaOverlay").classList.contains("show") || $("progressOverlay").classList.contains("show")) return;
     const paused = TD.togglePause();
-    $("pauseBtn").textContent = paused ? "▶" : "⏸";
-    $("pauseBtn").classList.toggle("paused", paused);
+    syncPauseButton(paused);
   };
   document.addEventListener("keydown", (e) => {
+    if ($("progressOverlay").classList.contains("show")) {
+      if (e.code === "Escape") { e.preventDefault(); closeProgressOverlay(); }
+      else { e.preventDefault(); }
+      return;
+    }
     if (e.code === "Space" || e.key === "p" || e.key === "P") { e.preventDefault(); $("pauseBtn").click(); }
     else if (e.code === "Escape") { TD.cancelSelect(); }
   });

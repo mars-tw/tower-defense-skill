@@ -15,7 +15,7 @@
     ? require("./config.js")
     : root;
 
-  const META_VERSION = 2;
+  const META_VERSION = 3;
   const META_NUMERIC_KEYS = ["bestWave", "totalKills", "soulCrystal", "games", "gachaPity", "gachaCount"];
   const META_DEFAULT = {
     version: META_VERSION,
@@ -26,6 +26,8 @@
     gachaPity: 0,
     gachaCount: 0,
     bestByDiff: {},
+    board: {},
+    achievements: {},
   };
 
   function isFiniteNumber(value) {
@@ -45,6 +47,44 @@
     return result;
   }
 
+  function sanitizeBoardEntry(entry) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+    if (!isFiniteNumber(entry.wave) || !isFiniteNumber(entry.score) || !isFiniteNumber(entry.kills) || !isFiniteNumber(entry.at)) return null;
+    return {
+      wave: Math.max(0, Math.floor(entry.wave)),
+      score: Math.max(0, Math.floor(entry.score)),
+      kills: Math.max(0, Math.floor(entry.kills)),
+      at: entry.at,
+    };
+  }
+
+  function compareBoardEntry(a, b) {
+    if (b.wave !== a.wave) return b.wave - a.wave;
+    if (b.score !== a.score) return b.score - a.score;
+    return b.at - a.at;
+  }
+
+  function sanitizeBoard(board, maxEntries) {
+    const limit = Math.max(1, Math.floor(safeNumber(maxEntries, 10)));
+    const result = {};
+    if (!board || typeof board !== "object" || Array.isArray(board)) return result;
+    for (const [diffId, entries] of Object.entries(board)) {
+      if (!Array.isArray(entries)) continue;
+      const clean = entries.map(sanitizeBoardEntry).filter(Boolean).sort(compareBoardEntry).slice(0, limit);
+      if (clean.length) result[diffId] = clean;
+    }
+    return result;
+  }
+
+  function sanitizeAchievements(value) {
+    const result = {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+    for (const [key, unlocked] of Object.entries(value)) {
+      if (unlocked === true) result[key] = true;
+    }
+    return result;
+  }
+
   function migrateMeta(raw) {
     const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     const meta = Object.assign({}, META_DEFAULT, source);
@@ -53,6 +93,8 @@
     }
     meta.version = META_VERSION;
     meta.bestByDiff = sanitizeBestByDiff(meta.bestByDiff);
+    meta.board = sanitizeBoard(meta.board);
+    meta.achievements = sanitizeAchievements(meta.achievements);
     return meta;
   }
 
@@ -151,6 +193,28 @@
     return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale, queue };
   }
 
+  function updateBoard(board, diffId, entry, maxEntries) {
+    const limit = Math.max(1, Math.floor(safeNumber(maxEntries, 10)));
+    const id = typeof diffId === "string" && diffId ? diffId : "normal";
+    const cleanBoard = sanitizeBoard(board, limit);
+    const cleanEntry = sanitizeBoardEntry(entry);
+    const nextBoard = Object.assign({}, cleanBoard);
+    if (!cleanEntry) return { board: nextBoard, rank: null };
+
+    const candidate = Object.assign({}, cleanEntry, { _candidate: true });
+    const all = (cleanBoard[id] || []).map((item) => Object.assign({}, item)).concat(candidate);
+    all.sort(compareBoardEntry);
+    const candidateIndex = all.indexOf(candidate);
+    const rank = candidateIndex >= 0 && candidateIndex < limit ? candidateIndex + 1 : null;
+    nextBoard[id] = all.slice(0, limit).map((item) => ({
+      wave: item.wave,
+      score: item.score,
+      kills: item.kills,
+      at: item.at,
+    }));
+    return { board: nextBoard, rank };
+  }
+
   function settleRunRewards(state) {
     const input = state || {};
     const meta = migrateMeta(input.meta);
@@ -172,6 +236,27 @@
     return { meta: nextMeta, earned, isRecord, previousBest, difficultyId: diffId, wave, kills };
   }
 
+  function evaluateAchievements(meta, context) {
+    const baseMeta = migrateMeta(meta);
+    const ctx = Object.assign({}, context || {});
+    const nextMeta = Object.assign({}, baseMeta, { achievements: Object.assign({}, baseMeta.achievements) });
+    const unlocked = [];
+    const achievements = cfg.ACHIEVEMENTS || {};
+
+    for (const ach of Object.values(achievements)) {
+      if (!ach || !ach.id || nextMeta.achievements[ach.id] === true || typeof ach.check !== "function") continue;
+      let passed = false;
+      try { passed = ach.check(nextMeta, ctx) === true; } catch { passed = false; }
+      if (!passed) continue;
+      const reward = isFiniteNumber(ach.reward) ? ach.reward : 0;
+      nextMeta.achievements[ach.id] = true;
+      nextMeta.soulCrystal += reward;
+      unlocked.push({ id: ach.id, label: ach.label, desc: ach.desc, reward });
+    }
+
+    return { unlocked, meta: nextMeta };
+  }
+
   return {
     META_VERSION,
     META_DEFAULT,
@@ -179,5 +264,7 @@
     settleRunRewards,
     applyDifficulty,
     generateWaveQueue,
+    updateBoard,
+    evaluateAchievements,
   };
 });

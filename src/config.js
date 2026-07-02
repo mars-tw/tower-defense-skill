@@ -139,6 +139,27 @@ function themeEnemyPool(theme) {
   return pool.length ? pool : null;
 }
 
+// ===== 長期目標成就（Stage 3）=====
+// check(meta, context) 必須保持純判斷；獎勵發放由 rules.js 的 evaluateAchievements() 處理。
+const ACHIEVEMENTS = {
+  wave10: { id: "wave10", label: "站穩防線", desc: "單場撐到第 10 波", reward: 10,
+            check: (meta, ctx = {}) => (ctx.wave || 0) >= 10 },
+  wave20: { id: "wave20", label: "老練指揮官", desc: "單場撐到第 20 波", reward: 25,
+            check: (meta, ctx = {}) => (ctx.wave || 0) >= 20 },
+  wave30: { id: "wave30", label: "無盡守護者", desc: "單場撐到第 30 波", reward: 50,
+            check: (meta, ctx = {}) => (ctx.wave || 0) >= 30 },
+  kills100: { id: "kills100", label: "百人斬", desc: "累計擊殺 100 名敵人", reward: 15,
+              check: (meta) => (meta.totalKills || 0) >= 100 },
+  kills1000: { id: "kills1000", label: "千敵破陣", desc: "累計擊殺 1000 名敵人", reward: 50,
+               check: (meta) => (meta.totalKills || 0) >= 1000 },
+  games10: { id: "games10", label: "十戰磨練", desc: "累計完成 10 局", reward: 20,
+             check: (meta) => (meta.games || 0) >= 10 },
+  games50: { id: "games50", label: "百折不撓", desc: "累計完成 50 局", reward: 50,
+             check: (meta) => (meta.games || 0) >= 50 },
+  heroesAll: { id: "heroesAll", label: "英雄集結", desc: "收集全部英雄", reward: 40,
+               check: (meta, ctx = {}) => (ctx.ownedHeroCount || 0) >= (ctx.totalHeroCount || 1) },
+};
+
 let _difficulty = "normal";
 function setDifficulty(id) { if (DIFFICULTIES[id]) _difficulty = id; }
 function getDifficulty() { return DIFFICULTIES[_difficulty] || DIFFICULTIES.normal; }
@@ -153,8 +174,8 @@ function waveHpScale(wave) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS };
 }

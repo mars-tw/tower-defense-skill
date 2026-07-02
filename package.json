@@ -4,7 +4,7 @@
   "description": "純原生網頁無盡塔防遊戲 — Claude Code Skill。零依賴 HTML/CSS/JS + Canvas，英雄抽卡、難度模式，localStorage 存檔。",
   "type": "commonjs",
   "scripts": {
-    "test": "node scripts/test-config.js && node scripts/test-heroes.js && node scripts/test-rules.js && node scripts/sim-balance.js",
+    "test": "node scripts/test-config.js && node scripts/test-heroes.js && node scripts/test-rules.js && node scripts/test-board.js && node scripts/sim-balance.js",
     "test:e2e": "node scripts/test-td-e2e.js",
     "start": "python -m http.server 8000"
   },

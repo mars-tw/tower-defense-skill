@@ -31,6 +31,8 @@ jobs:
         run: node scripts/test-heroes.js
       - name: 執行純規則函式測試
         run: node scripts/test-rules.js
+      - name: 執行排行榜與成就測試
+        run: node scripts/test-board.js
       - name: 執行平衡模擬驗證（三難度）
         run: node scripts/sim-balance.js
       - name: 語法檢查所有 JS

@@ -225,26 +225,58 @@ Boss 波會在 queue 尾端追加 `{ type: "boss", hpScale: hpScale * GAME.bossH
 
 `rollHero(rng)` 與 `rollHeroWithPity(pityCount, rng)` 都是純函式；呼叫端負責扣魂晶、保存 `gachaPity` 與 `gachaCount`。
 
+## 成就目錄 `ACHIEVEMENTS`
+
+成就目錄放在 `src/config.js`，`check(meta, context)` 只做純判斷；一次性標記與魂晶獎勵由 `rules.js` 的 `evaluateAchievements(meta, context)` 處理。
+
+| id | 名稱 | 條件 | 獎勵 |
+|---|---|---|---:|
+| `wave10` | 站穩防線 | 單場撐到第 10 波 | 10💎 |
+| `wave20` | 老練指揮官 | 單場撐到第 20 波 | 25💎 |
+| `wave30` | 無盡守護者 | 單場撐到第 30 波 | 50💎 |
+| `kills100` | 百人斬 | 累計擊殺 100 名敵人 | 15💎 |
+| `kills1000` | 千敵破陣 | 累計擊殺 1000 名敵人 | 50💎 |
+| `games10` | 十戰磨練 | 累計完成 10 局 | 20💎 |
+| `games50` | 百折不撓 | 累計完成 50 局 | 50💎 |
+| `heroesAll` | 英雄集結 | 收集全部英雄 | 40💎 |
+
+獎勵設計落在 10～50 魂晶：早期成就給小額回饋，中後期里程碑與全收集給較高獎勵，但不高於 3 抽以避免抽卡經濟失衡。
+
 ## Meta 存檔與死亡結算
 
 localStorage key 仍為 `td_meta_v1`，資料本體由 `rules.js` 加入 `version` 欄位。
 
-目前 `META_VERSION = 2`，`META_DEFAULT`：
+目前 `META_VERSION = 3`，`META_DEFAULT`：
 
 ```js
 {
-  version: 2,
+  version: 3,
   bestWave: 0,
   totalKills: 0,
   soulCrystal: 0,
   games: 0,
   gachaPity: 0,
   gachaCount: 0,
-  bestByDiff: {}
+  bestByDiff: {},
+  board: {},
+  achievements: {}
 }
 ```
 
-`migrateMeta(raw)` 會用 `DEFAULT + Object.assign` 補欄位，並把非數字、`NaN`、`Infinity` 的數值欄位修回預設值；`bestByDiff` 只保留有限數字。
+`migrateMeta(raw)` 會用 `DEFAULT + Object.assign` 補欄位，並把非數字、`NaN`、`Infinity` 的數值欄位修回預設值；`bestByDiff` 只保留有限數字。v1（無 version）與 v2 存檔會無損升級到 v3。
+
+新增巢狀欄位：
+
+```js
+board: {
+  [diffId]: [{ wave, score, kills, at }]
+},
+achievements: {
+  [achId]: true
+}
+```
+
+`board` 每個難度只保留合法陣列項，非法項會丟棄；`achievements` 非物件會重置，只保留值為 `true` 的解鎖標記。
 
 `settleRunRewards(state)` 簽名：
 
@@ -274,6 +306,21 @@ earnedSoulCrystal = Math.max(1, Math.round(wave * 1.5))
 
 函式不改動傳入的 `meta`，而是回傳 `{ meta, earned, isRecord, previousBest, difficultyId, wave, kills }`。
 
+`updateBoard(board, diffId, entry, maxEntries = 10)`：
+
+- 回傳 `{ board, rank }`
+- 不改動傳入的 `board`
+- 依 `wave` 降冪排序，同 `wave` 依 `score` 降冪
+- 每個難度最多保留前 10 名
+- 新紀錄未進榜時 `rank` 為 `null`
+
+`evaluateAchievements(meta, context)`：
+
+- 回傳 `{ unlocked, meta }`
+- 不改動傳入的 `meta`
+- 只發放尚未解鎖的成就獎勵
+- 會把新成就寫入 `meta.achievements`，並把一次性魂晶獎勵加到 `meta.soulCrystal`
+
 ## 測試入口
 
 | 測試 | 覆蓋 |
@@ -281,5 +328,6 @@ earnedSoulCrystal = Math.max(1, Math.round(wave * 1.5))
 | `node scripts/test-config.js` | 設定 shape、元素克制、事件波與難度基本健全性 |
 | `node scripts/test-heroes.js` | 抽卡、權重、保底 |
 | `node scripts/test-rules.js` | meta 遷移、死亡結算、波次組隊、難度係數 |
+| `node scripts/test-board.js` | 排行榜排序/截斷/名次、成就獎勵、v3 遷移污染清洗 |
 | `node scripts/sim-balance.js` | 三難度平衡煙霧測試 |
-| `node scripts/test-td-e2e.js` | 真瀏覽器流程、抽卡經濟、主題波、RWD |
+| `node scripts/test-td-e2e.js` | 真瀏覽器流程、抽卡經濟、主題波、排行榜/成就 overlay、RWD |

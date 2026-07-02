@@ -94,6 +94,7 @@
   .goddess-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
   .gacha-btn { background: linear-gradient(180deg,#a855f7,#7c3aed); color: #fff; width: 100%; }
   .gacha-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
+  .board-btn { background: linear-gradient(180deg,#facc15,#f59e0b); color: #241707; width: 100%; }
   #heroRoster { display: flex; flex-direction: column; gap: 6px; }
   .hero-card { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 10px;
     background: var(--surface-1); border: 1px solid var(--hr-color,var(--border-soft));
@@ -171,6 +172,47 @@
     padding: 12px 36px; border-radius: 24px; font-size: 16px; font-weight: 800; cursor: pointer;
     z-index: 2; position: relative; margin-top: 8px; }
 
+  /* ===== 排行榜 / 成就 ===== */
+  .progress-overlay { position: fixed; inset: 0; background: rgba(6,10,8,.93); display: none;
+    align-items: center; justify-content: center; z-index: 105; padding: 14px; }
+  .progress-overlay.show { display: flex; }
+  .progress-card { width: min(900px, 96vw); max-height: min(720px, 92vh); overflow: hidden;
+    background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+    border: 1px solid var(--border-hi); border-radius: 18px; box-shadow: var(--shadow-pop);
+    display: flex; flex-direction: column; }
+  .progress-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 16px 18px; border-bottom: 1px solid var(--border-soft); }
+  .progress-head h2 { font-size: 22px; color: var(--gold); }
+  .progress-close { width: 42px; height: 42px; border: 1px solid var(--border-hi); border-radius: 12px;
+    background: var(--surface-2); color: var(--ink); font-size: 20px; font-weight: 900; cursor: pointer; }
+  .progress-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 14px; padding: 14px;
+    overflow: auto; }
+  .progress-section h3 { font-size: 14px; color: var(--ink-dim); margin-bottom: 8px; }
+  .progress-tabs { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .progress-tab { border: 1px solid var(--border-soft); background: var(--surface-1); color: var(--ink);
+    border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 800; cursor: pointer; }
+  .progress-tab.active { color: #06140b; background: var(--accent); border-color: var(--accent); }
+  .board-list { display: flex; flex-direction: column; gap: 6px; list-style: none; }
+  .board-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border-soft); border-radius: 10px; padding: 9px 10px; }
+  .board-rank { font-weight: 900; color: var(--gold); text-align: center; }
+  .board-main { font-size: 13px; line-height: 1.35; }
+  .board-main b { color: var(--ink); }
+  .board-sub { font-size: 11px; color: var(--ink-meta); }
+  .board-date { font-size: 11px; color: var(--ink-dim); white-space: nowrap; }
+  .empty-state { padding: 18px; border-radius: 12px; background: rgba(255,255,255,.04); color: var(--ink-dim);
+    text-align: center; font-size: 13px; }
+  .achievement-list { display: grid; gap: 7px; }
+  .achievement-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border-soft); border-radius: 10px; padding: 9px 10px; }
+  .achievement-row.locked { opacity: .48; filter: grayscale(.35); }
+  .achievement-icon { font-size: 18px; text-align: center; }
+  .achievement-name { font-size: 13px; font-weight: 900; color: var(--ink); }
+  .achievement-desc { font-size: 11px; color: var(--ink-dim); line-height: 1.35; }
+  .achievement-reward { color: var(--gold); font-weight: 900; font-size: 12px; white-space: nowrap; }
+  .unlock-list { display: grid; gap: 4px; color: var(--gold); font-size: 13px; }
+  .rank-line { font-size: 15px; font-weight: 900; color: var(--info); }
+
   @keyframes chestFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
   @keyframes chestShake { 0%,100%{transform:translateX(0) rotate(0)} 20%{transform:translateX(-8px) rotate(-4deg)} 40%{transform:translateX(8px) rotate(4deg)} 60%{transform:translateX(-6px) rotate(-3deg)} 80%{transform:translateX(6px) rotate(3deg)} }
   @keyframes chestPop { to { transform: scale(1.8); opacity: 0; } }
@@ -247,6 +289,11 @@
     #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card { min-width: 120px; }
     .reveal-hero { font-size: 80px; } .reveal-hero img { width: 110px; height: 110px; }
     .chest-body { font-size: 80px; }
+    .progress-grid { grid-template-columns: 1fr; padding: 10px; }
+    .progress-head { padding: 12px; }
+    .progress-head h2 { font-size: 18px; }
+    .board-row { grid-template-columns: 28px 1fr; }
+    .board-date { grid-column: 2; }
   }
 </style>
 </head>
@@ -274,6 +321,7 @@
         <button class="act pause" id="pauseBtn">⏸</button>
       </div>
       <button class="act goddess-btn" id="goddessBtn">👸 升級女神</button>
+      <button class="act board-btn" id="boardBtn">🏆 排行榜/成就</button>
 
       <h3>🗼 建造砲塔</h3>
       <div id="towerList"></div>
@@ -318,6 +366,27 @@
         <div class="reveal-name" id="revealName"></div>
         <div class="reveal-rarity" id="revealRarity"></div>
         <button class="reveal-ok" id="revealOk">收下</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 排行榜 / 成就 -->
+  <div class="progress-overlay" id="progressOverlay">
+    <div class="progress-card">
+      <div class="progress-head">
+        <h2>🏆 排行榜 / 成就</h2>
+        <button class="progress-close" id="progressClose" aria-label="關閉">×</button>
+      </div>
+      <div class="progress-grid">
+        <section class="progress-section">
+          <h3>排行榜</h3>
+          <div class="progress-tabs" id="boardTabs"></div>
+          <div class="board-list" id="boardList"></div>
+        </section>
+        <section class="progress-section">
+          <h3>成就</h3>
+          <div class="achievement-list" id="achievementList"></div>
+        </section>
       </div>
     </div>
   </div>

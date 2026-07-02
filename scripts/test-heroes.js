@@ -1,6 +1,6 @@
 /* =========================================================================
  * test-heroes.js — 英雄抽卡/保底/經濟設定測試（CI 用，零依賴）
- * Stage 1 驗收：rng 可注入（確定性測試）、30 抽保底傳說、傳說歸零 pity、
+ * Stage 1/5 驗收：rng 可注入（確定性測試）、18 抽保底傳說、傳說歸零 pity、
  *               抽卡經濟常數 shape（魂晶/首抽免費/重複補償）
  * 執行：node scripts/test-heroes.js
  * ========================================================================= */
@@ -18,8 +18,10 @@ console.log("== 1. 抽卡經濟設定 shape ==");
 assert(typeof GACHA.cost === "number" && GACHA.cost > 0, `GACHA.cost 為正數（${GACHA.cost} 魂晶）`);
 assert(GACHA.firstFree === true, "首抽免費（新玩家 30 秒內體驗盲盒）");
 assert(typeof GACHA.pityLegendary === "number" && GACHA.pityLegendary > 0, `保底抽數設定存在（${GACHA.pityLegendary}）`);
+assert(GACHA.pityLegendary === 18, "傳說保底為 18 抽");
 assert(typeof GACHA.dupRefund === "number" && GACHA.dupRefund > 0 && GACHA.dupRefund < GACHA.cost,
   `重複補償為正且低於單抽成本（${GACHA.dupRefund} < ${GACHA.cost}）`);
+assert(GACHA.dupRefund === 12, "重複補償為 12 魂晶");
 
 console.log("\n== 2. rollHero：rng 可注入、回傳合法英雄 ==");
 {
@@ -42,7 +44,7 @@ assert(_silentFail === 0, "大量抽樣全部回傳合法英雄");
 console.log("\n== 3. rollHeroWithPity：保底與歸零 ==");
 {
   // 用「永遠抽 common」的 rng 驗證保底（權重表順序 common→legendary，roll 趨近 0 落在 common）：
-  // 前 29 抽都不是傳說時，第 30 抽必須強制傳說
+  // 保底前都不是傳說時，保底那抽必須強制傳說
   const alwaysCommonRng = () => 0.01;
   let pity = 0;
   let sawForcedLegendary = false;

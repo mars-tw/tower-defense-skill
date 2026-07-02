@@ -8,14 +8,16 @@
 |---|---|---|---:|---:|---:|---:|---|
 | `arrow` | 弓箭塔 | `physical` | 110 | 10 | 2.0 | 50 | 單體高速 |
 | `cannon` | 加農砲 | `fire` | 95 | 26 | 0.75 | 100 | `splash: 50` |
-| `frost` | 寒冰塔 | `ice` | 105 | 11 | 1.3 | 80 | `slow: 0.5` |
+| `frost` | 寒冰塔 | `ice` | 105 | 11 | 1.45 | 70 | `slow: 0.5` |
 | `tesla` | 電磁塔 | `thunder` | 95 | 14 | 1.4 | 130 | `pierce: 3` |
 | `poison` | 毒霧塔 | `physical` | 100 | 7 | 1.15 | 90 | `poisonDps: 6`、`poisonDuration: 4`、`poisonMaxStacks: 3` |
-| `support` | 聖光塔 | `physical` | 125 | 0 | 0 | 140 | `support: true`、`buff: 0.25`、`buffPerLevel: 0.03` |
+| `support` | 聖光塔 | `physical` | 125 | 0 | 0 | 110 | `support: true`、`buff: 0.20`、`buffPerLevel: 0.04` |
 
 毒霧塔命中後附加毒素 DoT，毒素是狀態不是元素：直接傷害仍走 `physical`，DoT 每秒扣本體血量、最多 3 層、持續 4 秒。Boss 受到毒素 DoT 傷害減半。盾兵護盾不會吸收 DoT，毒只咬本體血。毒傷浮字由每敵累積傷害後顯示整數，避免每幀出現 0 傷害浮字。
 
-聖光塔不攻擊敵人；攻擊塔發射時會查詢範圍內所有聖光塔，只套用最高增傷，不疊加多座聖光塔。升級會透過 `UPGRADE.rangeMul` 提升範圍，並以 `buffPerLevel` 每級增加 3% 增傷。
+聖光塔不攻擊敵人；攻擊塔發射時會查詢範圍內所有聖光塔，只套用最高增傷，不疊加多座聖光塔。升級會透過 `UPGRADE.rangeMul` 提升範圍，並以 `buffPerLevel` 每級增加 4% 增傷。UI 會顯示目前範圍內受益塔折算的 `+X DPS`，協助玩家判斷是否值得投資。
+
+Stage 5 定位調整：寒冰塔造價降到 70、攻速升到 1.45，讓它更早成為控場入口；聖光塔造價降到 110、基礎增傷降到 20%，每級增傷改為 +4%，讓支援塔更早可用但需要升級才拉開後期價值。
 
 升級曲線 `UPGRADE`：
 
@@ -248,8 +250,8 @@ Boss 波會在 queue 尾端追加 `{ type: "boss", hpScale: hpScale * GAME.bossH
 |---|---:|---|
 | `cost` | 20 | 單抽魂晶花費 |
 | `firstFree` | `true` | 首抽免費 |
-| `pityLegendary` | 30 | 30 抽保底傳說 |
-| `dupRefund` | 10 | 重複英雄退還魂晶 |
+| `pityLegendary` | 18 | 18 抽保底傳說 |
+| `dupRefund` | 12 | 重複英雄退還魂晶 |
 
 `rollHero(rng)` 與 `rollHeroWithPity(pityCount, rng)` 都是純函式；呼叫端負責扣魂晶、保存 `gachaPity` 與 `gachaCount`。
 
@@ -260,6 +262,7 @@ Boss 波會在 queue 尾端追加 `{ type: "boss", hpScale: hpScale * GAME.bossH
 | id | 名稱 | 條件 | 獎勵 |
 |---|---|---|---:|
 | `wave10` | 站穩防線 | 單場撐到第 10 波 | 10💎 |
+| `wave10First` | 十波首通 | 首次撐到第 10 波的額外獎勵 | 20💎 |
 | `wave20` | 老練指揮官 | 單場撐到第 20 波 | 25💎 |
 | `wave30` | 無盡守護者 | 單場撐到第 30 波 | 50💎 |
 | `kills100` | 百人斬 | 累計擊殺 100 名敵人 | 15💎 |
@@ -268,7 +271,7 @@ Boss 波會在 queue 尾端追加 `{ type: "boss", hpScale: hpScale * GAME.bossH
 | `games50` | 百折不撓 | 累計完成 50 局 | 50💎 |
 | `heroesAll` | 英雄集結 | 收集全部英雄 | 40💎 |
 
-獎勵設計落在 10～50 魂晶：早期成就給小額回饋，中後期里程碑與全收集給較高獎勵，但不高於 3 抽以避免抽卡經濟失衡。
+獎勵設計落在 10～50 魂晶：早期成就給小額回饋，中後期里程碑與全收集給較高獎勵，但單項不高於 3 抽以避免抽卡經濟失衡。`wave10First` 是 Stage 5 的十波首通獎勵，借用成就的一次性標記機制處理，不另外新增存檔欄位。
 
 ## Meta 存檔與死亡結算
 
@@ -319,10 +322,11 @@ settleRunRewards({
 })
 ```
 
-死亡結算：
+死亡結算依難度給魂晶：
 
 ```js
-earnedSoulCrystal = Math.max(1, Math.round(wave * 1.5))
+rewardMulByDiff = { normal: 1.8, brutal: 2.4, endless: 2.2 }
+earnedSoulCrystal = Math.max(1, Math.round(wave * rewardMulByDiff[difficultyId]))
 ```
 
 同時更新：
@@ -334,6 +338,16 @@ earnedSoulCrystal = Math.max(1, Math.round(wave * 1.5))
 - `totalKills`
 
 函式不改動傳入的 `meta`，而是回傳 `{ meta, earned, isRecord, previousBest, difficultyId, wave, kills }`。
+
+Stage 5 新手節奏試算：普通難度撐到第 10 波時，死亡結算 `round(10 * 1.8) = 18💎`，首次達成會再解鎖 `wave10` 10💎 與 `wave10First` 20💎，合計 48💎，約等於 2.4 抽；若同場也讓累計擊殺達 100，會額外拿 `kills100` 15💎，合計 63💎，約等於 3.15 抽。
+
+## 首次流程與放塔防呆
+
+首次進入且沒有舊存檔時，教學壓成一步：主按鈕「快速開始（普通＋翠綠平原）」會直接套用普通難度與翠綠平原；「進階選項」才展開難度與地圖選擇。已有存檔或看過教學的玩家維持原有難度/地圖入口。
+
+選塔後 Canvas 會依滑鼠或觸控位置顯示幽靈塔、射程圈與可放/不可放格。非法原因固定使用繁中短句：「路徑上不能放」、「金錢不足」、「已有塔」。手機採二段式：第一下只放幽靈塔並提示「再點一次確認」，第二下同格才建造。第 1 波前若未建任何塔，開始波按鈕顯示「先建一座塔！」且不可按。
+
+死亡結算 overlay 的主 CTA 依魂晶狀態切換：足夠時顯示「立即抽英雄」，抽完可用「帶英雄再開局」直接重開；不足時顯示「再來一局賺魂晶（差 X 💎）」。
 
 `updateBoard(board, diffId, entry, maxEntries = 10)`：
 

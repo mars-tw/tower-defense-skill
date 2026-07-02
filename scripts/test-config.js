@@ -30,6 +30,10 @@ assert(TOWERS.poison && TOWERS.poison.poisonDps > 0 && TOWERS.poison.poisonDurat
   "毒霧塔有 DoT 欄位（DPS/持續/最多 3 層）");
 assert(TOWERS.support && TOWERS.support.support === true && TOWERS.support.buff > 0 && TOWERS.support.damage === 0 && TOWERS.support.fireRate === 0,
   "聖光塔為不攻擊支援塔，且有 buff 欄位");
+assert(TOWERS.frost.cost === 70 && TOWERS.frost.fireRate === 1.45 && TOWERS.frost.slow === 0.5,
+  "寒冰塔 Stage 5 定位：70 金、1.45 攻速、維持 50% 減速");
+assert(TOWERS.support.cost === 110 && TOWERS.support.buff === 0.20 && TOWERS.support.buffPerLevel === 0.04,
+  "聖光塔 Stage 5 定位：110 金、20% 基礎增傷、每級 +4%");
 
 console.log("== 敵人欄位 ==");
 let badE = 0;

@@ -94,6 +94,7 @@
   .goddess-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
   .gacha-btn { background: linear-gradient(180deg,#a855f7,#7c3aed); color: #fff; width: 100%; }
   .gacha-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
+  .gacha-meta { font-size: 11px; color: var(--ink-dim); text-align: center; margin-top: -4px; }
   .board-btn { background: linear-gradient(180deg,#facc15,#f59e0b); color: #241707; width: 100%; }
   #heroRoster { display: flex; flex-direction: column; gap: 6px; }
   .hero-card { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 10px;
@@ -139,6 +140,9 @@
   .share-btn:hover { background: var(--surface-3); border-color: var(--accent); }
   .overlay button { background: #4ade80; color: #06210f; border: none; padding: 12px 32px;
     border-radius: 24px; font-size: 16px; font-weight: 800; cursor: pointer; }
+  .overlay .death-cta { background: linear-gradient(180deg,#fde047,#f59e0b); color: #2a1704;
+    border-radius: 16px; min-width: 240px; }
+  .overlay .secondary-cta { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-hi); }
 
   /* ===== 抽卡盲盒動畫 ===== */
   .gacha-overlay { position: fixed; inset: 0; background: rgba(6,10,8,.92); display: none;
@@ -234,6 +238,8 @@
     padding: 10px 12px; border-radius: 10px; margin-bottom: 16px; }
   .tutorial-card button { width: 100%; background: linear-gradient(180deg,#4ade80,#22c55e); color: #06210f;
     border: none; padding: 13px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; }
+  .tutorial-actions { display: grid; gap: 8px; }
+  .tutorial-card button.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-hi); }
 
   /* 難度選擇（鉤子）*/
   .diff-overlay { position: fixed; inset: 0; background: rgba(6,12,10,.92); display: none;
@@ -282,6 +288,7 @@
     font-size: 12px; text-align: center; }
   .series-footer a { color: var(--ink-dim); text-decoration: none; margin: 0 6px; white-space: nowrap; }
   .series-footer a:hover { color: var(--gold); }
+  .scroll-hint { display: none; font-size: 11px; color: var(--ink-meta); padding-left: 2px; }
 
   /* ===== RWD 響應式 ===== */
   /* canvas 維持 3:2 比例自適應，最大不超過容器 */
@@ -302,6 +309,22 @@
     #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card {
       flex: 0 0 auto; min-width: 150px; width: auto;
     }
+    .tower-title { order: 1; }
+    #towerList { order: 2; }
+    .tower-scroll-hint { order: 3; display: block; }
+    .wave-start { order: 4; }
+    .wave-speed { order: 5; }
+    .goddess-btn { order: 6; }
+    .board-btn { order: 7; }
+    .hero-title { order: 8; }
+    .gacha-btn { order: 9; }
+    .gacha-meta { order: 10; }
+    #heroRoster { order: 11; }
+    .hero-scroll-hint { order: 12; display: block; }
+    .skill-title { order: 13; }
+    #skillList { order: 14; }
+    .skill-scroll-hint { order: 15; display: block; }
+    .sel-panel { order: 16; }
     .panel h3 { margin-top: 4px; }
     .controls { flex-wrap: nowrap; }
   }
@@ -338,10 +361,10 @@
     <canvas id="game" width="960" height="640"></canvas>
 
     <div class="panel">
-      <div class="controls">
+      <div class="controls wave-start">
         <button class="act start" id="startBtn">▶ 開始下一波</button>
       </div>
-      <div class="controls">
+      <div class="controls wave-speed">
         <button class="act speed on" id="speed1" data-s="1">1×</button>
         <button class="act speed" id="speed2" data-s="2">2×</button>
         <button class="act pause" id="pauseBtn">⏸</button>
@@ -349,15 +372,19 @@
       <button class="act goddess-btn" id="goddessBtn">👸 升級女神</button>
       <button class="act board-btn" id="boardBtn">🏆 排行榜/成就</button>
 
-      <h3>🗼 建造砲塔</h3>
+      <h3 class="tower-title">🗼 建造砲塔</h3>
       <div id="towerList"></div>
+      <div class="scroll-hint tower-scroll-hint">左右滑動查看更多塔 →</div>
 
-      <h3>🦸 英雄</h3>
+      <h3 class="hero-title">🦸 英雄</h3>
       <button class="act gacha-btn" id="gachaBtn">🎲 抽英雄（首抽免費！）</button>
+      <div class="gacha-meta" id="gachaMeta"></div>
       <div id="heroRoster"></div>
+      <div class="scroll-hint hero-scroll-hint">左右滑動查看更多英雄 →</div>
 
-      <h3>✨ 主動技能</h3>
+      <h3 class="skill-title">✨ 主動技能</h3>
       <div id="skillList"></div>
+      <div class="scroll-hint skill-scroll-hint">左右滑動查看更多技能 →</div>
 
       <div class="sel-panel hidden" id="selPanel">
         <div id="selInfo"></div>
@@ -381,7 +408,8 @@
     <h2>💀 防線崩潰</h2>
     <div class="res">撐到第 <span id="finalWave">0</span> 波 · 得分 <span id="finalScore">0</span></div>
     <div class="meta-result" id="metaResult"></div>
-    <button id="restartBtn">再來一局</button>
+    <button class="death-cta" id="deathCtaBtn">立即抽英雄</button>
+    <button class="secondary-cta" id="restartBtn">再來一局</button>
   </div>
 
   <!-- 抽卡盲盒動畫覆層 -->
@@ -427,14 +455,11 @@
   <div class="tutorial-overlay" id="tutorial">
     <div class="tutorial-card">
       <h2>🏰 如何遊玩</h2>
-      <ol>
-        <li><b>① 選砲塔</b>：點右側砲塔（看元素 🔥火/❄️冰/⚡雷）</li>
-        <li><b>② 蓋在地圖</b>：點地圖空格放塔（不能蓋路徑上）</li>
-        <li><b>③ 開始下一波</b>：塔會自動攻擊沿路前進的怪物</li>
-        <li><b>④ 守護女神</b>：別讓怪物漏到終點的女神！</li>
-      </ol>
-      <p class="tut-tip">💡 元素克制：火克冰、冰克雷、雷克火（克制造成 1.5 倍傷害）。抽英雄上場一起打怪！</p>
-      <button id="tutorialOk">下一步 ▶</button>
+      <p class="tut-tip">選一座塔蓋在路徑旁，再開始下一波。怪物漏到終點會攻擊女神；戰敗拿魂晶抽英雄，下局更強。</p>
+      <div class="tutorial-actions">
+        <button id="tutorialQuick">快速開始（普通＋翠綠平原）</button>
+        <button class="secondary" id="tutorialAdvanced">進階選項：選難度 / 地圖</button>
+      </div>
     </div>
   </div>
 

@@ -102,10 +102,15 @@ console.log("\n== settleRunRewards 死亡結算 ==");
     bestByDiff: { normal: 3 },
   });
   const result = settleRunRewards({ meta, wave: 4, score: 120, kills: 6, difficulty: cfg.DIFFICULTIES.normal });
-  assert(result.earned === 6, "魂晶公式為 max(1, round(wave * 1.5))");
+  assert(result.earned === 7, "普通魂晶公式為 max(1, round(wave * 1.8))");
   assert(result.isRecord === true && result.meta.bestByDiff.normal === 4 && result.meta.bestWave === 4, "最高波數與難度紀錄會更新");
-  assert(result.meta.soulCrystal === 10 && result.meta.games === 3 && result.meta.totalKills === 13, "魂晶、場次與總擊殺累積正確");
+  assert(result.meta.soulCrystal === 11 && result.meta.games === 3 && result.meta.totalKills === 13, "魂晶、場次與總擊殺累積正確");
   assert(meta.soulCrystal === 4 && meta.bestByDiff.normal === 3, "settleRunRewards 不改動傳入 meta");
+
+  const brutal = settleRunRewards({ meta: migrateMeta({ soulCrystal: 0 }), wave: 10, kills: 0, difficulty: cfg.DIFFICULTIES.brutal });
+  const endless = settleRunRewards({ meta: migrateMeta({ soulCrystal: 0 }), wave: 10, kills: 0, difficulty: cfg.DIFFICULTIES.endless });
+  assert(brutal.earned === 24, "嚴酷魂晶公式為 round(wave * 2.4)");
+  assert(endless.earned === 22, "無盡魂晶公式為 round(wave * 2.2)");
 }
 
 console.log("\n== applyDifficulty 難度係數 ==");

@@ -1,13 +1,14 @@
 /* =========================================================================
  * test-td-e2e.js — 塔防 E2E gate（真瀏覽器）
  *
- * 覆蓋經濟、規則一致性、排行榜/成就與 RWD：
+ * 覆蓋經濟、規則一致性、排行榜/成就、放塔防呆與 RWD：
  *   1. 抽卡花魂晶（跨局貨幣）不花場內金錢；首抽免費；魂晶不足被擋；重複退魂晶
  *   2. 抽卡動畫期間戰場暫停（敵人不偷跑）
  *   3. 建塔準備階段（第一波前）畫面有重繪——放塔立刻看得到（idle render loop）
  *   4. 波次預告的主元素跟實際出怪一致（主題波過半敵人來自該元素池）
  *   5. 排行榜/成就：結算寫榜、成就發獎、overlay 暫停恢復
- *   6. 開波跑起來無 console error；桌機+手機無水平溢出
+ *   6. 首次快速開始、未建塔禁開波、手機二段式建塔與首屏排序
+ *   7. 開波跑起來無 console error；桌機+手機無水平溢出
  * 執行：node scripts/test-td-e2e.js   （需 devDependency: playwright）
  * ========================================================================= */
 const http = require("http");
@@ -49,7 +50,12 @@ async function run() {
   try {
   for (const vp of [{ w: 1280, h: 900, name: "桌面 1280x900" }, { w: 390, h: 844, name: "手機 390x844" }]) {
     console.log("\n== 視窗 " + vp.name + " ==");
-    const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+    const isMobileViewport = vp.w <= 560;
+    const page = await browser.newPage({
+      viewport: { width: vp.w, height: vp.h },
+      hasTouch: isMobileViewport,
+      isMobile: isMobileViewport,
+    });
     const errors = [];
     page.on("console", (m) => {
       if (m.type() !== "error") return;
@@ -63,7 +69,31 @@ async function run() {
     page.on("pageerror", (e) => errors.push("pageerror: " + (e && e.message)));
 
     await page.goto(base);
-    // 跳過教學浮層、預選普通難度（教學/難度流程本身不是這輪的驗收對象）
+    // Stage 5：首次流程只有一個快速開始入口，進階選項另開難度/地圖選擇。
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForFunction(() => window.TD && window.TD.state);
+    await sleep(300);
+    const quickIntro = await page.evaluate(() => ({
+      tutorialShown: document.getElementById("tutorial").classList.contains("show"),
+      quickText: document.getElementById("tutorialQuick").textContent,
+      advancedText: document.getElementById("tutorialAdvanced").textContent,
+    }));
+    assert(quickIntro.tutorialShown && quickIntro.quickText.includes("快速開始") && quickIntro.advancedText.includes("進階選項"),
+      "首次進入顯示快速開始與進階選項");
+    await page.click("#tutorialQuick");
+    await sleep(200);
+    const quickState = await page.evaluate(() => ({
+      tutorialShown: document.getElementById("tutorial").classList.contains("show"),
+      diffShown: document.getElementById("diffOverlay").classList.contains("show"),
+      mapShown: document.getElementById("mapOverlay").classList.contains("show"),
+      diff: window.TD.getDifficulty().id,
+      map: window.TD.getMap().id,
+    }));
+    assert(!quickState.tutorialShown && !quickState.diffShown && !quickState.mapShown && quickState.diff === "normal" && quickState.map === "plains",
+      `快速開始直接進普通＋翠綠平原（${quickState.diff}/${quickState.map}）`);
+
+    // 主要測試流程仍跳過教學浮層、預選普通難度。
     await page.evaluate(() => { localStorage.clear(); localStorage.setItem("td_tutorial_seen", "1"); });
     await page.reload();
     await page.waitForFunction(() => window.TD && window.TD.state);
@@ -92,21 +122,91 @@ async function run() {
       `迂迴峽谷套用資源倍率（${mapSelect.gold}/${mapSelect.expectedGold}）`);
     await sleep(200);
 
-    // 1. 建塔準備階段畫面會重繪（idle render loop）——先確認迴圈真的沒在跑主迴圈
-    const idleRender = await page.evaluate(async () => {
-      const st = window.TD.state();
-      const running = st.running;
-      // 放一座弓箭塔在空地（格 (10,1) 遠離路徑），立刻檢查 state
+    const firstScreen = await page.evaluate(() => {
+      const ids = ["towerList", "startBtn"];
+      const rects = Object.fromEntries(ids.map((id) => {
+        const r = document.getElementById(id).getBoundingClientRect();
+        return [id, { top: r.top, bottom: r.bottom }];
+      }));
+      const title = document.querySelector(".tower-title").getBoundingClientRect();
+      return {
+        innerHeight: window.innerHeight,
+        towerListTop: rects.towerList.top,
+        towerTitleBottom: title.bottom,
+        towerListBottom: rects.towerList.bottom,
+        startTop: rects.startBtn.top,
+        startBottom: rects.startBtn.bottom,
+        towerHintDisplay: getComputedStyle(document.querySelector(".tower-scroll-hint")).display,
+      };
+    });
+    assert(firstScreen.towerTitleBottom <= firstScreen.innerHeight && firstScreen.towerListBottom <= firstScreen.innerHeight && firstScreen.startBottom <= firstScreen.innerHeight,
+      `首屏可見建塔入口與開始波（tower ${Math.round(firstScreen.towerListBottom)} / start ${Math.round(firstScreen.startBottom)} <= ${firstScreen.innerHeight}）`);
+    if (vp.w <= 560) {
+      assert(firstScreen.towerListTop < firstScreen.startTop && firstScreen.towerHintDisplay !== "none",
+        "手機首屏建塔列排在開始波前，且顯示橫滑提示");
+    }
+
+    // 1. 建塔準備階段畫面會重繪（idle render loop），且未建任何塔時不能開第 1 波
+    const noTowerStart = await page.evaluate(() => ({
+      text: document.getElementById("startBtn").textContent,
+      disabled: document.getElementById("startBtn").disabled,
+      wave: window.TD.state().wave,
+      towers: window.TD.state().towers.length,
+    }));
+    assert(noTowerStart.disabled && noTowerStart.text.includes("先建一座塔") && noTowerStart.wave === 0 && noTowerStart.towers === 0,
+      "未建塔時開始第 1 波按鈕提示先建一座塔");
+
+    const previewCheck = await page.evaluate(() => {
       window.TD.selectTower("arrow");
       const canvas = document.getElementById("game");
       const rect = canvas.getBoundingClientRect();
       const sx = rect.width / 960, sy = rect.height / 640;
-      const ev = new MouseEvent("click", { clientX: rect.left + 504 * sx, clientY: rect.top + 72 * sy, bubbles: true });
-      canvas.dispatchEvent(ev);
-      return { running, towers: st.towers.length, gold: st.gold };
+      const blocked = window.TD.buildPreviewAt(100, 80);
+      const open = window.TD.buildPreviewAt(504, 72);
+      return {
+        blockedOk: blocked.ok,
+        blockedReason: blocked.reason,
+        openOk: open.ok,
+        openReason: open.reason,
+        clientX: rect.left + 504 * sx,
+        clientY: rect.top + 72 * sy,
+      };
+    });
+    assert(previewCheck.blockedOk === false && previewCheck.blockedReason.includes("路徑") && previewCheck.openOk === true,
+      `放塔預覽回報合法/非法格（非法原因：${previewCheck.blockedReason}，合法：${previewCheck.openReason || "可放置"}）`);
+
+    let idleRender;
+    if (vp.w <= 560) {
+      await page.touchscreen.tap(previewCheck.clientX, previewCheck.clientY);
+      const firstTap = await page.evaluate(() => ({
+        towers: window.TD.state().towers.length,
+        hasGhost: !!window.TD.state().buildGhost,
+      }));
+      await page.touchscreen.tap(previewCheck.clientX, previewCheck.clientY);
+      idleRender = await page.evaluate(() => ({
+        running: window.TD.state().running,
+        towers: window.TD.state().towers.length,
+        gold: window.TD.state().gold,
+      }));
+      assert(firstTap.towers === 0 && firstTap.hasGhost === true, "手機第一下只顯示幽靈塔、不直接建造");
+    } else {
+      idleRender = await page.evaluate((pos) => {
+        const st = window.TD.state();
+        const running = st.running;
+        const canvas = document.getElementById("game");
+        const ev = new MouseEvent("click", { clientX: pos.x, clientY: pos.y, bubbles: true });
+        canvas.dispatchEvent(ev);
+        return { running, towers: st.towers.length, gold: st.gold };
+      }, { x: previewCheck.clientX, y: previewCheck.clientY });
+    }
+    const duplicateBuild = await page.evaluate(() => {
+      window.TD.selectTower("arrow");
+      const preview = window.TD.buildPreviewAt(504, 72);
+      return { ok: preview.ok, reason: preview.reason };
     });
     assert(idleRender.running === false, "第一波開始前主迴圈未跑（準備階段）");
     assert(idleRender.towers === 1, `準備階段可放塔（場上 ${idleRender.towers} 座）`);
+    assert(duplicateBuild.ok === false && duplicateBuild.reason.includes("已有塔"), `已有塔格位會擋建造（${duplicateBuild.reason}）`);
 
     // Stage 4：毒霧塔 DoT 與聖光塔 buff
     const stage4Combat = await page.evaluate(() => {
@@ -136,20 +236,50 @@ async function run() {
       const base = window.TD.towerStat(arrow, "damage");
       const buff = window.TD.getTowerBuff(arrow);
       const effective = window.TD.effectiveTowerDamage(arrow);
+      const singleSupportGain = window.TD.supportDpsGain(support);
+
+      const poisonSupport = { type: "support", level: 1, x: 250, y: 220, cx: 5, cy: 4, cd: 0 };
+      st.towers = [poison, poisonSupport];
+      const poisonGain = window.TD.supportDpsGain(poisonSupport);
+      const poisonExpectedGain = window.TD.towerStat(poison, "damage") * window.TD.config.TOWERS.poison.fireRate * window.TD.towerStat(poisonSupport, "buff");
+
+      const support2 = { type: "support", level: 1, x: 240, y: 200, cx: 5, cy: 4, cd: 0 };
+      st.towers = [arrow, support, support2];
+      const duplicateGainA = window.TD.supportDpsGain(support);
+      const duplicateGainB = window.TD.supportDpsGain(support2);
 
       st.towers = saved.towers;
       st.enemies = saved.enemies;
       st.bullets = saved.bullets;
       st.spawnQueue = saved.spawnQueue;
       st.particles = saved.particles;
-      return { afterHit, afterDot, stacks, base, buff, effective };
+      return { afterHit, afterDot, stacks, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB };
     });
     assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
       `毒霧塔 DoT 生效（命中後 ${stage4Combat.afterHit.toFixed(1)} → tick 後 ${stage4Combat.afterDot.toFixed(1)}，層數 ${stage4Combat.stacks}）`);
-    assert(stage4Combat.buff >= 0.25 && stage4Combat.effective > stage4Combat.base,
+    assert(stage4Combat.buff >= 0.20 && stage4Combat.effective > stage4Combat.base,
       `聖光塔 buff 生效（base ${stage4Combat.base}，buff ${stage4Combat.buff}，effective ${stage4Combat.effective}）`);
+    assert(Math.abs(stage4Combat.poisonGain - stage4Combat.poisonExpectedGain) < 0.05,
+      `聖光塔 DPS 估算只計直擊、不把毒 DoT 乘 buff（${stage4Combat.poisonGain.toFixed(2)}）`);
+    assert(stage4Combat.singleSupportGain > 0 && stage4Combat.duplicateGainA < 0.001 && stage4Combat.duplicateGainB < 0.001,
+      "同等聖光塔重疊時，單座顯示邊際 DPS 為 0");
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
+    const gachaMetaText = await page.textContent("#gachaMeta");
+    assert(gachaMetaText.includes("保底 0/18") && gachaMetaText.includes("英雄 0/6"),
+      `英雄區 meta 顯示魂晶、保底與收集進度（${gachaMetaText}）`);
+    const pityClampText = await page.evaluate(() => {
+      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+      meta.gachaPity = 25;
+      localStorage.setItem("td_meta_v1", JSON.stringify(meta));
+      window.__tdUI();
+      const text = document.getElementById("gachaMeta").textContent;
+      meta.gachaPity = 0;
+      localStorage.setItem("td_meta_v1", JSON.stringify(meta));
+      window.__tdUI();
+      return text;
+    });
+    assert(pityClampText.includes("保底 18/18"), `舊存檔 pity 超過保底時顯示會 clamp（${pityClampText}）`);
     const gacha1 = await page.evaluate(() => {
       const goldBefore = window.TD.state().gold;
       document.getElementById("gachaBtn").click(); // 首抽（免費）
@@ -186,14 +316,14 @@ async function run() {
       const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
       meta.soulCrystal = 200; localStorage.setItem("td_meta_v1", JSON.stringify(meta));
       window.__tdUI(); // 直接改 localStorage 不會觸發重繪，按鈕還是 disabled——手動刷新（同農場專案 F.refresh() 教訓）
-      // 讓名冊只剩一種可能英雄很難（池有 6 隻），直接驗證：抽一次後魂晶 = 200 - 20 (+10 若重複)
+      // 讓名冊只剩一種可能英雄很難（池有 6 隻），直接驗證：抽一次後魂晶 = 200 - 20 (+12 若重複)
       document.getElementById("gachaBtn").click();
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const owned = JSON.parse(localStorage.getItem("td_heroes_owned_v1"));
-      const spentOk = after.soulCrystal === 180 || after.soulCrystal === 190; // 新英雄 180；重複退 10 → 190
+      const spentOk = after.soulCrystal === 180 || after.soulCrystal === 192; // 新英雄 180；重複退 12 → 192
       return { crystal: after.soulCrystal, pity: after.gachaPity, count: after.gachaCount, spentOk, owned: owned.length };
     });
-    assert(gacha3.spentOk, `扣魂晶正確（剩 ${gacha3.crystal}，新英雄 180 / 重複退補 190）`);
+    assert(gacha3.spentOk, `扣魂晶正確（剩 ${gacha3.crystal}，新英雄 180 / 重複退補 192）`);
     assert(gacha3.count === 2, `抽數累積（${gacha3.count}）`);
     assert(typeof gacha3.pity === "number" && gacha3.pity >= 0, `pity 有持久化追蹤（${gacha3.pity}）`);
     // 關閉這次的盲盒浮層
@@ -229,8 +359,9 @@ async function run() {
       window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty() });
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const expectedCrystal = beforeCrystal
-        + Math.max(1, Math.round(10 * 1.5))
+        + Math.max(1, Math.round(10 * 1.8))
         + window.ACHIEVEMENTS.wave10.reward
+        + window.ACHIEVEMENTS.wave10First.reward
         + window.ACHIEVEMENTS.kills100.reward;
       return {
         beforeCrystal,
@@ -242,16 +373,48 @@ async function run() {
         boardKills: after.board.normal[0].kills,
         boardMap: after.board.normal[0].map,
         wave10: after.achievements.wave10 === true,
+        wave10First: after.achievements.wave10First === true,
         kills100: after.achievements.kills100 === true,
+        deathCta: document.getElementById("deathCtaBtn").textContent,
         metaText: document.getElementById("metaResult").innerText,
       };
     });
     assert(stage3Result.boardLen === 1 && stage3Result.boardWave === 10 && stage3Result.boardScore === 1234 && stage3Result.boardKills === 100 && stage3Result.boardMap === "canyon",
       `排行榜寫入本場紀錄與地圖（${stage3Result.boardWave} 波 / ${stage3Result.boardScore} 分 / ${stage3Result.boardKills} 殺 / ${stage3Result.boardMap}）`);
-    assert(stage3Result.wave10 && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名"),
+    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名"),
       "結算畫面顯示本場名次與新解鎖成就");
     assert(stage3Result.crystal === stage3Result.expectedCrystal,
       `成就與結算魂晶正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
+    assert(stage3Result.deathCta.includes("立即抽英雄"),
+      `死亡結算主 CTA 在魂晶足夠時導向抽英雄（${stage3Result.deathCta}）`);
+    const ctaBefore = await page.evaluate(() => {
+      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+      return { crystal: meta.soulCrystal, count: meta.gachaCount };
+    });
+    await page.click("#deathCtaBtn");
+    await sleep(150);
+    const ctaAfterClick = await page.evaluate(() => {
+      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+      return {
+        crystal: meta.soulCrystal,
+        count: meta.gachaCount,
+        gachaShown: document.getElementById("gachaOverlay").classList.contains("show"),
+      };
+    });
+    await page.keyboard.press("Enter");
+    await sleep(150);
+    const ctaAfterEnter = await page.evaluate(() => {
+      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+      return { crystal: meta.soulCrystal, count: meta.gachaCount };
+    });
+    assert(ctaAfterClick.gachaShown && ctaAfterClick.count === ctaBefore.count + 1 && ctaAfterClick.crystal < ctaBefore.crystal,
+      `死亡 CTA 第一次點擊只抽一次（${ctaBefore.crystal} → ${ctaAfterClick.crystal}，抽數 ${ctaBefore.count} → ${ctaAfterClick.count}）`);
+    assert(ctaAfterEnter.crystal === ctaAfterClick.crystal && ctaAfterEnter.count === ctaAfterClick.count,
+      "死亡 CTA 開啟抽卡 overlay 後按 Enter 不會重複扣魂晶");
+    await page.evaluate(() => document.getElementById("chest").click());
+    await sleep(1100);
+    await page.evaluate(() => document.getElementById("revealOk").click());
+    await sleep(250);
 
     // 8. Stage 3：排行榜/成就 overlay 顯示資料，開啟暫停、關閉恢復
     const progressOverlay = await page.evaluate(() => {

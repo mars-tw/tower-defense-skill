@@ -25,13 +25,16 @@
   function towerMetaText(t) {
     if (t.support) return `範圍 ${t.range} · 增傷 +${Math.round(t.buff * 100)}%`;
     const extra = t.poisonDps ? ` · 毒 ${t.poisonDps}/秒` : "";
-    return `傷 ${t.damage} · 程 ${t.range} · 速 ${t.fireRate}/秒${extra}`;
+    const control = t.id === "frost" ? " · 控場減速" : "";
+    return `傷 ${t.damage} · 程 ${t.range} · 速 ${t.fireRate}/秒${extra}${control}`;
   }
   const towerList = $("towerList");
   Object.values(TOWERS).forEach((t) => {
     const btn = document.createElement("button");
     btn.className = "tower-btn"; btn.dataset.type = t.id;
     const stats = towerMetaText(t);
+    btn.title = t.desc || t.name;
+    btn.setAttribute("aria-label", `${t.name}：${t.desc || stats}`);
     btn.innerHTML = `
       <span class="ico">${t.emoji}</span>
       <span class="info"><span class="nm">${t.name}</span> ${elemChip(t.element)}<br><span class="meta">${stats}</span></span>
@@ -75,16 +78,25 @@
     $("pauseBtn").classList.toggle("paused", paused);
   }
 
+  function restartRun() {
+    $("overlay").classList.remove("show");
+    TD.newGame();
+    deployedThisGame = new Set();
+    renderRoster();
+    refreshUI();
+  }
+
   // 抽卡花「魂晶」（跨局永久貨幣），不是場內金錢——場內金錢每局重置，
   // 拿它買永久英雄等於重開新局就能無限白嫖。首抽免費讓新玩家先體驗盲盒。
   function gachaCostNow(meta) {
     return (TD.config.GACHA.firstFree && (meta.gachaCount || 0) === 0) ? 0 : TD.config.GACHA.cost;
   }
-  function doGacha() {
-    if ($("progressOverlay").classList.contains("show")) return;
+  function doGacha(options) {
+    options = options || {};
+    if ($("gachaOverlay").classList.contains("show") || $("progressOverlay").classList.contains("show")) return false;
     const meta = loadMeta();
     const cost = gachaCostNow(meta);
-    if (meta.soulCrystal < cost) { pushLog(`魂晶不足（需 ${cost}💎，戰敗結算可獲得）`, "bad"); return; }
+    if (meta.soulCrystal < cost) { pushLog(`魂晶不足（需 ${cost}💎，戰敗結算可獲得）`, "bad"); return false; }
     meta.soulCrystal -= cost;
     const { hero, pity } = TD.rollHeroWithPity(meta.gachaPity || 0);
     meta.gachaPity = pity;
@@ -95,17 +107,20 @@
     saveMeta(meta);
     ownedHeroes.add(hero.id); saveOwned();
     refreshUI();
-    playGachaAnimation(hero, isNew, refund);  // 盲盒動畫
+    playGachaAnimation(hero, isNew, refund, options);  // 盲盒動畫
+    return true;
   }
 
   // 盲盒開箱動畫：寶箱 → 點擊開啟 → 稀有度光柱 → 英雄登場（動畫期間暫停戰場，敵人不會偷跑）
-  function playGachaAnimation(hero, isNew, refund) {
+  function playGachaAnimation(hero, isNew, refund, options) {
+    options = options || {};
     const ov = $("gachaOverlay"), chest = $("chest"), reveal = $("reveal");
     const r = TD.config.HERO_RARITY[hero.rarity];
     const wasPaused = TD.state().paused;
     TD.setPaused(true);
     // 重置
     chest.className = "chest"; reveal.className = "reveal";
+    $("revealOk").textContent = options.doneLabel || "收下";
     ov.classList.add("show");
 
     chest.onclick = () => {
@@ -129,6 +144,7 @@
       const r2 = TD.config.HERO_RARITY[hero.rarity];
       pushLog(`🎲 獲得 ${"★".repeat(r2.stars)} ${hero.name}${isNew ? "（新英雄！）" : `（重複，退還 ${refund}💎）`}`);
       renderRoster(); refreshUI();
+      if (typeof options.onDone === "function") options.onDone();
     };
   }
 
@@ -200,6 +216,12 @@
     const gBtn2 = $("gachaBtn");
     gBtn2.textContent = gcost === 0 ? "🎲 抽英雄（首抽免費！）" : `🎲 抽英雄 (${gcost}💎 持有 ${meta.soulCrystal})`;
     gBtn2.disabled = meta.soulCrystal < gcost;
+    const gMeta = $("gachaMeta");
+    if (gMeta) {
+      const totalHeroes = Object.keys(TD.config.HEROES).length;
+      const pityShown = Math.max(0, Math.min(meta.gachaPity || 0, TD.config.GACHA.pityLegendary));
+      gMeta.textContent = `${meta.soulCrystal}💎｜保底 ${pityShown}/${TD.config.GACHA.pityLegendary}｜英雄 ${ownedHeroes.size}/${totalHeroes}`;
+    }
 
     // 建塔按鈕：金錢不足變灰、選中的高亮
     document.querySelectorAll(".tower-btn").forEach((b) => {
@@ -219,7 +241,10 @@
     // 開始按鈕：只有波間可按，並顯示下一波預告（D4）
     const startBtn = $("startBtn");
     startBtn.disabled = !st.betweenWaves || st.over;
-    if (st.betweenWaves && !st.over && TD.previewNextWave) {
+    if (st.wave === 0 && st.towers.length === 0 && !st.over) {
+      startBtn.disabled = true;
+      startBtn.textContent = "先建一座塔！";
+    } else if (st.betweenWaves && !st.over && TD.previewNextWave) {
       const p = TD.previewNextWave();
       if (p.event) {
         // 事件波預告（最醒目）
@@ -239,7 +264,8 @@
       const maxed = tw.level >= TD.config.UPGRADE.maxLevel;
       let statLine;
       if (def.support) {
-        statLine = `增傷 +${Math.round(TD.towerStat(tw, "buff") * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}`;
+        const gain = TD.supportDpsGain ? TD.supportDpsGain(tw) : 0;
+        statLine = `增傷 +${Math.round(TD.towerStat(tw, "buff") * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}<br>目前加成 +${gain.toFixed(1)} DPS`;
       } else {
         const buff = TD.getTowerBuff ? TD.getTowerBuff(tw) : 0;
         const effective = TD.effectiveTowerDamage ? TD.effectiveTowerDamage(tw) : TD.towerStat(tw, "damage");
@@ -380,6 +406,8 @@
     const earned = settlement.earned;
     const isRecord = settlement.isRecord;
     saveMeta(meta);
+    const ctaCost = gachaCostNow(meta);
+    const ctaAffordable = meta.soulCrystal >= ctaCost;
 
     $("finalWave").textContent = wave;
     $("finalScore").textContent = score;
@@ -415,19 +443,32 @@
         };
       }, 0);
     }
+    const deathCta = $("deathCtaBtn");
+    if (deathCta) {
+      if (ctaAffordable) {
+        deathCta.textContent = ctaCost === 0 ? "立即抽英雄（免費）" : "立即抽英雄";
+        deathCta.onclick = () => {
+          deathCta.blur();
+          doGacha({
+            doneLabel: "帶英雄再開局",
+            onDone: restartRun,
+          });
+        };
+      } else {
+        deathCta.textContent = `再來一局賺魂晶（差 ${ctaCost - meta.soulCrystal} 💎）`;
+        deathCta.onclick = () => { deathCta.blur(); restartRun(); };
+      }
+    }
     $("overlay").classList.add("show");
   }
 
   // ===== 綁定控制 =====
   $("startBtn").onclick = () => { TD.startWave(); refreshUI(); };
   $("goddessBtn").onclick = () => { TD.upgradeGoddess(); refreshUI(); };
-  $("gachaBtn").onclick = () => { doGacha(); };
+  $("gachaBtn").onclick = () => { $("gachaBtn").blur(); doGacha(); };
   $("boardBtn").onclick = () => { openProgressOverlay(); };
   $("progressClose").onclick = () => { closeProgressOverlay(); };
-  $("restartBtn").onclick = () => {
-    $("overlay").classList.remove("show"); TD.newGame();
-    deployedThisGame = new Set(); renderRoster(); refreshUI();
-  };
+  $("restartBtn").onclick = restartRun;
   $("upgBtn").onclick = () => { TD.upgradeSelected(); refreshUI(); };
   $("sellBtn").onclick = () => { TD.sellSelected(); refreshUI(); };
   document.querySelectorAll(".speed").forEach((b) => {
@@ -534,13 +575,30 @@
 
   (function setupTutorial() {
     let seen = false;
+    const currentMeta = loadMeta();
+    const hasSave = (currentMeta.games || 0) > 0 || (currentMeta.bestWave || 0) > 0 || (currentMeta.gachaCount || 0) > 0 || (currentMeta.totalKills || 0) > 0 || (currentMeta.soulCrystal || 0) > 0;
     try { seen = localStorage.getItem("td_tutorial_seen") === "1"; } catch {}
-    if (!seen) {
+    function markSeen() {
+      try { localStorage.setItem("td_tutorial_seen", "1"); } catch {}
+    }
+    if (!seen && !hasSave) {
       $("tutorial").classList.add("show");
-      $("tutorialOk").onclick = () => {
+      $("tutorialQuick").onclick = () => {
         $("tutorial").classList.remove("show");
-        try { localStorage.setItem("td_tutorial_seen", "1"); } catch {}
-        renderDifficulties(); $("diffOverlay").classList.add("show"); // 引導後選難度
+        markSeen();
+        TD.setDifficulty("normal");
+        TD.setMap("plains");
+        try { localStorage.setItem("td_difficulty", "normal"); } catch {}
+        const meta = loadMeta();
+        meta.lastMap = "plains";
+        saveMeta(meta);
+        TD.newGame();
+        refreshUI();
+      };
+      $("tutorialAdvanced").onclick = () => {
+        $("tutorial").classList.remove("show");
+        markSeen();
+        renderDifficulties(); $("diffOverlay").classList.add("show");
       };
     } else {
       // 看過引導：直接顯示難度選擇

@@ -29,8 +29,8 @@ const TOWERS = {
             range: 95, damage: 26, fireRate: 0.75, cost: 100, splash: 50, color: "#f97316",
             desc: "範圍爆破，對成群敵人有效。" },
   frost:  { id: "frost",  name: "寒冰塔", emoji: "❄️", element: "ice",
-            range: 105, damage: 11, fireRate: 1.3, cost: 80, slow: 0.5, color: "#38bdf8",
-            desc: "減速敵人 + 穩定輸出，控場神器。" },
+            range: 105, damage: 11, fireRate: 1.45, cost: 70, slow: 0.5, color: "#38bdf8",
+            desc: "便宜控場核心，減速敵人讓全隊多打幾輪。" },
   tesla:  { id: "tesla",  name: "電磁塔", emoji: "⚡", element: "thunder",
             range: 95, damage: 14, fireRate: 1.4, cost: 130, pierce: 3, color: "#facc15",
             desc: "閃電連鎖，貫穿多個敵人。" },
@@ -38,7 +38,7 @@ const TOWERS = {
             range: 100, damage: 7, fireRate: 1.15, cost: 90, poisonDps: 6, poisonDuration: 4, poisonMaxStacks: 3, color: "#22c55e",
             desc: "命中附加可疊加毒素，持續咬血。" },
   support:{ id: "support",name: "聖光塔", emoji: "✨", element: "physical",
-            range: 125, damage: 0, fireRate: 0, cost: 140, support: true, buff: 0.25, buffPerLevel: 0.03, color: "#fde047",
+            range: 125, damage: 0, fireRate: 0, cost: 110, support: true, buff: 0.20, buffPerLevel: 0.04, color: "#fde047",
             desc: "不攻擊，強化範圍內其他塔的傷害。" },
 };
 // 升級：每級提升傷害與射程，造價遞增。maxLevel 6 + 傷害倍率提高，給後期金錢出口（D2 修碾壓）
@@ -183,6 +183,8 @@ function themeEnemyPool(theme) {
 const ACHIEVEMENTS = {
   wave10: { id: "wave10", label: "站穩防線", desc: "單場撐到第 10 波", reward: 10,
             check: (meta, ctx = {}) => (ctx.wave || 0) >= 10 },
+  wave10First: { id: "wave10First", label: "十波首通", desc: "首次撐到第 10 波的額外獎勵", reward: 20,
+                 check: (meta, ctx = {}) => (ctx.wave || 0) >= 10 },
   wave20: { id: "wave20", label: "老練指揮官", desc: "單場撐到第 20 波", reward: 25,
             check: (meta, ctx = {}) => (ctx.wave || 0) >= 20 },
   wave30: { id: "wave30", label: "無盡守護者", desc: "單場撐到第 30 波", reward: 50,

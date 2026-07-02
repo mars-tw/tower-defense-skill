@@ -103,6 +103,11 @@
   // ===== 波次系統（無盡隨機遞增）=====
   function startWave() {
     if (state.over) return;
+    if (state.wave === 0 && state.towers.length === 0) {
+      flashText(W / 2, H * 0.28, "先建一座塔！", { color: "#fde047", size: 22, big: true });
+      log("先建一座塔再開始第 1 波。", "bad");
+      return false;
+    }
     state.wave++;
     state.betweenWaves = false;
     const w = state.wave;
@@ -509,10 +514,10 @@
     if (key === "buff") return (base || 0) + (tw.level - 1) * (TOWERS[tw.type].buffPerLevel || 0);
     return base;
   }
-  function supportBuffFor(tw) {
+  function supportBuffFor(tw, excludeSupport) {
     let best = 0;
     for (const support of state.towers) {
-      if (support === tw || !TOWERS[support.type].support) continue;
+      if (support === tw || support === excludeSupport || !TOWERS[support.type].support) continue;
       const range = towerStat(support, "range");
       if (Math.hypot(support.x - tw.x, support.y - tw.y) <= range) best = Math.max(best, towerStat(support, "buff"));
     }
@@ -520,6 +525,26 @@
   }
   function effectiveTowerDamage(tw) {
     return towerStat(tw, "damage") * (1 + supportBuffFor(tw));
+  }
+  function towerDpsEstimate(tw) {
+    const def = TOWERS[tw.type];
+    if (!def || def.support) return 0;
+    let dps = towerStat(tw, "damage") * (def.fireRate || 0);
+    if (def.splash) dps *= 2.2;
+    if (def.pierce) dps *= (1 + (def.pierce - 1) * 0.6);
+    return dps;
+  }
+  function supportDpsGain(support) {
+    if (!support || !TOWERS[support.type] || !TOWERS[support.type].support) return 0;
+    const range = towerStat(support, "range");
+    const buff = towerStat(support, "buff");
+    return state.towers.reduce((sum, tw) => {
+      if (tw === support || TOWERS[tw.type].support) return sum;
+      if (Math.hypot(tw.x - support.x, tw.y - support.y) > range) return sum;
+      const otherBuff = supportBuffFor(tw, support);
+      const marginalBuff = Math.max(0, buff - otherBuff);
+      return sum + towerDpsEstimate(tw) * marginalBuff;
+    }, 0);
   }
   function acquireTarget(tw) {
     const range = towerStat(tw, "range");
@@ -604,21 +629,47 @@
   }
 
   // ===== 建塔 / 升級 =====
+  function buildPreviewAt(px, py) {
+    const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
+    const def = TOWERS[state.selectedTowerType];
+    let reason = "";
+    if (!def) reason = "尚未選塔";
+    else if (blocked.has(cellKey(cx, cy))) reason = "路徑上不能放";
+    else if (state.towers.some((t) => t.cx === cx && t.cy === cy)) reason = "已有塔";
+    else if (state.gold < def.cost) reason = "金錢不足";
+    return {
+      ok: reason === "",
+      reason,
+      cx,
+      cy,
+      x: cx * CELL + CELL / 2,
+      y: cy * CELL + CELL / 2,
+      range: def ? def.range : 0,
+      type: def ? def.id : null,
+    };
+  }
+
   function tryBuildTower(px, py) {
     if (!state.selectedTowerType) return;
     const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
-    if (blocked.has(cellKey(cx, cy))) { log("不能蓋在路徑上！", "bad"); return; }
-    if (state.towers.some((t) => t.cx === cx && t.cy === cy)) { log("這裡已有塔！", "bad"); return; }
+    const preview = buildPreviewAt(px, py);
+    if (!preview.ok) {
+      log(preview.reason + "！", "bad");
+      flashText(preview.x, preview.y - 18, preview.reason, { color: "#f87171", size: 14, big: true });
+      return false;
+    }
     const def = TOWERS[state.selectedTowerType];
-    if (state.gold < def.cost) { log("金錢不足！", "bad"); return; }
     state.gold -= def.cost;
     state.towers.push({
       type: state.selectedTowerType, cx, cy,
       x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2,
       level: 1, cd: 0,
     });
+    state.buildGhost = null;
+    state.mouse = null;
     log(`建造 ${def.name}！`);
     if (typeof window.__tdUI === "function") window.__tdUI();
+    return true;
   }
   function upgradeTower(tw) {
     if (tw.level >= UPGRADE.maxLevel) { log("已達最高等級！", "bad"); return; }
@@ -877,14 +928,22 @@
     // 終點由守護女神鎮守（drawGoddess 繪製）
   }
   function drawBuildPreview() {
-    const m = state.mouse; if (!m) return;
-    const cx = Math.floor(m.x / CELL), cy = Math.floor(m.y / CELL);
-    const ok = !blocked.has(cellKey(cx, cy)) && !state.towers.some((t) => t.cx === cx && t.cy === cy);
-    ctx.fillStyle = ok ? "rgba(74,222,128,.3)" : "rgba(239,68,68,.3)";
-    ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
+    const m = state.buildGhost || state.mouse; if (!m) return;
+    const preview = buildPreviewAt(m.x, m.y);
+    ctx.fillStyle = preview.ok ? "rgba(74,222,128,.3)" : "rgba(239,68,68,.32)";
+    ctx.fillRect(preview.cx * CELL, preview.cy * CELL, CELL, CELL);
     const def = TOWERS[state.selectedTowerType];
-    ctx.strokeStyle = ok ? "#4ade80" : "#ef4444"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(cx * CELL + CELL / 2, cy * CELL + CELL / 2, def.range, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = preview.ok ? "#4ade80" : "#ef4444"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(preview.x, preview.y, def.range, 0, Math.PI * 2); ctx.stroke();
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    drawSprite(`assets/towers/${def.id}.png`, def.emoji, preview.x, preview.y, CELL * 0.7);
+    ctx.restore();
+    if (!preview.ok && preview.reason) {
+      ctx.font = '900 13px "Segoe UI", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.lineWidth = 3; ctx.strokeText(preview.reason, preview.x, preview.y - CELL * 0.62);
+      ctx.fillStyle = "#fecaca"; ctx.fillText(preview.reason, preview.x, preview.y - CELL * 0.62);
+    }
   }
   function drawTowerRange(tw) {
     ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1.5;
@@ -1077,9 +1136,27 @@
     return { x: (clientX - r.left) * (W / r.width), y: (clientY - r.top) * (H / r.height) };
   }
   // 點擊/觸控的共用處理（座標已換算，RWD 縮放下也正確）
-  function handleTap(p) {
+  function handleBuildTap(p, isTouch) {
+    if (!isTouch) { tryBuildTower(p.x, p.y); return; }
+    const preview = buildPreviewAt(p.x, p.y);
+    if (!preview.ok) {
+      state.buildGhost = { x: p.x, y: p.y, cx: preview.cx, cy: preview.cy };
+      flashText(preview.x, preview.y - 18, preview.reason, { color: "#f87171", size: 14, big: true });
+      log(preview.reason + "！", "bad");
+      return;
+    }
+    const same = state.buildGhost && state.buildGhost.cx === preview.cx && state.buildGhost.cy === preview.cy;
+    state.buildGhost = { x: p.x, y: p.y, cx: preview.cx, cy: preview.cy };
+    if (!same) {
+      flashText(preview.x, preview.y - 18, "再點一次確認", { color: "#fde047", size: 13, big: true });
+      return;
+    }
+    tryBuildTower(p.x, p.y);
+  }
+
+  function handleTap(p, isTouch) {
     if (state.pendingSkill) { castSkill(state.pendingSkill, p.x, p.y); state.pendingSkill = null; canvas.style.cursor = "default"; return; }
-    if (state.selectedTowerType) { tryBuildTower(p.x, p.y); return; }
+    if (state.selectedTowerType) { handleBuildTap(p, isTouch); return; }
     // D9 駐守：已選中英雄 → 點地圖設駐守點（點英雄自己=取消駐守）
     if (state.pendingHero) {
       const h = state.heroes.find((x) => x.uid === state.pendingHero);
@@ -1106,7 +1183,7 @@
     if (typeof window.__tdUI === "function") window.__tdUI();
   }
   canvas.addEventListener("mousemove", (ev) => { state.mouse = canvasPos(ev.clientX, ev.clientY); });
-  canvas.addEventListener("click", (ev) => { handleTap(canvasPos(ev.clientX, ev.clientY)); });
+  canvas.addEventListener("click", (ev) => { handleTap(canvasPos(ev.clientX, ev.clientY), false); });
   // 觸控支援：tap 建塔/選塔/放技能
   canvas.addEventListener("touchstart", (ev) => {
     if (ev.touches.length) { const t = ev.touches[0]; state.mouse = canvasPos(t.clientX, t.clientY); }
@@ -1114,7 +1191,7 @@
   canvas.addEventListener("touchend", (ev) => {
     ev.preventDefault(); // 避免觸發後續的合成 click（重複觸發）
     const t = ev.changedTouches[0];
-    if (t) handleTap(canvasPos(t.clientX, t.clientY));
+    if (t) handleTap(canvasPos(t.clientX, t.clientY), true);
   }, { passive: false });
 
   function log(msg, kind) { if (typeof window.__tdLog === "function") window.__tdLog(msg, kind); }
@@ -1136,13 +1213,13 @@
     state: () => state,
     newGame: () => { newGame(); state.clock = 0; render(); },
     startWave,
-    selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.pendingSkill = null; },
-    cancelBuild: () => { state.selectedTowerType = null; },
+    selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; },
+    cancelBuild: () => { state.selectedTowerType = null; state.buildGhost = null; },
     selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; canvas.style.cursor = "crosshair"; } },
     upgradeSelected: () => { if (state.selectedTower) upgradeTower(state.selectedTower); },
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
-    upgradeCost, towerStat, getTowerBuff: supportBuffFor, effectiveTowerDamage,
+    upgradeCost, towerStat, getTowerBuff: supportBuffFor, effectiveTowerDamage, supportDpsGain,
     deployHero, rollHero,  // 英雄上場與抽卡
     rollHeroWithPity,      // 含保底的抽卡（Stage 1：pity 由 ui.js 的 meta 持久化）
     previewNextWave,       // 下一波預告（D4）
@@ -1150,8 +1227,9 @@
     setMap, getMap,
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
-    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
+    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
     setSpeed: (s) => { state.speed = s; },
+    buildPreviewAt: (x, y) => buildPreviewAt(x, y),
     debug: {
       spawnEnemy: (type, overrides) => {
         const e = createEnemy({ type, hpScale: 1 }, overrides);

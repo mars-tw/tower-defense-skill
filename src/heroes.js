@@ -68,8 +68,8 @@ const HERO_LEVEL = {
 const GACHA = {
   cost: 20,            // 單抽花費（魂晶）
   firstFree: true,     // 首抽免費（新玩家 30 秒內就能體驗盲盒，跟卡包首包免費同一套家族慣例）
-  pityLegendary: 30,   // 30 抽保底傳說
-  dupRefund: 10,       // 抽到重複英雄退還魂晶（半價補償）
+  pityLegendary: 18,   // 18 抽保底傳說
+  dupRefund: 12,       // 抽到重複英雄退還魂晶（降低重複挫折）
 };
 
 // rng 可注入（不給就用 Math.random）——跟農場專案同一套慣例，Node 測試才能餵固定序列

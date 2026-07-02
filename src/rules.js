@@ -238,7 +238,9 @@
     const diffId = difficulty.id || input.difficultyId || "normal";
     const wave = Math.max(0, Math.floor(safeNumber(input.wave, 0)));
     const kills = Math.max(0, Math.floor(safeNumber(input.kills, 0)));
-    const earned = Math.max(1, Math.round(wave * 1.5));
+    const rewardMulByDiff = { normal: 1.8, brutal: 2.4, endless: 2.2 };
+    const rewardMul = rewardMulByDiff[diffId] || rewardMulByDiff.normal;
+    const earned = Math.max(1, Math.round(wave * rewardMul));
     const previousBest = meta.bestByDiff[diffId] || 0;
     const isRecord = wave > previousBest;
 

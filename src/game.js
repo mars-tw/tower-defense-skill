@@ -99,13 +99,8 @@
   // theme 用 config 的共用 waveTheme()——startWave 出怪讀同一個來源，預告才不會是假的
   function previewNextWave() {
     const w = state.wave + 1;
-    const isBoss = w % getDifficulty().bossEvery === 0;
-    // 事件波（與 startWave 用同一個確定性 seed）
-    const ev = getEventWave(w, isBoss, ((w * 2654435761) % 1000) / 1000);
-    let count = 5 + Math.floor(w * 1.2);
-    if (isBoss) count = Math.floor(count * 0.5);
-    if (ev) count = Math.max(2, Math.round(count * ev.countMul));
-    return { wave: w, count, isBoss, theme: waveTheme(w), event: ev };
+    const plan = TDRules.generateWaveQueue(w, getDifficulty());
+    return { wave: w, count: plan.count, isBoss: plan.isBoss, theme: plan.theme, event: plan.event };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -114,40 +109,12 @@
     state.wave++;
     state.betweenWaves = false;
     const w = state.wave;
-    const isBoss = w % getDifficulty().bossEvery === 0;
-    const hpScale = waveHpScale(w); // 血量隨波遞增（分段成長，D2）
-    // D8 事件波：用波數當 seed 確定性決定（與預告一致）
-    const ev = getEventWave(w, isBoss, ((w * 2654435761) % 1000) / 1000);
+    const plan = TDRules.generateWaveQueue(w, getDifficulty(), Math.random);
+    const isBoss = plan.isBoss;
+    const ev = plan.event;
     state.currentEvent = ev;
 
-    const queue = [];
-    // 敵人數隨波增加（前期較緩）；Boss 波小怪減半
-    let baseCount = 5 + Math.floor(w * 1.2);
-    if (isBoss) baseCount = Math.floor(baseCount * 0.5);
-    if (ev) baseCount = Math.max(2, Math.round(baseCount * ev.countMul)); // 事件波調整數量
-    const evHpScale = hpScale * (ev ? ev.hpMul : 1);
-    const theme = waveTheme(w);                    // 主元素傾向（與預告同一來源）
-    const themePool = theme ? themeEnemyPool(theme) : null;
-    for (let i = 0; i < baseCount; i++) {
-      let pick;
-      if (ev && ev.forceType) { pick = ev.forceType; } // 蟲潮波強制蝙蝠
-      else if (themePool && Math.random() < 0.55) {
-        // 主題波：過半敵人來自該元素池——預告寫「主❄️」，場上就真的以冰系為主
-        pick = themePool[Math.floor(Math.random() * themePool.length)];
-      } else {
-        const r = Math.random();
-        if (w < 3) pick = r < 0.7 ? "slime" : "goblin";
-        else if (r < 0.30) pick = "slime";
-        else if (r < 0.52) pick = "goblin";
-        else if (r < 0.68) pick = "bat";
-        else if (r < 0.80) pick = "frostwolf";
-        else if (r < 0.90) pick = "imp";
-        else pick = "orc";
-      }
-      queue.push({ type: pick, hpScale: evHpScale, event: ev });
-    }
-    if (isBoss) queue.push({ type: "boss", hpScale: hpScale * (GAME.bossHpMul || 1.0) }); // Boss 壓軸
-    state.spawnQueue = queue;
+    state.spawnQueue = plan.queue;
     state.spawnTimer = 0;
     startLoop();
     if (ev) {
@@ -630,7 +597,7 @@
     if (state.over) return; // 重入保護：同一幀多隻敵人 leak 會觸發多次，魂晶/場次會被重複結算
     state.over = true; state.running = false;
     log(`💀 遊戲結束！撐到第 ${state.wave} 波，得分 ${state.score}`, "bad");
-    if (typeof window.__tdGameOver === "function") window.__tdGameOver(state.wave, state.score);
+    if (typeof window.__tdGameOver === "function") window.__tdGameOver(state.wave, state.score, { kills: state.kills, difficulty: getDifficulty() });
   }
 
   // ===== 渲染 =====

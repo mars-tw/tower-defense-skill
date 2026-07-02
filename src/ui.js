@@ -7,6 +7,7 @@
   "use strict";
   const { TOWERS, SKILLS } = TD.config;
   const $ = (id) => document.getElementById(id);
+  const RULES = window.TDRules;
 
   // 元素圖示與克制提示（D3 元素克制可見化）
   const ELEM_ICON = { physical: "⚔️", fire: "🔥", ice: "❄️", thunder: "⚡" };
@@ -241,32 +242,30 @@
   }
 
   // ===== Meta 進度系統（D1：最高紀錄 + 魂晶）=====
-  // 讀檔一律用預設 shape 補齊欄位並驗證數字——舊存檔缺 soulCrystal/gachaPity 等欄位時，
-  // 直接 += 會把 meta 打成 NaN 並寫回（存檔遷移最小版，同卡牌/農場專案慣例）
+  // 讀檔一律交給 rules.js 補齊版本與欄位，避免舊存檔缺欄位時把 meta 打成 NaN。
   const META_KEY = "td_meta_v1";
-  const META_DEFAULT = { bestWave: 0, totalKills: 0, soulCrystal: 0, games: 0, gachaPity: 0, gachaCount: 0 };
   function loadMeta() {
     let raw = null;
     try { raw = JSON.parse(localStorage.getItem(META_KEY)); } catch {}
-    const m = Object.assign({}, META_DEFAULT, raw || {});
-    for (const k of Object.keys(META_DEFAULT)) if (typeof m[k] !== "number" || isNaN(m[k])) m[k] = META_DEFAULT[k];
-    if (!m.bestByDiff || typeof m.bestByDiff !== "object") m.bestByDiff = {};
-    return m;
+    return RULES.migrateMeta(raw);
   }
-  function saveMeta(m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch {} }
+  function saveMeta(m) {
+    try { localStorage.setItem(META_KEY, JSON.stringify(RULES.migrateMeta(m))); } catch {}
+  }
 
   // ===== 遊戲結束（含 meta 結算 + 分享鉤子）=====
-  function onGameOver(wave, score) {
-    const meta = loadMeta();
+  function onGameOver(wave, score, run) {
     const diff = TD.getDifficulty();
-    if (!meta.bestByDiff) meta.bestByDiff = {};
-    const prevBest = meta.bestByDiff[diff.id] || 0;
-    const isRecord = wave > prevBest;
-    if (isRecord) meta.bestByDiff[diff.id] = wave;
-    if (wave > (meta.bestWave || 0)) meta.bestWave = wave;
-    const earned = Math.max(1, Math.round(wave * 1.5));
-    meta.soulCrystal += earned;
-    meta.games += 1;
+    const settlement = RULES.settleRunRewards({
+      meta: loadMeta(),
+      wave,
+      score,
+      kills: run && run.kills,
+      difficulty: (run && run.difficulty) || diff,
+    });
+    const meta = settlement.meta;
+    const earned = settlement.earned;
+    const isRecord = settlement.isRecord;
     saveMeta(meta);
 
     $("finalWave").textContent = wave;

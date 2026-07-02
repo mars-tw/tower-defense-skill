@@ -1,131 +1,285 @@
-# 塔防資料結構說明 (data-model.md)
+# 塔防資料模型與規則同步表
 
-加塔、加怪、加技能、調平衡都只改 `src/config.js`。
+本文件是 `src/config.js`、`src/heroes.js`、`src/rules.js` 的數值索引。調整平衡或擴充單位時，請同步更新這份文件與對應測試。
 
-## 砲塔 TOWERS
+## 砲塔 `TOWERS`
 
-```js
-arrow: {
-  id: "arrow", name: "弓箭塔", emoji: "🏹", element: "physical",
-  range: 110,      // 射程(px)
-  damage: 10,      // 每發傷害
-  fireRate: 2.0,   // 每秒射擊次數
-  cost: 50,        // 造價
-  color: "#a3a3a3",
-  desc: "說明",
-  // 選擇性特殊效果：
-  // splash: 45,   // 範圍傷害半徑（加農砲）
-  // slow: 0.45,   // 減速比例 0~1（寒冰塔）
-  // pierce: 3,    // 穿透目標數（電磁塔）
-}
-```
+| id | 名稱 | 元素 | 射程 | 傷害 | 攻速 | 造價 | 特殊效果 |
+|---|---|---|---:|---:|---:|---:|---|
+| `arrow` | 弓箭塔 | `physical` | 110 | 10 | 2.0 | 50 | 單體高速 |
+| `cannon` | 加農砲 | `fire` | 95 | 26 | 0.75 | 100 | `splash: 50` |
+| `frost` | 寒冰塔 | `ice` | 105 | 11 | 1.3 | 80 | `slow: 0.5` |
+| `tesla` | 電磁塔 | `thunder` | 95 | 14 | 1.4 | 130 | `pierce: 3` |
 
-加新塔：在 `TOWERS` 加一筆，id 對應 `assets/towers/<id>.png`。升級數值由 `UPGRADE` 控制
-（每級傷害 ×1.5、射程 ×1.12、造價 ×1.6，最高 4 級）。
+升級曲線 `UPGRADE`：
 
-## 敵人 ENEMIES
+| 欄位 | 值 |
+|---|---:|
+| `damageMul` | 1.55 |
+| `rangeMul` | 1.1 |
+| `costMul` | 1.5 |
+| `maxLevel` | 6 |
 
-```js
-slime: {
-  id: "slime", name: "史萊姆", emoji: "🟢", element: "physical",
-  hp: 40,       // 基礎血量（會隨波次成長）
-  speed: 45,    // 移動速度 px/s
-  reward: 8,    // 擊殺金錢
-  leak: 1,      // 漏過終點扣的生命
-  color: "#22c55e",
-  // boss: true, // 標記為 Boss（更大、血更多）
-}
-```
+## 敵人 `ENEMIES`
 
-## 主動技能 SKILLS
+| id | 名稱 | 元素 | HP | 速度 | 擊殺金 | 漏過係數 | 備註 |
+|---|---|---|---:|---:|---:|---:|---|
+| `slime` | 史萊姆 | `physical` | 40 | 45 | 8 | 1 | 一般敵人 |
+| `goblin` | 哥布林 | `physical` | 28 | 80 | 10 | 1 | 快速物理 |
+| `orc` | 獸人 | `physical` | 120 | 35 | 18 | 2 | 高血慢速 |
+| `bat` | 蝙蝠群 | `thunder` | 22 | 95 | 7 | 1 | 快速雷系 |
+| `frostwolf` | 冰霜狼 | `ice` | 60 | 65 | 12 | 1 | Stage 1 補冰系 |
+| `imp` | 火焰小鬼 | `fire` | 45 | 70 | 10 | 1 | Stage 1 補火系 |
+| `boss` | 魔王 | `fire` | 500 | 28 | 150 | 8 | `boss: true` |
 
-```js
-meteor: {
-  id: "meteor", name: "隕石術", emoji: "☄️", element: "fire",
-  cooldown: 18,   // 冷卻秒數
-  damage: 120,    // 傷害
-  radius: 80,     // 影響半徑（999 = 全場）
-  // freezeDur: 3, // 凍結秒數（冰封術）
-  color: "#f97316", desc: "說明",
-}
-```
+漏過傷害在 `game.js` 計算：一般敵人 `leak * 3`，Boss `leak * 4`。
+
+## 技能 `SKILLS`
+
+| id | 名稱 | 元素 | 冷卻 | 傷害 | 半徑 | 特殊效果 |
+|---|---|---|---:|---:|---:|---|
+| `meteor` | 隕石術 | `fire` | 18 | 120 | 80 | 範圍火焰傷害 |
+| `freeze` | 冰封術 | `ice` | 22 | 20 | 999 | `freezeDur: 3` |
+| `thunder` | 雷暴術 | `thunder` | 15 | 60 | 999 | 全場雷電傷害 |
 
 ## 元素克制
 
-`COUNTERS = { fire: "ice", ice: "thunder", thunder: "fire" }`（key 克 value）。
-`elementMultiplier(atk, def)`：克制回 1.5、被反克回 0.66、其餘 1。物理對所有中性。
+`COUNTERS = { fire: "ice", ice: "thunder", thunder: "fire" }`
 
-## 無盡波次平衡（GAME）
+`elementMultiplier(atkEl, defEl)`：
+
+| 關係 | 倍率 |
+|---|---:|
+| 攻擊方克制防禦方 | 1.5 |
+| 攻擊方被防禦方反克 | 0.66 |
+| 其他或物理 | 1 |
+
+## 女神 `GODDESS`
+
+| 欄位 | 值 | 說明 |
+|---|---:|---|
+| `baseHp` | 100 | 起始生命上限 |
+| `hpPerLevel` | 60 | 每級增加生命並回滿 |
+| `upgradeCostBase` | 150 | 女神升級基礎花費 |
+| `upgradeCostMul` | 1.7 | 升級花費倍率 |
+| `maxLevel` | 5 | 最高等級 |
+| `smiteUnlockLevel` | 2 | 解鎖聖光反擊等級 |
+| `smiteRange` | 130 | 聖光反擊範圍 |
+| `smiteDamage` | 25 | 聖光反擊傷害 |
+| `smiteInterval` | 1.2 | 聖光反擊間隔 |
+
+## 全域遊戲參數 `GAME`
+
+| 欄位 | 值 | 說明 |
+|---|---:|---|
+| `startGold` | 220 | 起始金錢 |
+| `cellSize` | 48 | 地圖格大小 |
+| `waveBonusBase` | 30 | 波次通關獎勵基數 |
+| `waveBonusGrowth` | 1.12 | 波次通關獎勵成長 |
+| `bossEveryWaves` | 5 | 普通模式基準 Boss 週期 |
+| `hpGrowthEarly` | 0.15 | 第 1 到 10 波血量成長 |
+| `hpGrowthLate` | 0.10 | 第 11 波後血量成長 |
+| `bossHpMul` | 1.0 | Boss 額外血量倍率 |
+| `spawnInterval` | 0.8 | 同波敵人生成間隔秒數 |
+
+通關金錢：
 
 ```js
-GAME = {
-  startGold: 200,        // 起始金錢
-  startLives: 20,        // 起始生命
-  waveBonus: 25,         // 每波結束獎勵
-  bossEveryWaves: 5,     // 每 5 波出 Boss
-  hpGrowthPerWave: 0.18, // 每波敵人血量成長率（無盡遞增的關鍵）
-  spawnInterval: 0.8,    // 同波敵人生成間隔(秒)
+waveGoldBonus(wave) =
+  round(GAME.waveBonusBase * GAME.waveBonusGrowth ** wave * difficulty.goldMul)
+```
+
+敵人血量倍率：
+
+```js
+waveHpScale(wave) =
+  wave <= 10
+    ? (1 + hpGrowthEarly) ** (wave - 1) * difficulty.hpMul
+    : (1 + hpGrowthEarly) ** 9 * (1 + hpGrowthLate) ** (wave - 10) * difficulty.hpMul
+```
+
+## 難度 `DIFFICULTIES`
+
+| id | 名稱 | `hpMul` | `goldMul` | `goddessMul` | `bossEvery` |
+|---|---|---:|---:|---:|---:|
+| `normal` | 普通 | 1.0 | 1.0 | 1.0 | 5 |
+| `brutal` | 嚴酷 | 1.5 | 0.85 | 0.8 | 4 |
+| `endless` | 無盡煉獄 | 1.3 | 0.9 | 0.7 | 3 |
+
+`rules.js` 的 `applyDifficulty(base, difficulty)` 會依欄位套用倍率：
+
+- `hp`、`hpScale` 乘 `hpMul`
+- `gold`、`goldBonus` 乘 `goldMul`
+- `goddessHp` 乘 `goddessMul`
+- 傳入數字時預設視為血量係數，乘 `hpMul`
+
+## 事件波 `EVENT_WAVES`
+
+事件波只會在非 Boss、波數至少 5、且 `wave % 3 === 2` 時出現。事件類型由波數 seed 決定，因此預告與實際出怪一致。
+
+| id | 名稱 | `speedMul` | `hpMul` | `countMul` | `goldMul` | 特殊 |
+|---|---|---:|---:|---:|---:|---|
+| `rush` | 狂奔波 | 1.8 | 0.7 | 1.2 | 1.3 | 快速低血 |
+| `elite` | 精英波 | 0.8 | 2.5 | 0.5 | 1.6 | 少量高血 |
+| `swarm` | 蟲潮波 | 1.3 | 0.5 | 2.0 | 1.1 | `forceType: "bat"` |
+| `treasure` | 寶藏波 | 1.0 | 0.8 | 0.8 | 3.0 | 高金錢 |
+
+## 主題波
+
+`WAVE_THEMES = [null, "physical", "thunder", "ice", "fire"]`
+
+```js
+waveTheme(wave) =
+  wave >= 4 ? WAVE_THEMES[Math.floor(wave / 3) % WAVE_THEMES.length] : null
+```
+
+`generateWaveQueue(wave, difficulty, rng)` 會在有主題池時，以 55% 機率從 `themeEnemyPool(theme)` 選敵人。事件波若有 `forceType`，會優先強制該敵人。
+
+## 波次組隊 `generateWaveQueue`
+
+簽名：
+
+```js
+generateWaveQueue(wave, difficulty, rng)
+```
+
+回傳：
+
+```js
+{
+  wave,
+  count,      // 不含 Boss 的一般敵人數
+  totalCount, // 含 Boss 的 queue 長度
+  isBoss,
+  event,
+  theme,
+  hpScale,
+  queue       // [{ type, hpScale, event }]
 }
 ```
 
-想要更難：調高 `hpGrowthPerWave`、調低 `startGold`、縮短 `bossEveryWaves`。
-想要更簡單：反之。
-
-## 守護女神 GODDESS（被保護的核心）
-
-女神站在路徑終點，是玩家要守護的對象。怪物漏過終點 = 攻擊女神扣生命，
-女神生命歸零 = 遊戲結束。可花金升級。
+一般敵人基礎數量：
 
 ```js
-const GODDESS = {
-  baseHp: 100,           // 起始生命上限
-  hpPerLevel: 60,        // 每升一級 +60 上限並回滿
-  upgradeCostBase: 150,  // 升級造價（隨等級遞增 ×1.7）
-  maxLevel: 5,
-  smiteUnlockLevel: 2,   // 2 級起解鎖「聖光反擊」
-  smiteRange: 130, smiteDamage: 25, smiteInterval: 1.2, // 自動攻擊終點附近敵人
-};
+baseCount = 5 + Math.floor(wave * 1.2)
+if (isBoss) baseCount = Math.floor(baseCount * 0.5)
+if (event) baseCount = Math.max(2, Math.round(baseCount * event.countMul))
 ```
 
-調女神強度：改 `baseHp`/`hpPerLevel`（耐打度）、`smiteDamage`/`smiteRange`（反擊強度）。
+一般敵人池分布（沒有主題命中、沒有事件強制時）：
 
-## 路徑
+| 條件 | 敵人 |
+|---|---|
+| `wave < 3` 且 `roll < 0.7` | `slime` |
+| `wave < 3` 且其他 | `goblin` |
+| `roll < 0.30` | `slime` |
+| `roll < 0.52` | `goblin` |
+| `roll < 0.68` | `bat` |
+| `roll < 0.80` | `frostwolf` |
+| `roll < 0.90` | `imp` |
+| 其他 | `orc` |
 
-路徑在 `game.js` 的 `PATH` 陣列（一串 {x,y} waypoint）。改路徑形狀就改這個陣列；
-改完路徑會自動重算「禁止建塔」的格位。女神位置自動設在路徑終點。
-> ⚠️ 終點別放在畫布邊緣（如 x=W），否則女神圖會被截斷。留至少一格邊距（如 x=W-60）。
+Boss 波會在 queue 尾端追加 `{ type: "boss", hpScale: hpScale * GAME.bossHpMul }`，事件波與 Boss 波互斥。
 
-## 進階機制（P0/P1 優化的成果）
+## 英雄與抽卡
 
-| 機制 | 位置 | 說明 |
-|------|------|------|
-| **金錢指數出口** | `config.js` `waveGoldBonus()` | 波獎勵 `base * growth^wave`，對抗血量指數成長，避免後期撞牆 |
-| **血量分段成長** | `config.js` `waveHpScale()` | 前 10 波 `hpGrowthEarly`、之後 `hpGrowthLate`，消除後期斷崖 |
-| **塔協同增傷** | `game.js` `dealDamage()` | 被減速/冰凍的敵人受傷 +25%（救活寒冰塔，鼓勵塔陣搭配）|
-| **連殺 combo** | `game.js` `killEnemy()` | 2.5 秒內連殺累積，每殺 +5% 金錢（上限 +100%）|
-| **波次預告** | `game.js` `previewNextWave()` | 波間顯示下一波敵人數、Boss 預警、事件波、主元素傾向 |
-| **Meta 進度** | `ui.js` `loadMeta/saveMeta` | localStorage 存 bestWave(依難度)/魂晶，死亡結算 + HUD 最高紀錄 |
-| **難度模式** | `config.js` `DIFFICULTIES` | 普通/嚴酷/無盡，改 hpMul/goldMul/goddessMul/bossEvery。社群鉤子 |
-| **特殊事件波** | `config.js` `EVENT_WAVES`/`getEventWave()` | 狂奔/精英/蟲潮/寶藏波，每 3 波出現（避開 Boss），改 speedMul/hpMul/countMul/goldMul |
-| **英雄駐守** | `game.js` `updateHero()` 的 `guardPoint` | 點英雄→點地圖設駐守點，英雄留守只打範圍內敵人 |
-| **暫停/告警** | `game.js` `togglePause()` / `ui.js` danger class | 空白鍵暫停、Esc 取消選取、女神低血 HUD 閃紅 |
-| **戰績分享** | `ui.js` `onGameOver` | 死亡顯示難度/紀錄、複製戰績、發攻略連 Discussions |
+### 英雄 `HEROES`
 
-## 改完數值務必驗證
+| id | 名稱 | 稀有度 | 元素 | 角色 | HP | 攻擊 | 速度 | 射程 | 攻速 | 特殊 |
+|---|---|---|---|---|---:|---:|---:|---:|---:|---|
+| `knight` | 聖騎士 | `rare` | `physical` | `melee` | 220 | 18 | 70 | 40 | 1.2 | 近戰 |
+| `archer` | 遊俠 | `common` | `physical` | `ranged` | 120 | 14 | 80 | 120 | 1.6 | 遠程 |
+| `mage` | 大法師 | `epic` | `fire` | `ranged` | 140 | 28 | 60 | 110 | 0.9 | `splash: 35` |
+| `iceMage` | 冰霜法師 | `rare` | `ice` | `ranged` | 130 | 16 | 60 | 110 | 1.1 | `slow: 0.4` |
+| `valkyrie` | 女武神 | `legendary` | `thunder` | `melee` | 320 | 30 | 95 | 50 | 1.5 | 傳說近戰 |
+| `cleric` | 牧師 | `common` | `physical` | `ranged` | 110 | 8 | 70 | 90 | 1.0 | `healGoddess: 10` |
 
-任何數值改動後跑 `node scripts/sim-balance.js`，確認：
-- 塔 CP 比值 < 2.6（無廢塔）
-- 非 Boss 波成長 < 50%、Boss 波 < 150%（無斷崖）
-- 純塔防撐波 ≥ 20（無中期撞牆）
+### 英雄稀有度 `HERO_RARITY`
 
-CI 已內建此驗證，失衡會讓 build 失敗。
+| 稀有度 | 星數 | 權重 |
+|---|---:|---:|
+| `common` | 1 | 55 |
+| `rare` | 2 | 30 |
+| `epic` | 3 | 12 |
+| `legendary` | 4 | 3 |
 
-## 驗收清單（生成完逐項自檢，確保「一次到位」）
+### 英雄升級 `HERO_LEVEL`
 
-- [ ] 首次玩 30 秒內看得懂怎麼玩（有引導）
-- [ ] 元素克制在 UI 看得見（不只程式有）
-- [ ] 打擊有回饋（傷害數字、粒子）
-- [ ] 死亡有結算（最高紀錄、魂晶），讓人想再玩
-- [ ] 連殺有回饋（combo 數字）
-- [ ] 手機可玩（RWD + 觸控）
-- [ ] 視覺不是 greybox（有色階、陰影、場景深度）
+| 欄位 | 值 |
+|---|---:|
+| `maxLevel` | 10 |
+| `xpBase` | 30 |
+| `xpGrowth` | 1.35 |
+| `hpPerLevel` | 0.12 |
+| `atkPerLevel` | 0.10 |
+| `xpPerKill` | 6 |
+
+### 抽卡 `GACHA`
+
+| 欄位 | 值 | 說明 |
+|---|---:|---|
+| `cost` | 20 | 單抽魂晶花費 |
+| `firstFree` | `true` | 首抽免費 |
+| `pityLegendary` | 30 | 30 抽保底傳說 |
+| `dupRefund` | 10 | 重複英雄退還魂晶 |
+
+`rollHero(rng)` 與 `rollHeroWithPity(pityCount, rng)` 都是純函式；呼叫端負責扣魂晶、保存 `gachaPity` 與 `gachaCount`。
+
+## Meta 存檔與死亡結算
+
+localStorage key 仍為 `td_meta_v1`，資料本體由 `rules.js` 加入 `version` 欄位。
+
+目前 `META_VERSION = 2`，`META_DEFAULT`：
+
+```js
+{
+  version: 2,
+  bestWave: 0,
+  totalKills: 0,
+  soulCrystal: 0,
+  games: 0,
+  gachaPity: 0,
+  gachaCount: 0,
+  bestByDiff: {}
+}
+```
+
+`migrateMeta(raw)` 會用 `DEFAULT + Object.assign` 補欄位，並把非數字、`NaN`、`Infinity` 的數值欄位修回預設值；`bestByDiff` 只保留有限數字。
+
+`settleRunRewards(state)` 簽名：
+
+```js
+settleRunRewards({
+  meta,
+  wave,
+  score,
+  kills,
+  difficulty
+})
+```
+
+死亡結算：
+
+```js
+earnedSoulCrystal = Math.max(1, Math.round(wave * 1.5))
+```
+
+同時更新：
+
+- `bestByDiff[difficulty.id]`
+- `bestWave`
+- `soulCrystal`
+- `games`
+- `totalKills`
+
+函式不改動傳入的 `meta`，而是回傳 `{ meta, earned, isRecord, previousBest, difficultyId, wave, kills }`。
+
+## 測試入口
+
+| 測試 | 覆蓋 |
+|---|---|
+| `node scripts/test-config.js` | 設定 shape、元素克制、事件波與難度基本健全性 |
+| `node scripts/test-heroes.js` | 抽卡、權重、保底 |
+| `node scripts/test-rules.js` | meta 遷移、死亡結算、波次組隊、難度係數 |
+| `node scripts/sim-balance.js` | 三難度平衡煙霧測試 |
+| `node scripts/test-td-e2e.js` | 真瀏覽器流程、抽卡經濟、主題波、RWD |

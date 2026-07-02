@@ -70,3 +70,6 @@ jobs:
           path: .
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # Pages 部署佇列偶發壅塞（2026-07-02 曾連續 queued 逾時），預設 10 分鐘不夠
+          timeout: 1800000

@@ -156,6 +156,108 @@ async function run() {
     assert(noTowerStart.disabled && noTowerStart.text.includes("先建一座塔") && noTowerStart.wave === 0 && noTowerStart.towers === 0,
       "未建塔時開始第 1 波按鈕提示先建一座塔");
 
+    if (vp.w === 1280) {
+      const badges = await page.evaluate(() => ({
+        arrow: document.querySelector('.tower-btn[data-type="arrow"]').dataset.hotkey,
+        cannon: document.querySelector('.tower-btn[data-type="cannon"]').dataset.hotkey,
+        meteor: document.querySelector('.skill-btn[data-skill="meteor"]').dataset.hotkey,
+        freeze: document.querySelector('.skill-btn[data-skill="freeze"]').dataset.hotkey,
+        start: document.getElementById("startBtn").dataset.hotkey,
+        speed2: document.getElementById("speed2").dataset.hotkey,
+        pause: document.getElementById("pauseBtn").dataset.hotkey,
+        gacha: document.getElementById("gachaBtn").dataset.hotkey,
+      }));
+      assert(badges.arrow === "1" && badges.cannon === "2" && badges.meteor === "Q" && badges.freeze === "W" &&
+        badges.start === "⏎" && badges.speed2 === "Tab" && badges.pause === "P" && badges.gacha === "H",
+        "快捷鍵徽章標在塔、技能、下一波、加速、暫停與抽英雄按鈕");
+
+      await page.keyboard.press("Digit1");
+      const towerHotkey = await page.evaluate(() => ({
+        selected: window.TD.state().selectedTowerType,
+        active: document.querySelector('.tower-btn[data-type="arrow"]').classList.contains("active"),
+      }));
+      assert(towerHotkey.selected === "arrow" && towerHotkey.active, "按 1 進入弓箭塔放置模式");
+
+      await page.keyboard.press("Escape");
+      const escCancel = await page.evaluate(() => ({
+        selectedTowerType: window.TD.state().selectedTowerType,
+        pendingSkill: window.TD.state().pendingSkill,
+      }));
+      assert(!escCancel.selectedTowerType && !escCancel.pendingSkill, "Esc 取消選塔/待施放技能");
+
+      await page.keyboard.press("KeyQ");
+      const skillHotkey = await page.evaluate(() => ({
+        pendingSkill: window.TD.state().pendingSkill,
+        cursor: document.getElementById("game").style.cursor,
+      }));
+      assert(skillHotkey.pendingSkill === "meteor" && skillHotkey.cursor === "crosshair", "按 Q 進入隕石術施放模式");
+
+      await page.keyboard.press("Escape");
+      await page.evaluate(() => {
+        window.TD.state().skillCooldowns.meteor = 5;
+        window.__tdUI();
+      });
+      await page.keyboard.press("KeyQ");
+      const cooldownHotkey = await page.evaluate(() => ({
+        pendingSkill: window.TD.state().pendingSkill,
+        log: document.getElementById("log").innerText,
+      }));
+      assert(!cooldownHotkey.pendingSkill && cooldownHotkey.log.includes("冷卻中"), "技能冷卻中按 Q 不進入施放模式並提示");
+      await page.evaluate(() => { window.TD.state().skillCooldowns.meteor = 0; window.__tdUI(); });
+
+      await page.keyboard.press("Tab");
+      const speed2Hotkey = await page.evaluate(() => ({
+        speed: window.TD.state().speed,
+        on: document.getElementById("speed2").classList.contains("on"),
+      }));
+      assert(speed2Hotkey.speed === 2 && speed2Hotkey.on, "Tab 切到 2× 速度且不跳焦點");
+      await page.keyboard.press("Tab");
+      const speed1Hotkey = await page.evaluate(() => ({
+        speed: window.TD.state().speed,
+        on: document.getElementById("speed1").classList.contains("on"),
+      }));
+      assert(speed1Hotkey.speed === 1 && speed1Hotkey.on, "Tab 再次切回 1× 速度");
+
+      await page.evaluate(() => {
+        window.TD.selectTower("arrow");
+        const canvas = document.getElementById("game");
+        const rect = canvas.getBoundingClientRect();
+        const sx = rect.width / 960, sy = rect.height / 640;
+        canvas.dispatchEvent(new MouseEvent("click", { clientX: rect.left + 504 * sx, clientY: rect.top + 72 * sy, bubbles: true }));
+      });
+      await page.keyboard.press("Enter");
+      const enterHotkey = await page.evaluate(() => ({
+        wave: window.TD.state().wave,
+        betweenWaves: window.TD.state().betweenWaves,
+        running: window.TD.state().running,
+        spawnQueue: window.TD.state().spawnQueue.length,
+      }));
+      assert(enterHotkey.wave === 1 && enterHotkey.betweenWaves === false && enterHotkey.running && enterHotkey.spawnQueue > 0,
+        "Enter 等同點下一波按鈕並開始第 1 波");
+
+      await page.evaluate(() => {
+        window.TD.newGame();
+        document.getElementById("boardBtn").click();
+      });
+      await page.keyboard.press("Digit1");
+      await page.keyboard.press("KeyH");
+      await page.keyboard.press("Enter");
+      const overlayGuard = await page.evaluate(() => ({
+        progressShown: document.getElementById("progressOverlay").classList.contains("show"),
+        gachaShown: document.getElementById("gachaOverlay").classList.contains("show"),
+        selectedTowerType: window.TD.state().selectedTowerType,
+        wave: window.TD.state().wave,
+      }));
+      assert(overlayGuard.progressShown && !overlayGuard.gachaShown && !overlayGuard.selectedTowerType && overlayGuard.wave === 0,
+        "overlay 開啟時建塔、抽英雄與進波快捷鍵都被擋下");
+      await page.keyboard.press("Escape");
+      const overlayEsc = await page.evaluate(() => ({
+        progressShown: document.getElementById("progressOverlay").classList.contains("show"),
+      }));
+      assert(!overlayEsc.progressShown, "progress overlay 開啟時 Esc 先關閉 overlay");
+      await page.evaluate(() => { window.TD.newGame(); window.__tdUI(); });
+    }
+
     const previewCheck = await page.evaluate(() => {
       window.TD.selectTower("arrow");
       const canvas = document.getElementById("game");
@@ -291,14 +393,26 @@ async function run() {
       return text;
     });
     assert(pityClampText.includes("保底 18/18"), `舊存檔 pity 超過保底時顯示會 clamp（${pityClampText}）`);
-    const gacha1 = await page.evaluate(() => {
-      const goldBefore = window.TD.state().gold;
-      document.getElementById("gachaBtn").click(); // 首抽（免費）
-      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
-      return { goldBefore, goldAfter: window.TD.state().gold,
-        crystal: meta.soulCrystal, count: meta.gachaCount, paused: window.TD.state().paused,
-        overlayShown: document.getElementById("gachaOverlay").classList.contains("show") };
-    });
+    let gacha1;
+    if (vp.w === 1280) {
+      const goldBefore = await page.evaluate(() => window.TD.state().gold);
+      await page.keyboard.press("KeyH");
+      gacha1 = await page.evaluate((goldBeforeValue) => {
+        const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+        return { goldBefore: goldBeforeValue, goldAfter: window.TD.state().gold,
+          crystal: meta.soulCrystal, count: meta.gachaCount, paused: window.TD.state().paused,
+          overlayShown: document.getElementById("gachaOverlay").classList.contains("show") };
+      }, goldBefore);
+    } else {
+      gacha1 = await page.evaluate(() => {
+        const goldBefore = window.TD.state().gold;
+        document.getElementById("gachaBtn").click(); // 首抽（免費）
+        const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+        return { goldBefore, goldAfter: window.TD.state().gold,
+          crystal: meta.soulCrystal, count: meta.gachaCount, paused: window.TD.state().paused,
+          overlayShown: document.getElementById("gachaOverlay").classList.contains("show") };
+      });
+    }
     assert(gacha1.goldAfter === gacha1.goldBefore, `抽卡不花場內金錢（${gacha1.goldBefore} 不變）`);
     assert(gacha1.crystal === 0 && gacha1.count === 1, `首抽免費（魂晶 ${gacha1.crystal}、抽數 ${gacha1.count}）`);
     assert(gacha1.overlayShown === true, "盲盒動畫浮層顯示");

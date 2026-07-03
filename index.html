@@ -60,6 +60,15 @@
     box-shadow: var(--shadow-card); cursor: pointer; transition: all .12s; text-align: left; width: 100%;
     color: var(--ink); font-family: inherit; min-height: 44px;
   }
+  button[data-hotkey] { position: relative; padding-right: 30px; }
+  button[data-hotkey]::after {
+    content: attr(data-hotkey); position: absolute; top: 4px; right: 5px; min-width: 17px;
+    padding: 1px 4px; border-radius: 5px; background: rgba(8,13,10,.58);
+    border: 1px solid rgba(255,255,255,.18); color: rgba(230,237,243,.86);
+    font-size: 9px; line-height: 1.25; font-weight: 900; text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,.28); pointer-events: none;
+  }
+  .shortcut-help { font-size: 11px; color: var(--ink-meta); line-height: 1.35; padding: 0 2px 2px; }
   .tower-btn:hover, .skill-btn:hover { background: var(--surface-2);
     box-shadow: var(--shadow-card), 0 0 0 1px rgba(74,222,128,.4); transform: translateX(2px); }
   .tower-btn:active, .skill-btn:active { transform: translateY(1px); filter: brightness(.95); }
@@ -336,6 +345,8 @@
     h1 { font-size: 14px; letter-spacing: 1px; }
     .hud { gap: 8px; padding: 6px 10px; }
     .hud .stat { font-size: 13px; }
+    button[data-hotkey] { padding-right: 11px; }
+    button[data-hotkey]::after, .shortcut-help { display: none; }
     .tower-btn .meta, .skill-btn .meta, .hero-card .hmeta { display: none; } /* 手機隱藏說明文字省空間 */
     #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card { min-width: 120px; }
     .reveal-hero { font-size: 80px; } .reveal-hero img { width: 110px; height: 110px; }
@@ -364,22 +375,23 @@
 
     <div class="panel">
       <div class="controls wave-start">
-        <button class="act start" id="startBtn">▶ 開始下一波</button>
+        <button class="act start" id="startBtn" data-hotkey="⏎">▶ 開始下一波</button>
       </div>
       <div class="controls wave-speed">
         <button class="act speed on" id="speed1" data-s="1">1×</button>
-        <button class="act speed" id="speed2" data-s="2">2×</button>
-        <button class="act pause" id="pauseBtn">⏸</button>
+        <button class="act speed" id="speed2" data-hotkey="Tab" data-s="2">2×</button>
+        <button class="act pause" id="pauseBtn" data-hotkey="P">⏸</button>
       </div>
       <button class="act goddess-btn" id="goddessBtn">👸 升級女神</button>
       <button class="act board-btn" id="boardBtn">🏆 排行榜/成就</button>
+      <div class="shortcut-help">快捷鍵：1-6 建塔 · Q/W/E 技能 · Enter 下一波 · Tab 加速 · H 抽英雄</div>
 
       <h3 class="tower-title">🗼 建造砲塔</h3>
       <div id="towerList"></div>
       <div class="scroll-hint tower-scroll-hint">左右滑動查看更多塔 →</div>
 
       <h3 class="hero-title">🦸 英雄</h3>
-      <button class="act gacha-btn" id="gachaBtn">🎲 抽英雄（首抽免費！）</button>
+      <button class="act gacha-btn" id="gachaBtn" data-hotkey="H">🎲 抽英雄（首抽免費！）</button>
       <div class="gacha-meta" id="gachaMeta"></div>
       <div id="heroRoster"></div>
       <div class="scroll-hint hero-scroll-hint">左右滑動查看更多英雄 →</div>

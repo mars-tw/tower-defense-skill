@@ -11,6 +11,10 @@
   const RULES = window.TDRules;
   let selectedBoardDiff = TD.getDifficulty().id;
   let progressWasPaused = false;
+  const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6" };
+  const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E" };
+  const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
+  const SKILL_BY_KEY = Object.fromEntries(Object.entries(SKILL_HOTKEYS).map(([id, key]) => [key.toLowerCase(), id]));
 
   // 元素圖示與克制提示（D3 元素克制可見化）
   const ELEM_ICON = { physical: "⚔️", fire: "🔥", ice: "❄️", thunder: "⚡" };
@@ -32,9 +36,11 @@
   Object.values(TOWERS).forEach((t) => {
     const btn = document.createElement("button");
     btn.className = "tower-btn"; btn.dataset.type = t.id;
+    if (TOWER_HOTKEYS[t.id]) btn.dataset.hotkey = TOWER_HOTKEYS[t.id];
     const stats = towerMetaText(t);
-    btn.title = t.desc || t.name;
-    btn.setAttribute("aria-label", `${t.name}：${t.desc || stats}`);
+    const shortcut = TOWER_HOTKEYS[t.id] ? `快捷鍵 ${TOWER_HOTKEYS[t.id]}。` : "";
+    btn.title = shortcut + (t.desc || t.name);
+    btn.setAttribute("aria-label", `${t.name}：${shortcut}${t.desc || stats}`);
     btn.innerHTML = `
       <span class="ico">${t.emoji}</span>
       <span class="info"><span class="nm">${t.name}</span> ${elemChip(t.element)}<br><span class="meta">${stats}</span></span>
@@ -53,11 +59,15 @@
   Object.values(SKILLS).forEach((s) => {
     const btn = document.createElement("button");
     btn.className = "skill-btn"; btn.dataset.skill = s.id;
+    if (SKILL_HOTKEYS[s.id]) btn.dataset.hotkey = SKILL_HOTKEYS[s.id];
+    const shortcut = SKILL_HOTKEYS[s.id] ? `快捷鍵 ${SKILL_HOTKEYS[s.id]}。` : "";
+    btn.title = shortcut + s.desc;
+    btn.setAttribute("aria-label", `${s.name}：${shortcut}${s.desc}`);
     btn.innerHTML = `
       <span class="ico">${s.emoji}</span>
       <span class="info"><span class="nm">${s.name}</span><br><span class="meta">${s.desc}</span></span>
       <span class="cdtext" data-cd="${s.id}"></span>`;
-    btn.onclick = () => { TD.selectSkill(s.id); refreshUI(); };
+    btn.onclick = () => { activateSkill(s.id); };
     skillList.appendChild(btn);
   });
 
@@ -71,6 +81,35 @@
   }
   function saveOwned() {
     try { localStorage.setItem(HERO_SAVE, JSON.stringify([...ownedHeroes])); } catch {}
+  }
+
+  function isShown(id) {
+    const el = $(id);
+    return !!el && el.classList.contains("show");
+  }
+
+  function isBlockingOverlayOpen() {
+    return ["gachaOverlay", "progressOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
+  }
+
+  function isTextEntryTarget(target) {
+    if (!target) return false;
+    const tag = target.tagName;
+    return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  }
+
+  function activateSkill(id) {
+    const st = TD.state();
+    const cd = (st.skillCooldowns && st.skillCooldowns[id]) || 0;
+    if (cd > 0) {
+      const sk = SKILLS[id];
+      pushLog(`${sk ? sk.name : "技能"}冷卻中（${Math.ceil(cd)} 秒）`, "bad");
+      refreshUI();
+      return false;
+    }
+    TD.selectSkill(id);
+    refreshUI();
+    return true;
   }
 
   function syncPauseButton(paused) {
@@ -494,6 +533,10 @@
   }
 
   // ===== 綁定控制 =====
+  $("startBtn").title = "Enter：開始下一波";
+  $("speed2").title = "Tab：切換 1× / 2×";
+  $("pauseBtn").title = "Space / P：暫停或繼續";
+  $("gachaBtn").title = "H：抽英雄";
   $("startBtn").onclick = () => { TD.startWave(); refreshUI(); };
   $("goddessBtn").onclick = () => { TD.upgradeGoddess(); refreshUI(); };
   $("gachaBtn").onclick = () => { $("gachaBtn").blur(); doGacha(); };
@@ -512,18 +555,55 @@
   // 抽卡盲盒開著時忽略暫停熱鍵：動畫期間是強制暫停，玩家再按 P/空白鍵切換會讓
   // playGachaAnimation 記錄的 wasPaused 對不上，關閉浮層後戰場暫停狀態錯亂
   $("pauseBtn").onclick = () => {
-    if ($("gachaOverlay").classList.contains("show") || $("progressOverlay").classList.contains("show")) return;
+    if (isBlockingOverlayOpen()) return;
     const paused = TD.togglePause();
     syncPauseButton(paused);
   };
+  function clickIfReady(btn) {
+    if (btn && !btn.disabled) btn.click();
+  }
+  function isShortcutKey(e) {
+    const key = (e.key || "").toLowerCase();
+    return !!(TOWER_BY_KEY[e.key] || SKILL_BY_KEY[key] ||
+      e.code === "Enter" || e.code === "Tab" || e.code === "Space" ||
+      e.code === "Escape" || key === "p" || key === "h");
+  }
   document.addEventListener("keydown", (e) => {
-    if ($("progressOverlay").classList.contains("show")) {
+    if (isTextEntryTarget(e.target)) return;
+    if (isShown("progressOverlay")) {
       if (e.code === "Escape") { e.preventDefault(); closeProgressOverlay(); }
       else { e.preventDefault(); }
       return;
     }
-    if (e.code === "Space" || e.key === "p" || e.key === "P") { e.preventDefault(); $("pauseBtn").click(); }
-    else if (e.code === "Escape") { TD.cancelSelect(); }
+    if (isBlockingOverlayOpen()) {
+      if (isShortcutKey(e)) e.preventDefault();
+      return;
+    }
+
+    const key = e.key || "";
+    const lower = key.toLowerCase();
+    if (e.code === "Space" || lower === "p") {
+      e.preventDefault();
+      $("pauseBtn").click();
+    } else if (e.code === "Escape") {
+      e.preventDefault();
+      TD.cancelSelect();
+    } else if (TOWER_BY_KEY[key]) {
+      e.preventDefault();
+      clickIfReady(document.querySelector(`.tower-btn[data-type="${TOWER_BY_KEY[key]}"]`));
+    } else if (SKILL_BY_KEY[lower]) {
+      e.preventDefault();
+      clickIfReady(document.querySelector(`.skill-btn[data-skill="${SKILL_BY_KEY[lower]}"]`));
+    } else if (e.code === "Enter") {
+      e.preventDefault();
+      clickIfReady($("startBtn"));
+    } else if (e.code === "Tab") {
+      e.preventDefault();
+      clickIfReady($(TD.state().speed === 2 ? "speed1" : "speed2"));
+    } else if (lower === "h") {
+      e.preventDefault();
+      clickIfReady($("gachaBtn"));
+    }
   });
 
   // 把回呼掛給 game.js

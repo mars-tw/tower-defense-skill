@@ -73,11 +73,21 @@ console.log("== 平衡參數 ==");
 assert(GAME.startGold > 0, "起始金錢為正");
 assert(GAME.hpGrowthEarly > 0 && GAME.hpGrowthLate > 0, "波次血量有成長（無盡遞增，分段）");
 assert(UPGRADE.maxLevel >= 2, "砲塔可升級");
+assert(UPGRADE.maxLevel === 10, "砲塔升級上限提高到 Lv.10");
+assert(UPGRADE.damageMul > 1 && UPGRADE.rangeMul > 1 && UPGRADE.costMul > 1, "升級傷害、射程與造價皆隨等級遞增");
+assert(UPGRADE.costMul >= 1.5 && UPGRADE.costMul <= 1.6, `Lv.10 造價曲線維持後期金錢出口（costMul=${UPGRADE.costMul}）`);
+{
+  const attackRanges = Object.values(TOWERS).filter((t) => !t.support).map((t) => t.range);
+  assert(Math.min(...attackRanges) >= 120 && Math.max(...attackRanges) <= 140,
+    `攻擊塔基礎射程小幅提高且未全圖化（${Math.min(...attackRanges)}~${Math.max(...attackRanges)}px）`);
+  assert(TOWERS.support.range === 150, "聖光塔支援射程提高到 150px");
+}
 
 console.log("== 守護女神 ==");
 const { GODDESS } = cfg;
 assert(GODDESS && GODDESS.baseHp > 0, "女神有起始生命");
 assert(GODDESS.maxLevel >= 2 && GODDESS.hpPerLevel > 0, "女神可升級加生命");
+assert(GODDESS.maxLevel === 8, "女神升級上限提高到 Lv.8");
 assert(GODDESS.smiteUnlockLevel >= 1, "女神有聖光反擊解鎖等級");
 
 console.log("== Stage 1：元素克制閉環 ==");

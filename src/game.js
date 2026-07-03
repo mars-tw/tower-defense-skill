@@ -20,6 +20,17 @@
   // 依目前地圖即時計算「禁止建塔」的格位（路徑經過的格）
   const blocked = new Set();
   function cellKey(cx, cy) { return cx + "," + cy; }
+  function cellCenter(cx, cy) {
+    return { x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2 };
+  }
+  function cellPathDistance(cx, cy) {
+    const p = cellCenter(cx, cy);
+    return TDRules.distanceToPath(p.x, p.y, state.path);
+  }
+  function canCellReachPath(cx, cy, range) {
+    const p = cellCenter(cx, cy);
+    return TDRules.canReachPath(p.x, p.y, state.path, range);
+  }
   function markPathCells(path) {
     blocked.clear();
     for (let i = 0; i < path.length - 1; i++) {
@@ -458,11 +469,21 @@
         _heroOwner: h,
       });
     } else {
-      // 近戰：直接造成傷害
-      const mult = elementMultiplier(def.element, target.element);
-      applyDamage(target, atk * mult);
-      burst(target.x, target.y, def.color, 8);
-      if (target.hp <= 0) { killEnemy(target); grantXp(h, target); }
+      // 近戰：直接造成傷害；有 pierce 時一次掃中多名貼近敵人（孫悟空的連打感）
+      const targets = [target];
+      if ((def.pierce || 1) > 1) {
+        const extra = state.enemies
+          .filter((e) => e !== target && !e._dead && Math.hypot(e.x - h.x, e.y - h.y) <= def.range + 18)
+          .sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))
+          .slice(0, (def.pierce || 1) - 1);
+        targets.push(...extra);
+      }
+      for (const t of targets) {
+        const mult = elementMultiplier(def.element, t.element);
+        applyDamage(t, atk * mult);
+        burst(t.x, t.y, def.color, 8);
+        if (t.hp <= 0) { killEnemy(t); grantXp(h, t); }
+      }
     }
     // 牧師治療女神
     if (def.healGoddess) {
@@ -632,20 +653,25 @@
   function buildPreviewAt(px, py) {
     const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
     const def = TOWERS[state.selectedTowerType];
+    const center = cellCenter(cx, cy);
+    const pathDistance = def ? cellPathDistance(cx, cy) : Infinity;
     let reason = "";
     if (!def) reason = "尚未選塔";
+    else if (px < 0 || py < 0 || px >= W || py >= H) reason = "超出戰場";
     else if (blocked.has(cellKey(cx, cy))) reason = "路徑上不能放";
     else if (state.towers.some((t) => t.cx === cx && t.cy === cy)) reason = "已有塔";
+    else if (pathDistance > def.range) reason = "太遠打不到路徑";
     else if (state.gold < def.cost) reason = "金錢不足";
     return {
       ok: reason === "",
       reason,
       cx,
       cy,
-      x: cx * CELL + CELL / 2,
-      y: cy * CELL + CELL / 2,
+      x: center.x,
+      y: center.y,
       range: def ? def.range : 0,
       type: def ? def.id : null,
+      pathDistance: Number.isFinite(pathDistance) ? Math.round(pathDistance) : null,
     };
   }
 
@@ -827,7 +853,31 @@
     ctx.restore();
   }
 
-  // 英雄繪製（四方向精靈圖：有 sprites 用對應方向圖，否則 emoji）
+  function drawHeroEmoji(def, h, size) {
+    ctx.font = size * 0.7 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(def.emoji, h.x, h.y);
+  }
+
+  function drawSingleHeroSprite(def, h, fallbackSize) {
+    const im = getImg(def.sprite);
+    const iw = (im && (im.naturalWidth || im.width)) || 0;
+    const ih = (im && (im.naturalHeight || im.height)) || 0;
+    if (!im || !im.complete || iw <= 0 || ih <= 0) {
+      drawHeroEmoji(def, h, fallbackSize);
+      return;
+    }
+    const maxSide = def.spriteSize || Math.min(56, Math.max(44, CELL * 1.12));
+    let drawW = maxSide, drawH = maxSide;
+    if (iw >= ih) drawH = maxSide * (ih / iw);
+    else drawW = maxSide * (iw / ih);
+    ctx.save();
+    ctx.translate(h.x, h.y);
+    if (h.facing === "left") ctx.scale(-1, 1);
+    ctx.drawImage(im, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+  }
+
+  // 英雄繪製（單張 sprite / 四方向精靈圖；圖片不可用時退回 emoji）
   function drawHero(h) {
     const def = HEROES[h.id];
     const size = CELL * 0.85;
@@ -835,17 +885,17 @@
     ctx.strokeStyle = def.color; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(h.x, h.y, size * 0.55, 0, Math.PI * 2); ctx.stroke();
     if (h.hitFlash > 0) { ctx.fillStyle = `rgba(239,68,68,${h.hitFlash})`; ctx.beginPath(); ctx.arc(h.x, h.y, size * 0.6, 0, Math.PI * 2); ctx.fill(); }
-    // 美術接點：sprites 物件存在則用對應方向圖；否則 emoji
-    const spritePath = def.sprites && def.sprites[h.facing];
-    if (spritePath) {
+    if (def.sprite) {
+      drawSingleHeroSprite(def, h, size);
+    } else if (def.sprites && def.sprites[h.facing]) {
+      const spritePath = def.sprites[h.facing];
       const im = getImg(spritePath);
       if (im && im.complete && im.naturalWidth > 0) {
         // left 方向用右圖水平翻轉（若只有 right），這裡假設四方向都有
         ctx.drawImage(im, h.x - size / 2, h.y - size / 2, size, size);
       } else drawSprite(spritePath, def.emoji, h.x, h.y, size);
     } else {
-      ctx.font = size * 0.7 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(def.emoji, h.x, h.y);
+      drawHeroEmoji(def, h, size);
     }
     // 血條（V3 圓角漸層）
     drawHealthBar(h.x - size / 2, h.y - size / 2 - 9, size, 5, Math.max(0, h.hp / h.maxHp));
@@ -927,22 +977,54 @@
     }
     // 終點由守護女神鎮守（drawGoddess 繪製）
   }
+  function drawBuildableCells(def) {
+    if (!def) return;
+    const cols = state.map ? state.map.cols : Math.ceil(W / CELL);
+    const rows = state.map ? state.map.rows : Math.ceil(H / CELL);
+    const occupied = new Set(state.towers.map((t) => cellKey(t.cx, t.cy)));
+    ctx.save();
+    ctx.lineWidth = 1;
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const key = cellKey(cx, cy);
+        if (blocked.has(key) || occupied.has(key)) continue;
+        if (canCellReachPath(cx, cy, def.range)) {
+          ctx.fillStyle = "rgba(74,222,128,.10)";
+          ctx.strokeStyle = "rgba(74,222,128,.22)";
+        } else {
+          ctx.fillStyle = "rgba(15,23,42,.28)";
+          ctx.strokeStyle = "rgba(148,163,184,.10)";
+        }
+        ctx.fillRect(cx * CELL + 1, cy * CELL + 1, CELL - 2, CELL - 2);
+        ctx.strokeRect(cx * CELL + 4, cy * CELL + 4, CELL - 8, CELL - 8);
+      }
+    }
+    ctx.restore();
+  }
   function drawBuildPreview() {
+    const def = TOWERS[state.selectedTowerType];
+    if (!def) return;
+    drawBuildableCells(def);
     const m = state.buildGhost || state.mouse; if (!m) return;
     const preview = buildPreviewAt(m.x, m.y);
     ctx.fillStyle = preview.ok ? "rgba(74,222,128,.3)" : "rgba(239,68,68,.32)";
     ctx.fillRect(preview.cx * CELL, preview.cy * CELL, CELL, CELL);
-    const def = TOWERS[state.selectedTowerType];
-    ctx.strokeStyle = preview.ok ? "#4ade80" : "#ef4444"; ctx.lineWidth = 1.5;
+    ctx.fillStyle = preview.ok ? "rgba(74,222,128,.08)" : "rgba(239,68,68,.08)";
+    ctx.beginPath(); ctx.arc(preview.x, preview.y, def.range, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = preview.ok ? "#4ade80" : "#ef4444"; ctx.lineWidth = 2.5;
+    ctx.setLineDash([10, 6]);
     ctx.beginPath(); ctx.arc(preview.x, preview.y, def.range, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.save();
     ctx.globalAlpha = 0.55;
     drawSprite(`assets/towers/${def.id}.png`, def.emoji, preview.x, preview.y, CELL * 0.7);
     ctx.restore();
     if (!preview.ok && preview.reason) {
+      const labelX = Math.max(78, Math.min(W - 78, preview.x));
+      const labelY = Math.max(18, Math.min(H - 18, preview.y - CELL * 0.62));
       ctx.font = '900 13px "Segoe UI", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.lineWidth = 3; ctx.strokeText(preview.reason, preview.x, preview.y - CELL * 0.62);
-      ctx.fillStyle = "#fecaca"; ctx.fillText(preview.reason, preview.x, preview.y - CELL * 0.62);
+      ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.lineWidth = 3; ctx.strokeText(preview.reason, labelX, labelY);
+      ctx.fillStyle = "#fecaca"; ctx.fillText(preview.reason, labelX, labelY);
     }
   }
   function drawTowerRange(tw) {
@@ -1222,6 +1304,7 @@
     upgradeCost, towerStat, getTowerBuff: supportBuffFor, effectiveTowerDamage, supportDpsGain,
     deployHero, rollHero,  // 英雄上場與抽卡
     rollHeroWithPity,      // 含保底的抽卡（Stage 1：pity 由 ui.js 的 meta 持久化）
+    rollHeroWithPityPreferNew, // 新手第二隻英雄避開重複
     previewNextWave,       // 下一波預告（D4）
     setDifficulty, getDifficulty,  // 難度模式（鉤子）
     setMap, getMap,

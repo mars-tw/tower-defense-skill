@@ -14,6 +14,8 @@ const {
   settleRunRewards,
   generateWaveQueue,
   applyDifficulty,
+  distanceToPath,
+  canReachPath,
 } = rules;
 
 let failed = 0;
@@ -148,6 +150,19 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   const wave7Medic = generateWaveQueue(7, cfg.DIFFICULTIES.normal, sequenceRng([0.9, 0.92]));
   assert(wave7Medic.queue.some((spec) => spec.type === "medic"),
     "第 7 波起醫官可進預設池");
+}
+
+console.log("\n== 建塔格距離路徑判定 ==");
+{
+  const canyon = cfg.MAPS.canyon.path;
+  const nearX = 504, nearY = 72;
+  const farX = 936, farY = 24;
+  const nearDist = distanceToPath(nearX, nearY, canyon);
+  const farDist = distanceToPath(farX, farY, canyon);
+  assert(nearDist <= cfg.TOWERS.arrow.range && canReachPath(nearX, nearY, canyon, cfg.TOWERS.arrow.range),
+    `靠近路徑格可建（距離 ${Math.round(nearDist)} <= 射程 ${cfg.TOWERS.arrow.range}）`);
+  assert(farDist > cfg.TOWERS.arrow.range && !canReachPath(farX, farY, canyon, cfg.TOWERS.arrow.range),
+    `遠離路徑格不可建（距離 ${Math.round(farDist)} > 射程 ${cfg.TOWERS.arrow.range}）`);
 }
 
 console.log("\n== 事件波與 Boss 波互斥（三難度） ==");

@@ -98,7 +98,10 @@
     const cost = gachaCostNow(meta);
     if (meta.soulCrystal < cost) { pushLog(`魂晶不足（需 ${cost}💎，戰敗結算可獲得）`, "bad"); return false; }
     meta.soulCrystal -= cost;
-    const { hero, pity } = TD.rollHeroWithPity(meta.gachaPity || 0);
+    const roll = TD.rollHeroWithPityPreferNew
+      ? TD.rollHeroWithPityPreferNew(meta.gachaPity || 0, [...ownedHeroes])
+      : TD.rollHeroWithPity(meta.gachaPity || 0);
+    const { hero, pity } = roll;
     meta.gachaPity = pity;
     meta.gachaCount = (meta.gachaCount || 0) + 1;
     const isNew = !ownedHeroes.has(hero.id);
@@ -120,6 +123,9 @@
     TD.setPaused(true);
     // 重置
     chest.className = "chest"; reveal.className = "reveal";
+    $("revealHero").innerHTML = "";
+    $("revealName").textContent = "";
+    $("revealRarity").textContent = "";
     $("revealOk").textContent = options.doneLabel || "收下";
     ov.classList.add("show");
 
@@ -130,8 +136,7 @@
         // 揭示英雄
         ov.style.setProperty("--rev-color", r.color);
         ov.style.setProperty("--rev-glow", r.glow);
-        const sp = hero.sprites;
-        $("revealHero").innerHTML = sp ? `<img src="${sp.down}" alt="${hero.name}" onerror="this.replaceWith(document.createTextNode('${hero.emoji}'))">` : hero.emoji;
+        $("revealHero").innerHTML = heroAvatar(hero);
         $("revealName").textContent = hero.name + (isNew ? " ✨新英雄" : refund ? ` （重複 +${refund}💎）` : "");
         $("revealRarity").textContent = "★".repeat(r.stars) + " " + r.label;
         reveal.classList.add("show");
@@ -162,6 +167,20 @@
     }
   }
 
+  function heroAvatar(hero) {
+    if (!hero.sprite) return hero.emoji;
+    return `<img src="${hero.sprite}" alt="${hero.name}" onerror="this.replaceWith(document.createTextNode('${hero.emoji}'))">`;
+  }
+
+  function heroStatLine(hero) {
+    const parts = [`生命 ${hero.hp}`, `攻 ${hero.atk}`, `射 ${hero.range}`, `速 ${hero.speed}`];
+    if (hero.splash) parts.push(`濺射 ${hero.splash}`);
+    if (hero.pierce) parts.push(`穿透 ${hero.pierce}`);
+    if (hero.slow) parts.push("緩速");
+    if (hero.healGoddess) parts.push(`治療 ${hero.healGoddess}`);
+    return parts.join(" · ");
+  }
+
   function renderRoster() {
     const box = $("heroRoster"); box.innerHTML = "";
     const HEROES = TD.config.HEROES, HR = TD.config.HERO_RARITY;
@@ -178,8 +197,8 @@
       card.style.setProperty("--hr-color", r.color);
       card.style.setProperty("--hr-glow", r.glow);
       card.innerHTML = `
-        <span class="hico">${h.emoji}</span>
-        <span class="hinfo"><span class="hname">${h.name}</span> ${"★".repeat(r.stars)}<br><span class="hmeta">${h.desc}</span></span>
+        <span class="hico">${heroAvatar(h)}</span>
+        <span class="hinfo"><span class="hname">${h.name}</span> ${"★".repeat(r.stars)}<br><span class="hmeta">${h.desc}<br>${heroStatLine(h)}</span></span>
         <span class="hdeploy">${deployed ? "已上場" : "上場▶"}</span>`;
       if (!deployed) card.onclick = () => {
         if (TD.deployHero(id)) { deployedThisGame.add(id); renderRoster(); refreshUI(); }

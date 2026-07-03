@@ -275,6 +275,32 @@
     return { unlocked, meta: nextMeta };
   }
 
+  function distancePointToSegment(px, py, a, b) {
+    if (!isFiniteNumber(px) || !isFiniteNumber(py) || !a || !b) return Infinity;
+    if (!isFiniteNumber(a.x) || !isFiniteNumber(a.y) || !isFiniteNumber(b.x) || !isFiniteNumber(b.y)) return Infinity;
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const lenSq = vx * vx + vy * vy;
+    if (lenSq <= 0) return Math.hypot(px - a.x, py - a.y);
+    const t = Math.max(0, Math.min(1, ((px - a.x) * vx + (py - a.y) * vy) / lenSq));
+    const x = a.x + vx * t;
+    const y = a.y + vy * t;
+    return Math.hypot(px - x, py - y);
+  }
+
+  function distanceToPath(px, py, path) {
+    if (!Array.isArray(path) || path.length < 2) return Infinity;
+    let best = Infinity;
+    for (let i = 0; i < path.length - 1; i++) {
+      best = Math.min(best, distancePointToSegment(px, py, path[i], path[i + 1]));
+    }
+    return best;
+  }
+
+  function canReachPath(px, py, path, range) {
+    return distanceToPath(px, py, path) <= Math.max(0, safeNumber(range, 0)) + 1e-9;
+  }
+
   return {
     META_VERSION,
     META_DEFAULT,
@@ -284,5 +310,8 @@
     generateWaveQueue,
     updateBoard,
     evaluateAchievements,
+    distancePointToSegment,
+    distanceToPath,
+    canReachPath,
   };
 });

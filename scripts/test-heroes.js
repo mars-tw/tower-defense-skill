@@ -6,13 +6,15 @@
  * ========================================================================= */
 
 const path = require("path");
+const fs = require("fs");
 const H = require(path.join(__dirname, "..", "src", "heroes.js"));
-const { HEROES, HERO_RARITY, GACHA, rollHero, rollHeroWithPity } = H;
+const { HEROES, HERO_RARITY, HERO_LEVEL, GACHA, rollHero, rollHeroWithPity, rollHeroWithPityPreferNew } = H;
 
 let failed = 0;
 function assert(cond, msg) { if (cond) console.log("  ✓ " + msg); else { console.error("  ✗ " + msg); failed++; } }
 // 線性同餘 RNG：固定 seed 可重現
 function makeRng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+function sequenceRng(values) { let i = 0; return () => values[Math.min(i++, values.length - 1)]; }
 
 console.log("== 1. 抽卡經濟設定 shape ==");
 assert(typeof GACHA.cost === "number" && GACHA.cost > 0, `GACHA.cost 為正數（${GACHA.cost} 魂晶）`);
@@ -22,6 +24,43 @@ assert(GACHA.pityLegendary === 18, "傳說保底為 18 抽");
 assert(typeof GACHA.dupRefund === "number" && GACHA.dupRefund > 0 && GACHA.dupRefund < GACHA.cost,
   `重複補償為正且低於單抽成本（${GACHA.dupRefund} < ${GACHA.cost}）`);
 assert(GACHA.dupRefund === 12, "重複補償為 12 魂晶");
+assert(HERO_LEVEL.maxLevel === 10, "英雄等級上限維持 Lv.10");
+
+console.log("\n== 1b. 英雄池擴充與新英雄資料 ==");
+{
+  const byRarity = (rarity) => Object.values(HEROES).filter((h) => h.rarity === rarity).map((h) => h.id);
+  assert(Object.keys(HEROES).length === 10, `英雄總數為 10 位（${Object.keys(HEROES).length}）`);
+  assert(JSON.stringify(byRarity("legendary").sort()) === JSON.stringify(["daji", "guanyu", "valkyrie", "wukong"].sort()),
+    `傳說池為 4 位（${byRarity("legendary").join(",")}）`);
+  assert(JSON.stringify(byRarity("epic").sort()) === JSON.stringify(["mage", "nezha"].sort()),
+    `史詩池包含大法師與哪吒（${byRarity("epic").join(",")}）`);
+  assert(byRarity("rare").length === 2 && byRarity("common").length === 2, "稀有與普通池維持各 2 位");
+
+  const newHeroes = {
+    daji: { rarity: "legendary", element: "fire", role: "ranged" },
+    guanyu: { rarity: "legendary", element: "physical", role: "melee" },
+    wukong: { rarity: "legendary", element: "thunder", role: "melee" },
+    nezha: { rarity: "epic", element: "fire", role: "ranged" },
+  };
+  for (const [id, expected] of Object.entries(newHeroes)) {
+    const h = HEROES[id];
+    const sprite = path.join(__dirname, "..", h.sprite || "");
+    assert(!!h && h.rarity === expected.rarity && h.element === expected.element && h.role === expected.role,
+      `${h.name} 稀有度/元素/定位正確`);
+    assert(h.hp > 0 && h.atk > 0 && h.speed > 0 && h.range > 0 && h.atkRate > 0 && h.color && h.emoji && h.desc,
+      `${h.name} 戰鬥數值、顏色、emoji fallback 與描述完整`);
+    assert(h.sprite === `assets/heroes/${id}.png` && fs.existsSync(sprite), `${h.name} 使用單張 sprite 檔 ${h.sprite}`);
+  }
+
+  assert(HEROES.daji.atk > HEROES.mage.atk && HEROES.daji.speed < HEROES.mage.speed && HEROES.daji.range < HEROES.mage.range,
+    "妲己高攻高濺射，但機動與射程低於大法師，未嚴格取代");
+  assert(HEROES.guanyu.hp > HEROES.valkyrie.hp && HEROES.guanyu.atk > HEROES.valkyrie.atk && HEROES.guanyu.speed < HEROES.valkyrie.speed,
+    "魔關羽血攻壓制但速度慢，未嚴格取代女武神");
+  assert(HEROES.wukong.speed > HEROES.valkyrie.speed && HEROES.wukong.atkRate > HEROES.valkyrie.atkRate && HEROES.wukong.atk < HEROES.valkyrie.atk,
+    "孫悟空高速連打但單下較低，未嚴格取代女武神");
+  assert(HEROES.nezha.speed > HEROES.mage.speed && HEROES.nezha.range < HEROES.mage.range && HEROES.nezha.atk < HEROES.mage.atk,
+    "哪吒機動高但爆發與射程低於大法師，未嚴格取代");
+}
 
 console.log("\n== 2. rollHero：rng 可注入、回傳合法英雄 ==");
 {
@@ -72,6 +111,26 @@ console.log("\n== 3. rollHeroWithPity：保底與歸零 ==");
   assert(legendRoll !== null, "權重表中傳說可被自然抽中");
   const rNat = rollHeroWithPity(10, () => legendRoll);
   assert(rNat.hero.rarity === "legendary" && rNat.pity === 0, "自然抽中傳說時 pity 也歸零");
+
+  const forcedLegendaryIds = new Set([0.01, 0.26, 0.51, 0.76].map((poolRoll) => {
+    const r = rollHeroWithPity(GACHA.pityLegendary - 1, sequenceRng([0.01, 0.01, poolRoll]));
+    return r.hero.id;
+  }));
+  assert(forcedLegendaryIds.size === 4 && [...forcedLegendaryIds].every((id) => HEROES[id].rarity === "legendary"),
+    `保底傳說會從 4 位傳說池挑選（${[...forcedLegendaryIds].join(",")}）`);
+}
+
+console.log("\n== 4. rollHeroWithPityPreferNew：第二隻英雄避開重複 ==");
+{
+  const duplicateArcher = sequenceRng([0.01, 0.01, 0.01]);
+  const r = rollHeroWithPityPreferNew(1, ["archer"], duplicateArcher);
+  assert(r.hero.id === "cleric", `已擁有遊俠時，第二抽撞遊俠會改給未擁有同稀有度英雄（${r.hero.id}）`);
+  assert(r.replacedDuplicate && r.replacedDuplicate.id === "archer", "回傳 replacedDuplicate 便於追蹤真正撞到的重複英雄");
+  assert(r.pity === 2, "改給非傳說新英雄時 pity 仍正常累積");
+
+  const afterTwoOwned = rollHeroWithPityPreferNew(2, ["archer", "cleric"], sequenceRng([0.01, 0.01]));
+  assert(afterTwoOwned.hero.id === "archer" && !afterTwoOwned.replacedDuplicate,
+    "收集到 2 隻後恢復一般抽卡，重複交給魂晶補償處理");
 }
 
 console.log("");

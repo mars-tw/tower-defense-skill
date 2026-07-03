@@ -48,7 +48,7 @@ async function run() {
   const browser = await chromium.launch();
 
   try {
-  for (const vp of [{ w: 1280, h: 900, name: "桌面 1280x900" }, { w: 390, h: 844, name: "手機 390x844" }]) {
+  for (const vp of [{ w: 1280, h: 900, name: "桌面 1280x900" }, { w: 768, h: 1024, name: "平板 768x1024" }, { w: 390, h: 844, name: "手機 390x844" }]) {
     console.log("\n== 視窗 " + vp.name + " ==");
     const isMobileViewport = vp.w <= 560;
     const page = await browser.newPage({
@@ -163,9 +163,17 @@ async function run() {
       const sx = rect.width / 960, sy = rect.height / 640;
       const blocked = window.TD.buildPreviewAt(100, 80);
       const open = window.TD.buildPreviewAt(504, 72);
+      const far = window.TD.buildPreviewAt(936, 24);
+      const beforeFarClick = window.TD.state().towers.length;
+      canvas.dispatchEvent(new MouseEvent("click", { clientX: rect.left + 936 * sx, clientY: rect.top + 24 * sy, bubbles: true }));
       return {
         blockedOk: blocked.ok,
         blockedReason: blocked.reason,
+        farOk: far.ok,
+        farReason: far.reason,
+        farPathDistance: far.pathDistance,
+        farClickTowers: window.TD.state().towers.length,
+        beforeFarClick,
         openOk: open.ok,
         openReason: open.reason,
         clientX: rect.left + 504 * sx,
@@ -174,6 +182,8 @@ async function run() {
     });
     assert(previewCheck.blockedOk === false && previewCheck.blockedReason.includes("路徑") && previewCheck.openOk === true,
       `放塔預覽回報合法/非法格（非法原因：${previewCheck.blockedReason}，合法：${previewCheck.openReason || "可放置"}）`);
+    assert(previewCheck.farOk === false && previewCheck.farReason.includes("太遠打不到路徑") && previewCheck.farClickTowers === previewCheck.beforeFarClick,
+      `遠離路徑格不可建（距離 ${previewCheck.farPathDistance}px，原因：${previewCheck.farReason}）`);
 
     let idleRender;
     if (vp.w <= 560) {
@@ -266,7 +276,8 @@ async function run() {
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");
-    assert(gachaMetaText.includes("保底 0/18") && gachaMetaText.includes("英雄 0/6"),
+    const totalHeroesForMeta = await page.evaluate(() => Object.keys(window.TD.config.HEROES).length);
+    assert(gachaMetaText.includes("保底 0/18") && gachaMetaText.includes(`英雄 0/${totalHeroesForMeta}`),
       `英雄區 meta 顯示魂晶、保底與收集進度（${gachaMetaText}）`);
     const pityClampText = await page.evaluate(() => {
       const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
@@ -311,26 +322,51 @@ async function run() {
     });
     assert(gacha2.btnDisabled === true && gacha2.countAfter === gacha2.countBefore, "魂晶不足時抽卡被擋（按鈕 disabled、抽數不變）");
 
-    // 4. 給足魂晶 → 抽到重複時退還補償、pity 累積
+    // 4. 給足魂晶 → 即使原始抽卡撞到第一隻英雄，也要取得第 2 隻並可上場
     const gacha3 = await page.evaluate(async () => {
       const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
       meta.soulCrystal = 200; localStorage.setItem("td_meta_v1", JSON.stringify(meta));
       window.__tdUI(); // 直接改 localStorage 不會觸發重繪，按鈕還是 disabled——手動刷新（同農場專案 F.refresh() 教訓）
-      // 讓名冊只剩一種可能英雄很難（池有 6 隻），直接驗證：抽一次後魂晶 = 200 - 20 (+12 若重複)
+      const firstOwned = (JSON.parse(localStorage.getItem("td_heroes_owned_v1")) || [])[0];
+      const duplicateSeq = {
+        archer: [0.01, 0.01, 0.01],
+        cleric: [0.01, 0.75, 0.01],
+        knight: [0.60, 0.01, 0.01],
+        iceMage: [0.60, 0.75, 0.01],
+        mage: [0.90, 0.01, 0.01],
+        valkyrie: [0.99, 0.01, 0.01],
+        daji: [0.99, 0.30, 0.01],
+        guanyu: [0.99, 0.55, 0.01],
+        wukong: [0.99, 0.80, 0.01],
+        nezha: [0.90, 0.75, 0.01],
+      }[firstOwned] || [0.01, 0.01, 0.01];
+      const originalRandom = Math.random;
+      Math.random = () => duplicateSeq.length ? duplicateSeq.shift() : originalRandom();
       document.getElementById("gachaBtn").click();
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const owned = JSON.parse(localStorage.getItem("td_heroes_owned_v1"));
-      const spentOk = after.soulCrystal === 180 || after.soulCrystal === 192; // 新英雄 180；重複退 12 → 192
-      return { crystal: after.soulCrystal, pity: after.gachaPity, count: after.gachaCount, spentOk, owned: owned.length };
+      return { crystal: after.soulCrystal, pity: after.gachaPity, count: after.gachaCount, firstOwned, owned };
     });
-    assert(gacha3.spentOk, `扣魂晶正確（剩 ${gacha3.crystal}，新英雄 180 / 重複退補 192）`);
+    assert(gacha3.crystal === 180, `第二抽扣 20 魂晶且不走重複退補（剩 ${gacha3.crystal}）`);
     assert(gacha3.count === 2, `抽數累積（${gacha3.count}）`);
     assert(typeof gacha3.pity === "number" && gacha3.pity >= 0, `pity 有持久化追蹤（${gacha3.pity}）`);
+    assert(gacha3.owned.length === 2 && new Set(gacha3.owned).size === 2,
+      `擁有 1 隻後，第二抽取得第 2 隻不同英雄（${gacha3.owned.join(",")}；原始撞 ${gacha3.firstOwned}）`);
     // 關閉這次的盲盒浮層
     await page.evaluate(() => document.getElementById("chest").click());
     await sleep(1100);
     await page.evaluate(() => document.getElementById("revealOk").click());
     await sleep(200);
+    const secondHeroDeploy = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll("#heroRoster .hero-card")];
+      cards.forEach((card) => card.click());
+      return {
+        rosterCount: cards.length,
+        deployedIds: window.TD.state().heroes.map((h) => h.id),
+      };
+    });
+    assert(secondHeroDeploy.rosterCount === 2 && secondHeroDeploy.deployedIds.length === 2 && new Set(secondHeroDeploy.deployedIds).size === 2,
+      `第 2 隻英雄可上場（${secondHeroDeploy.deployedIds.join(",")}）`);
 
     // 5. 主題波一致性：直接跳到主題波（wave 8 之後找一個 ice/fire 主題波），驗證出怪偏壓
     const themed = await page.evaluate(() => {

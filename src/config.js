@@ -23,26 +23,26 @@ function elementMultiplier(atkEl, defEl) {
 // slow 減速(0~1)、pierce 穿透數、element 元素
 const TOWERS = {
   arrow:  { id: "arrow",  name: "弓箭塔", emoji: "🏹", element: "physical",
-            range: 110, damage: 10, fireRate: 2.0, cost: 50, color: "#a3a3a3",
+            range: 130, damage: 10, fireRate: 2.0, cost: 50, color: "#a3a3a3",
             desc: "單體高射速，便宜萬用。" },
   cannon: { id: "cannon", name: "加農砲", emoji: "💣", element: "fire",
-            range: 95, damage: 26, fireRate: 0.75, cost: 100, splash: 50, color: "#f97316",
+            range: 120, damage: 26, fireRate: 0.75, cost: 100, splash: 50, color: "#f97316",
             desc: "範圍爆破，對成群敵人有效。" },
   frost:  { id: "frost",  name: "寒冰塔", emoji: "❄️", element: "ice",
-            range: 105, damage: 11, fireRate: 1.45, cost: 70, slow: 0.5, color: "#38bdf8",
+            range: 125, damage: 11, fireRate: 1.45, cost: 70, slow: 0.5, color: "#38bdf8",
             desc: "便宜控場核心，減速敵人讓全隊多打幾輪。" },
   tesla:  { id: "tesla",  name: "電磁塔", emoji: "⚡", element: "thunder",
-            range: 95, damage: 14, fireRate: 1.4, cost: 130, pierce: 3, color: "#facc15",
+            range: 120, damage: 14, fireRate: 1.4, cost: 130, pierce: 3, color: "#facc15",
             desc: "閃電連鎖，貫穿多個敵人。" },
   poison: { id: "poison", name: "毒霧塔", emoji: "☠️", element: "physical",
-            range: 100, damage: 7, fireRate: 1.15, cost: 90, poisonDps: 6, poisonDuration: 4, poisonMaxStacks: 3, color: "#22c55e",
+            range: 120, damage: 7, fireRate: 1.15, cost: 90, poisonDps: 6, poisonDuration: 4, poisonMaxStacks: 3, color: "#22c55e",
             desc: "命中附加可疊加毒素，持續咬血。" },
   support:{ id: "support",name: "聖光塔", emoji: "✨", element: "physical",
-            range: 125, damage: 0, fireRate: 0, cost: 110, support: true, buff: 0.20, buffPerLevel: 0.04, color: "#fde047",
+            range: 150, damage: 0, fireRate: 0, cost: 110, support: true, buff: 0.20, buffPerLevel: 0.04, color: "#fde047",
             desc: "不攻擊，強化範圍內其他塔的傷害。" },
 };
-// 升級：每級提升傷害與射程，造價遞增。maxLevel 6 + 傷害倍率提高，給後期金錢出口（D2 修碾壓）
-const UPGRADE = { damageMul: 1.55, rangeMul: 1.1, costMul: 1.5, maxLevel: 6 };
+// 升級：每級提升傷害與射程，造價遞增。Lv.10 給後期金錢出口，costMul 讓 7~10 級明顯昂貴但仍可追求。
+const UPGRADE = { damageMul: 1.5, rangeMul: 1.08, costMul: 1.52, maxLevel: 10 };
 
 // ===== 敵人定義 =====
 // hp 基礎血量、speed 速度(px/s)、reward 擊殺金錢、leak 漏過扣的生命
@@ -79,7 +79,7 @@ const GODDESS = {
   hpPerLevel: 60,         // 每升一級 +60 生命上限並回滿
   upgradeCostBase: 150,   // 升級造價（隨等級遞增）
   upgradeCostMul: 1.7,
-  maxLevel: 5,
+  maxLevel: 8,
   // 反擊：2 級起解鎖，對終點附近敵人定期放聖光
   smiteUnlockLevel: 2,
   smiteRange: 130, smiteDamage: 25, smiteInterval: 1.2,

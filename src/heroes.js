@@ -29,7 +29,7 @@ const HERO_RARITY = {
  *   element  火/冰/雷/物理（沿用塔的元素克制）
  *   hp/atk   基礎數值；speed 移動速度(px/s)；range 攻擊射程(px)；atkRate 每秒攻擊
  *   role     近戰 melee / 遠程 ranged（影響站位與射程）
- *   sprites  方向圖路徑物件，null = 用 emoji 佔位
+ *   sprite   單張俯視角色圖；sprites 是四方向圖路徑物件。都沒有時用 emoji 佔位。
  */
 const HEROES = {
   knight:  { id: "knight",  name: "聖騎士", emoji: "🤺", rarity: "rare", element: "physical", role: "melee",
@@ -50,6 +50,18 @@ const HEROES = {
   cleric:  { id: "cleric",  name: "牧師",   emoji: "✨", rarity: "common", element: "physical", role: "ranged",
              hp: 110, atk: 8, speed: 70, range: 90, atkRate: 1.0, color: "#a3e635",
              desc: "攻擊偏弱，但每次攻擊治療女神。", sprites: heroSprites("cleric"), healGoddess: 10 },
+  daji:    { id: "daji",    name: "妲己",   emoji: "🦊", rarity: "legendary", element: "fire", role: "ranged",
+             hp: 125, atk: 42, speed: 55, range: 105, atkRate: 0.75, color: "#fb7185",
+             desc: "魅火惑心，對群敵灑下爆裂妖焰。", sprite: "assets/heroes/daji.png", splash: 55 },
+  guanyu:  { id: "guanyu",  name: "魔關羽", emoji: "🗡️", rarity: "legendary", element: "physical", role: "melee",
+             hp: 420, atk: 44, speed: 48, range: 45, atkRate: 0.85, color: "#ef4444",
+             desc: "赤刃壓陣，以厚血重斬守住前線。", sprite: "assets/heroes/guanyu.png" },
+  wukong:  { id: "wukong",  name: "孫悟空", emoji: "🐒", rarity: "legendary", element: "thunder", role: "melee",
+             hp: 240, atk: 22, speed: 125, range: 42, atkRate: 2.0, color: "#facc15",
+             desc: "筋斗如雷，連打多名敵人破陣。", sprite: "assets/heroes/wukong.png", pierce: 3 },
+  nezha:   { id: "nezha",   name: "哪吒",   emoji: "🪷", rarity: "epic", element: "fire", role: "ranged",
+             hp: 145, atk: 20, speed: 105, range: 100, atkRate: 1.3, color: "#f97316",
+             desc: "火尖槍迅捷穿梭，機動點燃戰線。", sprite: "assets/heroes/nezha.png", splash: 20 },
 };
 
 // 英雄升級曲線：每級數值成長
@@ -101,6 +113,49 @@ function rollHeroWithPity(pityCount, rng) {
   return { hero, pity };
 }
 
+function chooseHero(pool, rng) {
+  return pool[Math.floor(rng() * pool.length)];
+}
+
+function normalizeOwnedIds(ownedIds) {
+  if (ownedIds instanceof Set) return ownedIds;
+  if (Array.isArray(ownedIds)) return new Set(ownedIds);
+  return new Set();
+}
+
+function pickUnownedReplacement(preferredRarity, ownedIds, rng) {
+  const rand = rng || Math.random;
+  const owned = normalizeOwnedIds(ownedIds);
+  const unowned = Object.values(HEROES).filter((h) => !owned.has(h.id));
+  if (!unowned.length) return null;
+
+  const sameRarity = unowned.filter((h) => h.rarity === preferredRarity);
+  if (sameRarity.length) return chooseHero(sameRarity, rand);
+
+  const total = unowned.reduce((sum, h) => sum + HERO_RARITY[h.rarity].weight, 0);
+  let roll = rand() * total;
+  for (const h of unowned) {
+    roll -= HERO_RARITY[h.rarity].weight;
+    if (roll < 0) return h;
+  }
+  return unowned[unowned.length - 1];
+}
+
+// 新手保底：擁有未滿 2 隻時，抽到重複會轉成未擁有英雄，避免第二隻卡住。
+// 收集到 2 隻後恢復一般抽卡與重複補償，維持長期魂晶經濟。
+function rollHeroWithPityPreferNew(pityCount, ownedIds, rng, guaranteedOwnedCount = 2) {
+  const rand = rng || Math.random;
+  const owned = normalizeOwnedIds(ownedIds);
+  const result = rollHeroWithPity(pityCount, rand);
+  const targetCount = Math.min(guaranteedOwnedCount, Object.keys(HEROES).length);
+  if (owned.size >= targetCount || !owned.has(result.hero.id)) return Object.assign({ replacedDuplicate: null }, result);
+
+  const replacement = pickUnownedReplacement(result.hero.rarity, owned, rand);
+  if (!replacement) return Object.assign({ replacedDuplicate: null }, result);
+  const pity = replacement.rarity === "legendary" ? 0 : (pityCount || 0) + 1;
+  return { hero: replacement, pity, replacedDuplicate: result.hero };
+}
+
 // 升級所需經驗
 function xpForLevel(level) {
   return Math.round(HERO_LEVEL.xpBase * Math.pow(HERO_LEVEL.xpGrowth, level - 1));
@@ -114,8 +169,8 @@ function heroStat(hero, key) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, rollHeroWithPity, xpForLevel, heroStat });
+  Object.assign(window, { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, rollHeroWithPity, rollHeroWithPityPreferNew, xpForLevel, heroStat });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, rollHeroWithPity, xpForLevel, heroStat };
+  module.exports = { HERO_RARITY, HEROES, HERO_LEVEL, GACHA, rollHero, rollHeroWithPity, rollHeroWithPityPreferNew, xpForLevel, heroStat };
 }

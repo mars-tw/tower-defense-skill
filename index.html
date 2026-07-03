@@ -103,7 +103,9 @@
   .hero-card:hover { background: var(--surface-2); transform: translateX(2px); box-shadow: var(--shadow-card), 0 0 10px var(--hr-glow); }
   .hero-card:active { transform: translateY(1px); }
   .hero-card.deployed { opacity: .5; cursor: default; }
-  .hero-card .hico { font-size: 21px; width: 26px; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+  .hero-card .hico { font-size: 21px; width: 34px; height: 34px; flex: 0 0 34px; display: flex;
+    align-items: center; justify-content: center; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+  .hero-card .hico img { max-width: 34px; max-height: 34px; object-fit: contain; display: block; }
   .hero-card .hinfo { flex: 1; font-size: 12px; }
   .hero-card .hname { font-weight: 800; color: var(--hr-color,var(--ink)); }
   .hero-card .hmeta { font-size: 11px; color: var(--ink-meta); line-height: 1.3; }

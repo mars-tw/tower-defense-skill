@@ -54,6 +54,17 @@
   let state;
   let lastT = 0;
   let loopToken = 0;
+  let reducedFlashCache;
+  function reducedFlashEnabled() {
+    if (reducedFlashCache !== undefined) return reducedFlashCache;
+    try {
+      reducedFlashCache = localStorage.getItem("td_reduced_flash") === "1" ||
+        localStorage.getItem("td_reducedFlash") === "1" ||
+        localStorage.getItem("reducedFlash") === "1" ||
+        (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch { reducedFlashCache = false; }
+    return reducedFlashCache;
+  }
   function newGame() {
     loopToken++; // 作廢任何正在跑的舊迴圈
     const mapDef = getMap();
@@ -165,6 +176,7 @@
       reward: Math.round(def.reward * (ev ? ev.goldMul : 1)), // 事件波金錢
       hp: maxHp, maxHp, shield: maxShield, maxShield, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
       poisonStacks: [], _poisonAcc: 0, _poisonFloatAt: 0, healCd: def.healInterval || 0,
+      walkDist: 0, animSeed: Math.random() * Math.PI * 2, vx: 1, vy: 0, flipX: false, hitFlash: 0, hitKick: 0,
       event: ev, color: ev && ev.id === "elite" ? "#a855f7" : def.color, // 精英波變色
       uid: "e" + (Math.random() * 1e9 | 0),
     }, overrides || {});
@@ -181,7 +193,15 @@
       e.shield -= shieldHit;
       dmg -= shieldHit;
     }
-    if (dmg > 0) e.hp -= dmg;
+    if (dmg > 0) {
+      e.hp -= dmg;
+      if (!opts.noHitFlash && !reducedFlashEnabled()) {
+        e.hitFlash = Math.max(e.hitFlash || 0, 0.14);
+        e.hitKick = Math.max(e.hitKick || 0, 0.12);
+        e.hitDirX = -(e.vx || 0);
+        e.hitDirY = -(e.vy || 0);
+      }
+    }
     return Math.max(0, hpBefore - Math.max(0, e.hp));
   }
 
@@ -205,7 +225,7 @@
       e.poisonStacks = e.poisonStacks.filter((s) => s.until > state.clock && s.dps > 0);
       if (!e.poisonStacks.length) continue;
       const dps = e.poisonStacks.reduce((sum, s) => sum + s.dps, 0) * (e.boss ? 0.5 : 1);
-      const dealt = applyDamage(e, dps * dt, { bypassShield: true });
+      const dealt = applyDamage(e, dps * dt, { bypassShield: true, noHitFlash: true });
       if (dealt > 0) {
         e._poisonAcc = (e._poisonAcc || 0) + dealt;
         const due = state.clock - (e._poisonFloatAt || 0) >= 1;
@@ -325,6 +345,8 @@
     // 敵人移動
     for (const e of state.enemies) {
       if (e._dead) continue;
+      if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
+      if (e.hitKick > 0) e.hitKick = Math.max(0, e.hitKick - dt);
       const frozen = e.frozenUntil > state.clock;
       const slowed = e.slowUntil > state.clock;
       const spd = frozen ? 0 : e.speed * (slowed ? e.slowFactor : 1);
@@ -333,8 +355,14 @@
       const dx = target.x - e.x, dy = target.y - e.y;
       const dist = Math.hypot(dx, dy);
       const step = spd * dt;
+      if (dist > 0.001) {
+        e.vx = dx / dist;
+        e.vy = dy / dist;
+        if (Math.abs(e.vx) > 0.08) e.flipX = e.vx < 0;
+      }
+      if (step > 0) e.walkDist += Math.min(step, dist);
       if (step >= dist) { e.x = target.x; e.y = target.y; e.wp++; if (e.wp >= state.path.length) leak(e); }
-      else { e.x += (dx / dist) * step; e.y += (dy / dist) * step; }
+      else { e.x += e.vx * step; e.y += e.vy * step; }
     }
     state.enemies = state.enemies.filter((e) => !e._dead && !e._leaked);
 
@@ -1146,18 +1174,67 @@
   }
   function drawEnemy(e) {
     const size = e.boss ? CELL * 1.1 : CELL * 0.6;
-    drawSprite(`assets/enemies/${e.id}.png`, e.emoji, e.x, e.y, size);
+    const seed = e.animSeed || 0;
+    const frozen = e.frozenUntil > state.clock;
+    const moving = !frozen && ((e.walkDist || 0) > 0 || Math.abs(e.vx || 0) + Math.abs(e.vy || 0) > 0.01);
+    const phase = (e.walkDist || 0) * (e.boss ? 0.14 : 0.24) + seed;
+    const idlePhase = state.clock * (e.boss ? 2.0 : 3.2) + seed;
+    const lift01 = moving ? (Math.sin(phase) + 1) * 0.5 : (e.boss ? 0.35 + Math.sin(idlePhase) * 0.12 : 0.22);
+    const bobAmp = e.boss ? 3.2 : 4.4;
+    const bob = moving ? -lift01 * bobAmp : Math.sin(idlePhase) * (e.boss ? 1.8 : 0.7);
+    const waddle = moving
+      ? Math.sin(phase + Math.PI / 2) * (e.boss ? 0.038 : 0.08)
+      : Math.sin(idlePhase) * (e.boss ? 0.048 : 0.022);
+    const breath = e.boss ? Math.sin(idlePhase) * 0.045 : 0;
+    let scaleX = moving ? 1.07 - 0.11 * lift01 : 1;
+    let scaleY = moving ? 0.94 + 0.14 * lift01 : 1 + (e.boss ? breath : Math.sin(idlePhase) * 0.012);
+    if (e.boss) {
+      scaleX *= 1 + breath * 0.45;
+      scaleY *= 1 + breath * 0.75;
+    }
+    const reduced = reducedFlashEnabled();
+    const kick01 = reduced ? 0 : Math.min(1, (e.hitKick || 0) / 0.12);
+    const shake = kick01 > 0 ? Math.sin(state.clock * 90 + seed) * kick01 * (e.boss ? 3.0 : 2.2) : 0;
+    const knock = kick01 * (e.boss ? 7.5 : 5.5);
+    const drawX = e.x + (e.hitDirX || 0) * knock + shake;
+    const drawY = e.y + bob + (e.hitDirY || 0) * knock * 0.45;
+    const shadowScale = Math.max(0.58, 1 - lift01 * (e.boss ? 0.18 : 0.28));
+    const shadowAlpha = Math.max(0.12, (e.boss ? 0.34 : 0.26) - lift01 * 0.12);
+
+    ctx.save();
+    ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + size * 0.38, size * (e.boss ? 0.48 : 0.43) * shadowScale, size * (e.boss ? 0.17 : 0.14) * shadowScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(drawX, drawY);
+    ctx.rotate(waddle);
+    ctx.scale((e.flipX ? -1 : 1) * scaleX, scaleY);
+    drawSprite(`assets/enemies/${e.id}.png`, e.emoji, 0, 0, size);
+    const flash = reduced ? 0 : (e.hitFlash || 0);
+    if (flash > 0) {
+      ctx.globalAlpha = Math.min(0.62, flash / 0.14 * 0.58);
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, size * 0.44, size * 0.44, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+
     // 血條（V3：圓角漸層）
-    drawHealthBar(e.x - size / 2, e.y - size / 2 - 9, size, 5, Math.max(0, e.hp / e.maxHp));
+    drawHealthBar(drawX - size / 2, drawY - size / 2 - 9, size, 5, Math.max(0, e.hp / e.maxHp));
     if (e.maxShield > 0) {
-      drawShieldBar(e.x - size / 2, e.y - size / 2 - 15, size, 4, Math.max(0, e.shield / e.maxShield));
+      drawShieldBar(drawX - size / 2, drawY - size / 2 - 15, size, 4, Math.max(0, e.shield / e.maxShield));
     }
     // 冰凍/減速標記
-    if (e.frozenUntil > state.clock) { ctx.fillStyle = "rgba(56,189,248,.4)"; ctx.beginPath(); ctx.arc(e.x, e.y, size / 2, 0, Math.PI * 2); ctx.fill(); }
-    else if (e.slowUntil > state.clock) { ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, size / 2, 0, Math.PI * 2); ctx.stroke(); }
+    if (e.frozenUntil > state.clock) { ctx.fillStyle = "rgba(56,189,248,.4)"; ctx.beginPath(); ctx.arc(drawX, drawY, size / 2, 0, Math.PI * 2); ctx.fill(); }
+    else if (e.slowUntil > state.clock) { ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(drawX, drawY, size / 2, 0, Math.PI * 2); ctx.stroke(); }
     if (e.poisonStacks && e.poisonStacks.length) {
       ctx.strokeStyle = "#22c55e"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(e.x, e.y, size * 0.62, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(drawX, drawY, size * 0.62, 0, Math.PI * 2); ctx.stroke();
     }
   }
   // 共用圓角漸層血條（V3 場景深度）

@@ -523,8 +523,13 @@ async function run() {
 
     // 6. 讓波次跑 3 秒：敵人生成、無錯誤
     await sleep(3000);
-    const running = await page.evaluate(() => ({ enemies: window.TD.state().enemies.length, over: window.TD.state().over }));
+    const running = await page.evaluate(() => {
+      const enemies = window.TD.state().enemies;
+      const animated = enemies.some((e) => (e.walkDist || 0) > 0 && Number.isFinite(e.vx) && Number.isFinite(e.vy) && typeof e.flipX === "boolean");
+      return { enemies: enemies.length, over: window.TD.state().over, animated };
+    });
     assert(running.enemies > 0 && !running.over, `波次進行中有敵人生成（${running.enemies} 隻）`);
+    assert(running.animated, "敵人移動動畫相位與朝向資料有更新");
 
     // 7. Stage 3：模擬結算 → 排行榜寫入、成就解鎖與魂晶獎勵
     const stage3Result = await page.evaluate(() => {

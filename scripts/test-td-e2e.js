@@ -313,6 +313,30 @@ async function run() {
     assert(afterClose.paused === false, "收下英雄後戰場恢復");
     assert(afterClose.owned === 1, `英雄入冊（擁有 ${afterClose.owned} 位）`);
 
+    const waveSoul = await page.evaluate(() => {
+      const before = JSON.parse(localStorage.getItem("td_meta_v1"));
+      window.TD.startWave();
+      const st = window.TD.state();
+      st.spawnQueue = [];
+      st.enemies = [];
+      window.TD.debug.step(0.2);
+      st.running = false;
+      const after = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const expected = window.TDRules.waveSoulReward(st.wave, window.TD.getDifficulty().id);
+      return {
+        wave: st.wave,
+        before: before.soulCrystal,
+        after: after.soulCrystal,
+        delta: after.soulCrystal - before.soulCrystal,
+        expected,
+        runSoulEarned: st.runSoulEarned,
+        metaText: document.getElementById("gachaMeta").textContent,
+        logText: document.getElementById("log").innerText,
+      };
+    });
+    assert(waveSoul.delta === waveSoul.expected && waveSoul.runSoulEarned === waveSoul.expected && waveSoul.metaText.includes(`${waveSoul.after}💎`) && waveSoul.logText.includes(`+${waveSoul.expected}`),
+      `清掉第 ${waveSoul.wave} 波後魂晶即時入袋（${waveSoul.before} → ${waveSoul.after}，expected +${waveSoul.expected}）`);
+
     // 3. 魂晶不足：第二抽（成本 20）應被擋
     const gacha2 = await page.evaluate(() => {
       const before = JSON.parse(localStorage.getItem("td_meta_v1"));
@@ -392,15 +416,16 @@ async function run() {
     const stage3Result = await page.evaluate(() => {
       const before = JSON.parse(localStorage.getItem("td_meta_v1"));
       const beforeCrystal = before.soulCrystal;
-      window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty() });
+      const runSoulEarned = window.TD.state().runSoulEarned || 0;
+      window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty(), soulEarned: runSoulEarned });
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const expectedCrystal = beforeCrystal
-        + Math.max(1, Math.round(10 * 1.8))
         + window.ACHIEVEMENTS.wave10.reward
         + window.ACHIEVEMENTS.wave10First.reward
         + window.ACHIEVEMENTS.kills100.reward;
       return {
         beforeCrystal,
+        runSoulEarned,
         crystal: after.soulCrystal,
         expectedCrystal,
         boardLen: after.board.normal.length,
@@ -417,10 +442,10 @@ async function run() {
     });
     assert(stage3Result.boardLen === 1 && stage3Result.boardWave === 10 && stage3Result.boardScore === 1234 && stage3Result.boardKills === 100 && stage3Result.boardMap === "canyon",
       `排行榜寫入本場紀錄與地圖（${stage3Result.boardWave} 波 / ${stage3Result.boardScore} 分 / ${stage3Result.boardKills} 殺 / ${stage3Result.boardMap}）`);
-    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名"),
-      "結算畫面顯示本場名次與新解鎖成就");
+    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名") && stage3Result.metaText.includes(`+${stage3Result.runSoulEarned}`),
+      "結算畫面顯示本場名次、新解鎖成就與本局已獲得魂晶");
     assert(stage3Result.crystal === stage3Result.expectedCrystal,
-      `成就與結算魂晶正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
+      `死亡不重複清波魂晶，成就正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
     assert(stage3Result.deathCta.includes("立即抽英雄"),
       `死亡結算主 CTA 在魂晶足夠時導向抽英雄（${stage3Result.deathCta}）`);
     const ctaBefore = await page.evaluate(() => {

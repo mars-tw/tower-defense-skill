@@ -8,7 +8,15 @@ const cfg = require(path.join(__dirname, "..", "src", "config.js"));
 const heroes = require(path.join(__dirname, "..", "src", "heroes.js"));
 const rules = require(path.join(__dirname, "..", "src", "rules.js"));
 
-const { META_VERSION, migrateMeta, updateBoard, evaluateAchievements } = rules;
+const {
+  META_VERSION,
+  migrateMeta,
+  updateBoard,
+  evaluateAchievements,
+  settleRunRewards,
+  waveSoulReward,
+  runSoulRewardTotal,
+} = rules;
 
 let failed = 0;
 function assert(cond, msg) {
@@ -68,6 +76,35 @@ console.log("\n== evaluateAchievements 觸發、獎勵、一次性、不 mutate 
   });
   assert(second.unlocked.length === 0, "已解鎖成就不重複發獎");
   assert(second.meta.soulCrystal === result.meta.soulCrystal, "重跑 evaluateAchievements 不重複增加魂晶");
+}
+
+console.log("\n== 即時魂晶入袋後死亡不重複結算 ==");
+{
+  let immediate = 0;
+  for (let w = 1; w <= 10; w++) immediate += waveSoulReward(w, "normal");
+  assert(immediate === 18 && runSoulRewardTotal(10, "normal") === 18, "普通第 10 波逐波魂晶總和等於舊公式 18");
+
+  const meta = migrateMeta({ soulCrystal: immediate });
+  const result = settleRunRewards({
+    meta,
+    wave: 10,
+    score: 500,
+    kills: 25,
+    difficulty: cfg.DIFFICULTIES.normal,
+    soulEarned: immediate,
+  });
+  assert(result.earned === immediate, "死亡畫面可顯示本局已獲得魂晶");
+  assert(result.meta.soulCrystal === immediate, "死亡結算不二次加清波魂晶");
+
+  const second = settleRunRewards({
+    meta: result.meta,
+    wave: 10,
+    score: 500,
+    kills: 25,
+    difficulty: cfg.DIFFICULTIES.normal,
+    soulEarned: immediate,
+  });
+  assert(second.meta.soulCrystal === immediate, "重跑死亡結算也不會重複入帳魂晶");
 }
 
 console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");

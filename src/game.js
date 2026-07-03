@@ -68,6 +68,7 @@
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       mapId: mapDef.id, mapDef, path,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
+      runSoulEarned: 0, soulRewardedWaves: new Set(),
       running: false, over: false, betweenWaves: true,
       selectedTowerType: null,   // 準備建造的塔
       selectedTower: null,        // 已選中的塔（看升級）
@@ -272,6 +273,8 @@
     ctx.fillStyle = "#fff"; ctx.fillText("⏸ 暫停中", W / 2, H / 2);
     ctx.font = '600 16px "Segoe UI", sans-serif'; ctx.fillStyle = "#9fb0a4";
     ctx.fillText("點 ⏸ 或按空白鍵繼續", W / 2, H / 2 + 36);
+    ctx.font = '700 15px "Segoe UI", sans-serif'; ctx.fillStyle = "#c4b5fd";
+    ctx.fillText(`本局已獲得 +${state.runSoulEarned || 0}💎`, W / 2, H / 2 + 62);
     ctx.restore();
   }
 
@@ -374,7 +377,26 @@
       const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1)); // 指數成長獎勵（D2）
       state.gold += bonus;
       state.score += state.wave * 10;
-      log(`第 ${state.wave} 波清空！+${bonus} 金`);
+      let soulReward = 0;
+      if (!state.soulRewardedWaves.has(state.wave)) {
+        soulReward = TDRules.waveSoulReward(state.wave, getDifficulty().id);
+        state.soulRewardedWaves.add(state.wave);
+        state.runSoulEarned += soulReward;
+      }
+      if (soulReward > 0) {
+        flashText(W / 2, H * 0.22, `+${soulReward}💎`, { color: "#c4b5fd", size: 22, big: true });
+        log(`第 ${state.wave} 波清空！+${bonus} 金，+${soulReward} 魂晶`);
+        if (typeof window.__tdWaveCleared === "function") {
+          window.__tdWaveCleared({
+            wave: state.wave,
+            reward: soulReward,
+            total: state.runSoulEarned,
+            difficultyId: getDifficulty().id,
+          });
+        }
+      } else {
+        log(`第 ${state.wave} 波清空！+${bonus} 金`);
+      }
       if (typeof window.__tdUI === "function") window.__tdUI();
     }
   }
@@ -773,7 +795,13 @@
     if (state.over) return; // 重入保護：同一幀多隻敵人 leak 會觸發多次，魂晶/場次會被重複結算
     state.over = true; state.running = false;
     log(`💀 遊戲結束！撐到第 ${state.wave} 波，得分 ${state.score}`, "bad");
-    if (typeof window.__tdGameOver === "function") window.__tdGameOver(state.wave, state.score, { kills: state.kills, difficulty: getDifficulty() });
+    if (typeof window.__tdGameOver === "function") {
+      window.__tdGameOver(state.wave, state.score, {
+        kills: state.kills,
+        difficulty: getDifficulty(),
+        soulEarned: state.runSoulEarned || 0,
+      });
+    }
   }
 
   // ===== 渲染 =====

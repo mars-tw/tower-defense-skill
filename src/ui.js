@@ -96,7 +96,7 @@
     if ($("gachaOverlay").classList.contains("show") || $("progressOverlay").classList.contains("show")) return false;
     const meta = loadMeta();
     const cost = gachaCostNow(meta);
-    if (meta.soulCrystal < cost) { pushLog(`魂晶不足（需 ${cost}💎，戰敗結算可獲得）`, "bad"); return false; }
+    if (meta.soulCrystal < cost) { pushLog(`魂晶不足（需 ${cost}💎，清波即可獲得）`, "bad"); return false; }
     meta.soulCrystal -= cost;
     const roll = TD.rollHeroWithPityPreferNew
       ? TD.rollHeroWithPityPreferNew(meta.gachaPity || 0, [...ownedHeroes])
@@ -399,6 +399,17 @@
     }
   }
 
+  function onWaveCleared(result) {
+    const info = result || {};
+    const reward = Math.max(0, Math.floor(Number(info.reward) || 0));
+    if (reward <= 0) return;
+    const meta = loadMeta();
+    meta.soulCrystal += reward;
+    saveMeta(meta);
+    pushLog(`💎 清掉第 ${info.wave || "?"} 波，魂晶 +${reward}（持有 ${meta.soulCrystal}）`);
+    refreshUI();
+  }
+
   // ===== 遊戲結束（含 meta 結算 + 分享鉤子）=====
   function onGameOver(wave, score, run) {
     const diff = TD.getDifficulty();
@@ -409,6 +420,7 @@
       score,
       kills,
       difficulty: (run && run.difficulty) || diff,
+      soulEarned: (run && run.soulEarned) || 0,
     });
     const currentMap = TD.getMap ? TD.getMap() : null;
     const boardResult = RULES.updateBoard(settlement.meta.board, diff.id, { wave, score, kills, at: Date.now(), map: currentMap && currentMap.id });
@@ -446,7 +458,7 @@
         <div class="diff-tag" style="color:${diff.color}">${diff.emoji} ${diff.label}難度</div>
         ${rankLine}
         ${isRecord ? '<div class="record">🎉 新紀錄！</div>' : `<div>此難度最高：第 ${meta.bestByDiff[diff.id]} 波</div>`}
-        <div>💎 獲得魂晶 +${earned}（共 ${meta.soulCrystal}）</div>
+        <div>💎 本局清波已獲得 +${earned}（目前 ${meta.soulCrystal}）</div>
         ${unlockLine}
         <div class="hook">${isHard || wave >= 10 ? "覺得難？" : ""}<b>分享你的攻略</b>，讓大家膜拜你的塔陣！</div>
         <div class="share-row">
@@ -474,7 +486,7 @@
           });
         };
       } else {
-        deathCta.textContent = `再來一局賺魂晶（差 ${ctaCost - meta.soulCrystal} 💎）`;
+        deathCta.textContent = `清波賺魂晶再抽（差 ${ctaCost - meta.soulCrystal} 💎）`;
         deathCta.onclick = () => { deathCta.blur(); restartRun(); };
       }
     }
@@ -517,6 +529,7 @@
   // 把回呼掛給 game.js
   window.__tdUI = refreshUI;
   window.__tdLog = pushLog;
+  window.__tdWaveCleared = onWaveCleared;
   window.__tdGameOver = onGameOver;
 
   // 首次遊玩引導（D3）：只顯示一次，存 localStorage

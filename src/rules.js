@@ -30,6 +30,7 @@
     achievements: {},
     lastMap: "plains",
   };
+  const SOUL_REWARD_MUL_BY_DIFF = { normal: 1.8, brutal: 2.4, endless: 2.2 };
 
   function isFiniteNumber(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -113,6 +114,23 @@
 
   function difficultyValue(difficulty, key, fallback) {
     return isFiniteNumber(difficulty[key]) ? difficulty[key] : fallback;
+  }
+
+  function soulRewardMultiplier(difficulty) {
+    const diff = normalizeDifficulty(difficulty);
+    return SOUL_REWARD_MUL_BY_DIFF[diff.id] || SOUL_REWARD_MUL_BY_DIFF.normal;
+  }
+
+  function runSoulRewardTotal(wave, difficulty) {
+    const w = Math.max(0, Math.floor(safeNumber(wave, 0)));
+    if (w <= 0) return 0;
+    return Math.max(1, Math.round(w * soulRewardMultiplier(difficulty)));
+  }
+
+  function waveSoulReward(wave, difficulty) {
+    const w = Math.max(0, Math.floor(safeNumber(wave, 0)));
+    if (w <= 0) return 0;
+    return runSoulRewardTotal(w, difficulty) - runSoulRewardTotal(w - 1, difficulty);
   }
 
   function applyDifficulty(base, difficulty) {
@@ -238,16 +256,13 @@
     const diffId = difficulty.id || input.difficultyId || "normal";
     const wave = Math.max(0, Math.floor(safeNumber(input.wave, 0)));
     const kills = Math.max(0, Math.floor(safeNumber(input.kills, 0)));
-    const rewardMulByDiff = { normal: 1.8, brutal: 2.4, endless: 2.2 };
-    const rewardMul = rewardMulByDiff[diffId] || rewardMulByDiff.normal;
-    const earned = Math.max(1, Math.round(wave * rewardMul));
+    const earned = Math.max(0, Math.floor(safeNumber(input.soulEarned, 0)));
     const previousBest = meta.bestByDiff[diffId] || 0;
     const isRecord = wave > previousBest;
 
     const nextMeta = Object.assign({}, meta, { bestByDiff: Object.assign({}, meta.bestByDiff) });
     if (isRecord) nextMeta.bestByDiff[diffId] = wave;
     if (wave > (nextMeta.bestWave || 0)) nextMeta.bestWave = wave;
-    nextMeta.soulCrystal += earned;
     nextMeta.games += 1;
     nextMeta.totalKills += kills;
 
@@ -305,6 +320,8 @@
     META_VERSION,
     META_DEFAULT,
     migrateMeta,
+    waveSoulReward,
+    runSoulRewardTotal,
     settleRunRewards,
     applyDifficulty,
     generateWaveQueue,

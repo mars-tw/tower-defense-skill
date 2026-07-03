@@ -11,6 +11,8 @@ const rules = require(path.join(__dirname, "..", "src", "rules.js"));
 const {
   META_VERSION,
   migrateMeta,
+  waveSoulReward,
+  runSoulRewardTotal,
   settleRunRewards,
   generateWaveQueue,
   applyDifficulty,
@@ -92,6 +94,23 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
   }
 }
 
+console.log("\n== waveSoulReward 即時魂晶總量守恆 ==");
+{
+  const cases = [
+    { id: "normal", wave: 10, expected: 18 },
+    { id: "brutal", wave: 10, expected: 24 },
+    { id: "endless", wave: 10, expected: 22 },
+  ];
+  for (const c of cases) {
+    let sum = 0;
+    for (let w = 1; w <= c.wave; w++) sum += waveSoulReward(w, c.id);
+    assert(sum === c.expected, `${c.id} 第 ${c.wave} 波逐波總和 = ${c.expected}（actual ${sum}）`);
+    assert(runSoulRewardTotal(c.wave, c.id) === c.expected, `${c.id} 累計公式等於舊 round(wave * multiplier)`);
+    assert(sum === runSoulRewardTotal(c.wave, c.id), `${c.id} 逐波差分與累計總額一致`);
+  }
+  assert(waveSoulReward(0, "normal") === 0 && runSoulRewardTotal(0, "normal") === 0, "第 0 波不給魂晶");
+}
+
 console.log("\n== settleRunRewards 死亡結算 ==");
 {
   const meta = migrateMeta({
@@ -103,16 +122,16 @@ console.log("\n== settleRunRewards 死亡結算 ==");
     gachaCount: 1,
     bestByDiff: { normal: 3 },
   });
-  const result = settleRunRewards({ meta, wave: 4, score: 120, kills: 6, difficulty: cfg.DIFFICULTIES.normal });
-  assert(result.earned === 7, "普通魂晶公式為 max(1, round(wave * 1.8))");
+  const result = settleRunRewards({ meta, wave: 4, score: 120, kills: 6, difficulty: cfg.DIFFICULTIES.normal, soulEarned: 7 });
+  assert(result.earned === 7, "死亡結算只回報本局已即時入袋魂晶");
   assert(result.isRecord === true && result.meta.bestByDiff.normal === 4 && result.meta.bestWave === 4, "最高波數與難度紀錄會更新");
-  assert(result.meta.soulCrystal === 11 && result.meta.games === 3 && result.meta.totalKills === 13, "魂晶、場次與總擊殺累積正確");
+  assert(result.meta.soulCrystal === 4 && result.meta.games === 3 && result.meta.totalKills === 13, "死亡結算不再二次增加清波魂晶，場次與總擊殺仍累積");
   assert(meta.soulCrystal === 4 && meta.bestByDiff.normal === 3, "settleRunRewards 不改動傳入 meta");
 
-  const brutal = settleRunRewards({ meta: migrateMeta({ soulCrystal: 0 }), wave: 10, kills: 0, difficulty: cfg.DIFFICULTIES.brutal });
-  const endless = settleRunRewards({ meta: migrateMeta({ soulCrystal: 0 }), wave: 10, kills: 0, difficulty: cfg.DIFFICULTIES.endless });
-  assert(brutal.earned === 24, "嚴酷魂晶公式為 round(wave * 2.4)");
-  assert(endless.earned === 22, "無盡魂晶公式為 round(wave * 2.2)");
+  const brutal = settleRunRewards({ meta: migrateMeta({ soulCrystal: 10 }), wave: 10, kills: 0, difficulty: cfg.DIFFICULTIES.brutal });
+  const endless = settleRunRewards({ meta: migrateMeta({ soulCrystal: 10 }), wave: 10, kills: 0, difficulty: cfg.DIFFICULTIES.endless });
+  assert(brutal.earned === 0 && brutal.meta.soulCrystal === 10, "未傳 soulEarned 時嚴酷死亡不補發波數魂晶");
+  assert(endless.earned === 0 && endless.meta.soulCrystal === 10, "未傳 soulEarned 時無盡死亡不補發波數魂晶");
 }
 
 console.log("\n== applyDifficulty 難度係數 ==");

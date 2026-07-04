@@ -146,6 +146,22 @@ async function run() {
         "手機首屏建塔列排在開始波前，且顯示橫滑提示");
     }
 
+    const nextWaveCardInitial = await page.evaluate(() => ({
+      text: document.getElementById("nextWaveCard").innerText,
+      enemyButtons: document.querySelectorAll("#nextWaveCard .enemy-chip-btn").length,
+    }));
+    assert(nextWaveCardInitial.text.includes("下一波情報") && nextWaveCardInitial.text.includes("主元素") && nextWaveCardInitial.enemyButtons > 0,
+      `下一波情報卡顯示元素與主要敵人（敵人按鈕 ${nextWaveCardInitial.enemyButtons} 個）`);
+    if (vp.w <= 560) {
+      await page.evaluate(() => document.querySelector("#nextWaveCard .enemy-chip-btn").click());
+      const enemyInfo = await page.evaluate(() => ({
+        shown: !document.getElementById("enemyInfo").classList.contains("hidden"),
+        text: document.getElementById("enemyInfo").innerText,
+      }));
+      assert(enemyInfo.shown && enemyInfo.text.includes("血量") && enemyInfo.text.includes("速度") && enemyInfo.text.includes("元素") && enemyInfo.text.includes("特性"),
+        `手機可點敵人開小圖鑑（${enemyInfo.text.split("\n")[0]}）`);
+    }
+
     // 1. 建塔準備階段畫面會重繪（idle render loop），且未建任何塔時不能開第 1 波
     const noTowerStart = await page.evaluate(() => ({
       text: document.getElementById("startBtn").textContent,
@@ -319,6 +335,16 @@ async function run() {
     assert(idleRender.running === false, "第一波開始前主迴圈未跑（準備階段）");
     assert(idleRender.towers === 1, `準備階段可放塔（場上 ${idleRender.towers} 座）`);
     assert(duplicateBuild.ok === false && duplicateBuild.reason.includes("已有塔"), `已有塔格位會擋建造（${duplicateBuild.reason}）`);
+    const missionAfterBuild = await page.evaluate(() => {
+      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+      return {
+        crystal: meta.soulCrystal,
+        firstTower: meta.beginnerMissions && meta.beginnerMissions.firstTower === true,
+        text: document.getElementById("beginnerMissions").innerHTML,
+      };
+    });
+    assert(missionAfterBuild.firstTower && missionAfterBuild.crystal >= 4,
+      `建塔後新手任務立即領獎（魂晶 ${missionAfterBuild.crystal}）`);
 
     // Stage 4：毒霧塔 DoT 與聖光塔 buff
     const stage4Combat = await page.evaluate(() => {
@@ -414,7 +440,7 @@ async function run() {
       });
     }
     assert(gacha1.goldAfter === gacha1.goldBefore, `抽卡不花場內金錢（${gacha1.goldBefore} 不變）`);
-    assert(gacha1.crystal === 0 && gacha1.count === 1, `首抽免費（魂晶 ${gacha1.crystal}、抽數 ${gacha1.count}）`);
+    assert(gacha1.crystal >= 4 && gacha1.count === 1, `首抽免費且保留任務魂晶（魂晶 ${gacha1.crystal}、抽數 ${gacha1.count}）`);
     assert(gacha1.overlayShown === true, "盲盒動畫浮層顯示");
     assert(gacha1.paused === true, "抽卡動畫期間戰場暫停（敵人不偷跑）");
 
@@ -426,6 +452,19 @@ async function run() {
     const afterClose = await page.evaluate(() => ({ paused: window.TD.state().paused, owned: JSON.parse(localStorage.getItem("td_heroes_owned_v1")).length }));
     assert(afterClose.paused === false, "收下英雄後戰場恢復");
     assert(afterClose.owned === 1, `英雄入冊（擁有 ${afterClose.owned} 位）`);
+    const deployFirstHeroMission = await page.evaluate(() => {
+      const card = document.querySelector("#heroRoster .hero-card");
+      if (card) card.click();
+      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+      return {
+        crystal: meta.soulCrystal,
+        deployHero: meta.beginnerMissions && meta.beginnerMissions.deployHero === true,
+        deployed: window.TD.state().heroes.length,
+        text: document.getElementById("beginnerMissions").textContent + "\n" + document.getElementById("gachaMeta").textContent,
+      };
+    });
+    assert(deployFirstHeroMission.crystal >= 8 && deployFirstHeroMission.text.includes("第二英雄"),
+      `首抽後顯示第二英雄進度與可取得路徑（魂晶 ${deployFirstHeroMission.crystal}）`);
 
     const waveSoul = await page.evaluate(() => {
       const before = JSON.parse(localStorage.getItem("td_meta_v1"));
@@ -448,8 +487,9 @@ async function run() {
         logText: document.getElementById("log").innerText,
       };
     });
-    assert(waveSoul.delta === waveSoul.expected && waveSoul.runSoulEarned === waveSoul.expected && waveSoul.metaText.includes(`${waveSoul.after}💎`) && waveSoul.logText.includes(`+${waveSoul.expected}`),
-      `清掉第 ${waveSoul.wave} 波後魂晶即時入袋（${waveSoul.before} → ${waveSoul.after}，expected +${waveSoul.expected}）`);
+    const firstWaveMissionReward = 4;
+    assert(waveSoul.delta === waveSoul.expected + firstWaveMissionReward && waveSoul.runSoulEarned === waveSoul.expected && waveSoul.metaText.includes(`${waveSoul.after}💎`) && waveSoul.logText.includes(`+${waveSoul.expected}`),
+      `清掉第 ${waveSoul.wave} 波後魂晶即時入袋並領首波任務（${waveSoul.before} → ${waveSoul.after}，清波 +${waveSoul.expected}，任務 +${firstWaveMissionReward}）`);
 
     // 3. 魂晶不足：第二抽（成本 20）應被擋
     const gacha2 = await page.evaluate(() => {
@@ -460,11 +500,35 @@ async function run() {
     });
     assert(gacha2.btnDisabled === true && gacha2.countAfter === gacha2.countBefore, "魂晶不足時抽卡被擋（按鈕 disabled、抽數不變）");
 
-    // 4. 給足魂晶 → 即使原始抽卡撞到第一隻英雄，也要取得第 2 隻並可上場
-    const gacha3 = await page.evaluate(async () => {
+    // 4. 不預置魂晶：靠建塔/首波/上場/升級/施法任務湊滿第二抽
+    const missionPathToSecondDraw = await page.evaluate(() => {
       const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
-      meta.soulCrystal = 200; localStorage.setItem("td_meta_v1", JSON.stringify(meta));
-      window.__tdUI(); // 直接改 localStorage 不會觸發重繪，按鈕還是 disabled——手動刷新（同農場專案 F.refresh() 教訓）
+      const st = window.TD.state();
+      st.gold = Math.max(st.gold, 200);
+      st.selectedTower = st.towers[0];
+      window.__tdUI();
+      document.getElementById("upgBtn").click();
+      window.TD.selectSkill("meteor");
+      const canvas = document.getElementById("game");
+      const rect = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(new MouseEvent("click", { clientX: rect.left + rect.width * 0.5, clientY: rect.top + rect.height * 0.5, bubbles: true }));
+      window.__tdUI();
+      const after = JSON.parse(localStorage.getItem("td_meta_v1"));
+      return {
+        beforeCrystal: meta.soulCrystal,
+        afterCrystal: after.soulCrystal,
+        firstUpgrade: after.beginnerMissions && after.beginnerMissions.firstUpgrade === true,
+        firstSkill: after.beginnerMissions && after.beginnerMissions.firstSkill === true,
+        gachaDisabled: document.getElementById("gachaBtn").disabled,
+        missionText: document.getElementById("beginnerMissions").innerText,
+      };
+    });
+    assert(missionPathToSecondDraw.firstUpgrade && missionPathToSecondDraw.firstSkill && missionPathToSecondDraw.afterCrystal >= 20 && missionPathToSecondDraw.gachaDisabled === false,
+      `任務線讓新帳號第 8 波前可達成第二抽（${missionPathToSecondDraw.beforeCrystal} → ${missionPathToSecondDraw.afterCrystal}💎）`);
+
+    const gacha3 = await page.evaluate(async () => {
+      window.__tdUI();
+      const before = JSON.parse(localStorage.getItem("td_meta_v1"));
       const firstOwned = (JSON.parse(localStorage.getItem("td_heroes_owned_v1")) || [])[0];
       const duplicateSeq = {
         archer: [0.01, 0.01, 0.01],
@@ -481,11 +545,15 @@ async function run() {
       const originalRandom = Math.random;
       Math.random = () => duplicateSeq.length ? duplicateSeq.shift() : originalRandom();
       document.getElementById("gachaBtn").click();
+      Math.random = originalRandom;
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const owned = JSON.parse(localStorage.getItem("td_heroes_owned_v1"));
-      return { crystal: after.soulCrystal, pity: after.gachaPity, count: after.gachaCount, firstOwned, owned };
+      return { beforeCrystal: before.soulCrystal, crystal: after.soulCrystal, pity: after.gachaPity, count: after.gachaCount, firstOwned, owned,
+        secondHeroMission: after.beginnerMissions && after.beginnerMissions.secondHero === true };
     });
-    assert(gacha3.crystal === 180, `第二抽扣 20 魂晶且不走重複退補（剩 ${gacha3.crystal}）`);
+    const secondHeroMissionReward = 5;
+    assert(gacha3.secondHeroMission && gacha3.crystal === gacha3.beforeCrystal - 20 + secondHeroMissionReward,
+      `第二抽扣 20💎 並立即領第二英雄任務 +5💎（${gacha3.beforeCrystal} → ${gacha3.crystal}）`);
     assert(gacha3.count === 2, `抽數累積（${gacha3.count}）`);
     assert(typeof gacha3.pity === "number" && gacha3.pity >= 0, `pity 有持久化追蹤（${gacha3.pity}）`);
     assert(gacha3.owned.length === 2 && new Set(gacha3.owned).size === 2,
@@ -530,6 +598,29 @@ async function run() {
     });
     assert(running.enemies > 0 && !running.over, `波次進行中有敵人生成（${running.enemies} 隻）`);
     assert(running.animated, "敵人移動動畫相位與朝向資料有更新");
+
+    const liveProgressR7 = await page.evaluate(() => {
+      const st = window.TD.state();
+      st.wave = 8;
+      st.clearedWave = 8;
+      st.betweenWaves = true;
+      st.running = false;
+      st.over = false;
+      st.paused = false;
+      st.runSoulEarned = 14;
+      window.__tdUI();
+      document.getElementById("boardBtn").click();
+      const shown = document.getElementById("progressOverlay").classList.contains("show");
+      const pausedOpen = window.TD.state().paused;
+      const text = document.getElementById("runProgress").innerText;
+      document.getElementById("progressClose").click();
+      return { shown, pausedOpen, pausedClose: window.TD.state().paused, text };
+    });
+    assert(liveProgressR7.shown && liveProgressR7.text.includes("本局進度") && liveProgressR7.text.includes("第 8 波") &&
+      liveProgressR7.text.includes("距離第 10 波還差 2 波") && liveProgressR7.text.includes("本局魂晶") && liveProgressR7.text.includes("清波 +14"),
+      `第 8 波未死亡 overlay 顯示本局進度與魂晶（${liveProgressR7.text.replace(/\n/g, " / ")}）`);
+    assert(liveProgressR7.pausedOpen === true && liveProgressR7.pausedClose === false,
+      "第 8 波局中進度 overlay 開啟暫停、關閉恢復");
 
     // 7. Stage 3：模擬結算 → 排行榜寫入、成就解鎖與魂晶獎勵
     const stage3Result = await page.evaluate(() => {

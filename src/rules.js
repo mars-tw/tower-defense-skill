@@ -15,7 +15,7 @@
     ? require("./config.js")
     : root;
 
-  const META_VERSION = 3;
+  const META_VERSION = 4;
   const META_NUMERIC_KEYS = ["bestWave", "totalKills", "soulCrystal", "games", "gachaPity", "gachaCount"];
   const META_DEFAULT = {
     version: META_VERSION,
@@ -28,6 +28,7 @@
     bestByDiff: {},
     board: {},
     achievements: {},
+    beginnerMissions: {},
     lastMap: "plains",
   };
   const SOUL_REWARD_MUL_BY_DIFF = { normal: 1.8, brutal: 2.4, endless: 2.2 };
@@ -92,6 +93,15 @@
     return result;
   }
 
+  function sanitizeBeginnerMissions(value) {
+    const result = {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+    for (const [key, claimed] of Object.entries(value)) {
+      if (claimed === true) result[key] = true;
+    }
+    return result;
+  }
+
   function migrateMeta(raw) {
     const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     const meta = Object.assign({}, META_DEFAULT, source);
@@ -102,6 +112,7 @@
     meta.bestByDiff = sanitizeBestByDiff(meta.bestByDiff);
     meta.board = sanitizeBoard(meta.board);
     meta.achievements = sanitizeAchievements(meta.achievements);
+    meta.beginnerMissions = sanitizeBeginnerMissions(meta.beginnerMissions);
     if (!hasOwn(cfg.MAPS, meta.lastMap)) meta.lastMap = META_DEFAULT.lastMap;
     return meta;
   }
@@ -290,6 +301,27 @@
     return { unlocked, meta: nextMeta };
   }
 
+  function evaluateBeginnerMissions(meta, context) {
+    const baseMeta = migrateMeta(meta);
+    const ctx = Object.assign({}, context || {});
+    const nextMeta = Object.assign({}, baseMeta, { beginnerMissions: Object.assign({}, baseMeta.beginnerMissions) });
+    const unlocked = [];
+    const missions = cfg.BEGINNER_MISSIONS || {};
+
+    for (const mission of Object.values(missions)) {
+      if (!mission || !mission.id || nextMeta.beginnerMissions[mission.id] === true || typeof mission.check !== "function") continue;
+      let passed = false;
+      try { passed = mission.check(nextMeta, ctx) === true; } catch { passed = false; }
+      if (!passed) continue;
+      const reward = isFiniteNumber(mission.reward) ? mission.reward : 0;
+      nextMeta.beginnerMissions[mission.id] = true;
+      nextMeta.soulCrystal += reward;
+      unlocked.push({ id: mission.id, label: mission.label, desc: mission.desc, reward });
+    }
+
+    return { unlocked, meta: nextMeta };
+  }
+
   function distancePointToSegment(px, py, a, b) {
     if (!isFiniteNumber(px) || !isFiniteNumber(py) || !a || !b) return Infinity;
     if (!isFiniteNumber(a.x) || !isFiniteNumber(a.y) || !isFiniteNumber(b.x) || !isFiniteNumber(b.y)) return Infinity;
@@ -327,6 +359,7 @@
     generateWaveQueue,
     updateBoard,
     evaluateAchievements,
+    evaluateBeginnerMissions,
     distancePointToSegment,
     distanceToPath,
     canReachPath,

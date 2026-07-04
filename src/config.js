@@ -201,6 +201,28 @@ const ACHIEVEMENTS = {
                check: (meta, ctx = {}) => (ctx.ownedHeroCount || 0) >= (ctx.totalHeroCount || 1) },
 };
 
+// ===== 新手 10 波任務線（R7）=====
+// 一次性小額魂晶，總增發 38💎：目標是讓新帳號在第 8 波前明確看到第二抽路徑，
+// 但不取代成就與清波魂晶的長線節奏。
+const BEGINNER_MISSIONS = {
+  firstTower: { id: "firstTower", label: "立起第一座塔", desc: "建造任一座砲塔", reward: 4,
+                check: (meta, ctx = {}) => (ctx.towersBuilt || ctx.towerCount || 0) >= 1 },
+  firstWave: { id: "firstWave", label: "守住第一波", desc: "清掉第 1 波", reward: 4,
+               check: (meta, ctx = {}) => (ctx.clearedWave || 0) >= 1 },
+  deployHero: { id: "deployHero", label: "英雄上場", desc: "派出 1 位英雄協防", reward: 4,
+                check: (meta, ctx = {}) => (ctx.deployedHeroCount || 0) >= 1 },
+  firstUpgrade: { id: "firstUpgrade", label: "強化主力塔", desc: "升級任一座砲塔", reward: 6,
+                  check: (meta, ctx = {}) => (ctx.towerUpgrades || 0) >= 1 || (ctx.maxTowerLevel || 1) >= 2 },
+  firstSkill: { id: "firstSkill", label: "第一次施法", desc: "使用任一主動技能", reward: 5,
+                check: (meta, ctx = {}) => (ctx.skillCasts || 0) >= 1 },
+  wave3: { id: "wave3", label: "站穩前線", desc: "清掉第 3 波", reward: 6,
+           check: (meta, ctx = {}) => (ctx.clearedWave || 0) >= 3 },
+  firstBoss: { id: "firstBoss", label: "首殺魔王", desc: "擊倒第一隻 Boss", reward: 4,
+               check: (meta, ctx = {}) => (ctx.bossKills || 0) >= 1 },
+  secondHero: { id: "secondHero", label: "第二位英雄", desc: "抽到第 2 位英雄", reward: 5,
+                check: (meta, ctx = {}) => (ctx.ownedHeroCount || 0) >= 2 || (ctx.gachaCount || 0) >= 2 },
+};
+
 let _difficulty = "normal";
 function setDifficulty(id) { if (DIFFICULTIES[id]) _difficulty = id; }
 function getDifficulty() { return DIFFICULTIES[_difficulty] || DIFFICULTIES.normal; }
@@ -215,8 +237,8 @@ function waveHpScale(wave) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS };
 }

@@ -5,7 +5,7 @@
 
 (() => {
   "use strict";
-  const { TOWERS, SKILLS } = TD.config;
+  const { TOWERS, SKILLS, ENEMIES, BEGINNER_MISSIONS } = TD.config;
   const $ = (id) => document.getElementById(id);
   const hasOwn = (obj, key) => !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   const RULES = window.TDRules;
@@ -23,6 +23,22 @@
   function elemChip(el) {
     const hint = COUNTER_HINT[el] ? `·${COUNTER_HINT[el]}` : "";
     return `<span class="elem-chip elem-${el}">${ELEM_ICON[el]}${ELEM_LABEL[el]}${hint}</span>`;
+  }
+  function enemyTrait(e) {
+    if (!e) return "一般敵人";
+    const parts = [];
+    if (e.boss) parts.push("高血 Boss，漏過會重創女神");
+    if (e.shield) parts.push(`護盾 ${e.shield}，需先破盾`);
+    if (e.healRadius) parts.push(`每 ${e.healInterval} 秒治療附近敵人`);
+    if (e.speed >= 85) parts.push("高速突進");
+    if (e.hp >= 100 && !e.boss) parts.push("高血慢速");
+    if (!parts.length) parts.push("標準路徑敵人");
+    return parts.join("；");
+  }
+  function enemySummary(id) {
+    const e = ENEMIES[id];
+    if (!e) return "";
+    return `${e.name}：${ELEM_LABEL[e.element]}系，${enemyTrait(e)}`;
   }
 
   // ===== 建塔選單（補關鍵數值與元素，D3 資訊透明）=====
@@ -246,6 +262,123 @@
     });
   }
 
+  function missionContext(meta) {
+    const st = TD.state();
+    const towers = st.towers || [];
+    return {
+      wave: st.wave || 0,
+      clearedWave: st.clearedWave || (st.betweenWaves ? st.wave : Math.max(0, (st.wave || 1) - 1)),
+      towerCount: towers.length,
+      towersBuilt: st.towersBuilt || towers.length,
+      maxTowerLevel: towers.reduce((max, tw) => Math.max(max, tw.level || 1), 1),
+      towerUpgrades: st.towerUpgrades || 0,
+      skillCasts: st.skillCasts || 0,
+      bossKills: st.bossKills || 0,
+      deployedHeroCount: (st.heroes || []).length,
+      ownedHeroCount: ownedHeroes.size,
+      totalHeroCount: Object.keys(TD.config.HEROES).length,
+      gachaCount: meta.gachaCount || 0,
+    };
+  }
+
+  function remainingMissionReward(meta) {
+    const claimed = (meta && meta.beginnerMissions) || {};
+    return Object.values(BEGINNER_MISSIONS || {}).reduce((sum, mission) => (
+      claimed[mission.id] === true ? sum : sum + (mission.reward || 0)
+    ), 0);
+  }
+
+  function showMissionToast(unlocked) {
+    if (!unlocked || !unlocked.length) return;
+    const total = unlocked.reduce((sum, m) => sum + (m.reward || 0), 0);
+    const toast = document.createElement("div");
+    toast.className = "mission-toast";
+    toast.textContent = `新手任務完成：+${total}💎`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 1900);
+    unlocked.forEach((m) => pushLog(`🎯 任務達成「${m.label}」已領 +${m.reward}💎`));
+  }
+
+  function claimBeginnerMissions(baseMeta) {
+    if (!RULES.evaluateBeginnerMissions) return baseMeta || loadMeta();
+    const meta = baseMeta || loadMeta();
+    const result = RULES.evaluateBeginnerMissions(meta, missionContext(meta));
+    if (result.unlocked.length) {
+      saveMeta(result.meta);
+      const st = TD.state();
+      st.runMissionSoulEarned = (st.runMissionSoulEarned || 0) + result.unlocked.reduce((sum, m) => sum + (m.reward || 0), 0);
+      showMissionToast(result.unlocked);
+      return result.meta;
+    }
+    return meta;
+  }
+
+  function renderBeginnerMissions(meta) {
+    const box = $("beginnerMissions");
+    if (!box) return;
+    const missions = Object.values(BEGINNER_MISSIONS || {});
+    if (!missions.length) { box.innerHTML = ""; return; }
+    const claimed = meta.beginnerMissions || {};
+    const claimedCount = missions.filter((m) => claimed[m.id] === true).length;
+    const totalReward = missions.reduce((sum, m) => sum + (m.reward || 0), 0);
+    const nextCost = TD.config.GACHA.cost;
+    const progress = Math.min(nextCost, meta.soulCrystal || 0);
+    const pathText = meta.gachaCount > 0 && ownedHeroes.size < 2
+      ? `第二英雄進度 ${progress}/${nextCost}💎，剩餘任務可得 +${remainingMissionReward(meta)}💎`
+      : `新手任務 ${claimedCount}/${missions.length}，總增發 ${totalReward}💎`;
+    box.innerHTML = `
+      <div class="mission-title">🎯 首 10 波目標</div>
+      <div class="mission-progress">${pathText}</div>
+      <div class="mission-list">
+        ${missions.map((m) => {
+          const done = claimed[m.id] === true;
+          return `<div class="mission-row ${done ? "claimed" : ""}" data-mission="${m.id}">
+            <div>${done ? "✅" : "▫️"}</div>
+            <div><div class="m-name">${m.label}</div><div class="m-desc">${m.desc}</div></div>
+            <div class="m-reward">${done ? "已領" : `+${m.reward}💎`}</div>
+          </div>`;
+        }).join("")}
+      </div>`;
+  }
+
+  function openEnemyInfo(id) {
+    const e = ENEMIES[id];
+    const box = $("enemyInfo");
+    if (!e || !box) return;
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <div class="enemy-title">${e.emoji || ""} ${e.name}</div>
+      <div class="enemy-stats">血量 ${e.hp}${e.shield ? ` + 護盾 ${e.shield}` : ""} · 速度 ${e.speed} · 元素 ${ELEM_ICON[e.element]}${ELEM_LABEL[e.element]}</div>
+      <div class="enemy-trait">特性：${enemyTrait(e)}</div>`;
+    document.querySelectorAll(".enemy-chip-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.enemy === id));
+  }
+
+  function renderNextWaveCard() {
+    const box = $("nextWaveCard");
+    if (!box || !TD.previewNextWave) return;
+    const st = TD.state();
+    if (!st.betweenWaves || st.over) {
+      box.innerHTML = `<div class="nw-title">⚔ 防禦中</div><div class="nw-meta">敵人進攻時可點技能救場，波間會顯示下一波情報。</div>`;
+      return;
+    }
+    const p = TD.previewNextWave();
+    const theme = p.theme ? `${ELEM_ICON[p.theme] || ""}${ELEM_LABEL[p.theme] || p.theme}` : "混合";
+    const event = p.event ? `${p.event.emoji}${p.event.label}：${p.event.desc}` : (p.isBoss ? "⚠️ Boss 波" : "標準波");
+    const enemyTypes = (p.enemyTypes || []).filter((item) => ENEMIES[item.type]);
+    box.innerHTML = `
+      <div class="nw-title">🧭 下一波情報：第 ${p.wave} 波</div>
+      <div class="nw-meta">${event} · 主元素 ${theme} · 敵人 ${p.totalCount || p.count} 隻</div>
+      <div class="enemy-chip-row">
+        ${enemyTypes.map((item) => {
+          const e = ENEMIES[item.type];
+          return `<button class="enemy-chip-btn" data-enemy="${item.type}" title="${enemySummary(item.type)}">${e.emoji || ""} ${e.name}×${item.count}</button>`;
+        }).join("")}
+      </div>`;
+    box.querySelectorAll(".enemy-chip-btn").forEach((btn) => {
+      btn.onclick = () => openEnemyInfo(btn.dataset.enemy);
+    });
+  }
+
   // ===== HUD 與整體刷新 =====
   function refreshUI() {
     const st = TD.state();
@@ -269,7 +402,7 @@
     }
 
     // 抽卡按鈕（花魂晶，跨局貨幣；首抽免費）
-    const meta = loadMeta();
+    const meta = claimBeginnerMissions();
     const gcost = gachaCostNow(meta);
     const gBtn2 = $("gachaBtn");
     gBtn2.textContent = gcost === 0 ? "🎲 抽英雄（首抽免費！）" : `🎲 抽英雄 (${gcost}💎 持有 ${meta.soulCrystal})`;
@@ -278,8 +411,12 @@
     if (gMeta) {
       const totalHeroes = Object.keys(TD.config.HEROES).length;
       const pityShown = Math.max(0, Math.min(meta.gachaPity || 0, TD.config.GACHA.pityLegendary));
-      gMeta.textContent = `${meta.soulCrystal}💎｜保底 ${pityShown}/${TD.config.GACHA.pityLegendary}｜英雄 ${ownedHeroes.size}/${totalHeroes}`;
+      const secondLine = meta.gachaCount > 0 && ownedHeroes.size < 2
+        ? `｜第二英雄 ${Math.min(TD.config.GACHA.cost, meta.soulCrystal)}/${TD.config.GACHA.cost}💎`
+        : "";
+      gMeta.textContent = `${meta.soulCrystal}💎｜保底 ${pityShown}/${TD.config.GACHA.pityLegendary}｜英雄 ${ownedHeroes.size}/${totalHeroes}${secondLine}`;
     }
+    renderBeginnerMissions(meta);
 
     // 建塔按鈕：金錢不足變灰、選中的高亮
     document.querySelectorAll(".tower-btn").forEach((b) => {
@@ -314,6 +451,7 @@
     } else {
       startBtn.textContent = "⚔ 防禦中…";
     }
+    renderNextWaveCard();
 
     // 選中塔的升級面板
     const sel = $("selPanel");
@@ -413,9 +551,34 @@
     });
   }
 
+  function nextMilestoneGap(wave) {
+    const milestones = [10, 20, 30];
+    const target = milestones.find((m) => wave < m) || Math.ceil((wave + 1) / 10) * 10;
+    return { target, gap: Math.max(0, target - wave) };
+  }
+
+  function renderRunProgress(meta) {
+    const box = $("runProgress");
+    if (!box) return;
+    const st = TD.state();
+    const wave = st.wave || 0;
+    const ms = nextMilestoneGap(wave);
+    const runSoul = st.runSoulEarned || 0;
+    const missionSoul = st.runMissionSoulEarned || 0;
+    const nextCost = gachaCostNow(meta);
+    const secondHeroLine = ownedHeroes.size < 2
+      ? `第二英雄 ${Math.min(TD.config.GACHA.cost, meta.soulCrystal || 0)}/${TD.config.GACHA.cost}💎`
+      : `英雄 ${ownedHeroes.size}/${Object.keys(TD.config.HEROES).length}`;
+    box.innerHTML = `
+      <div class="rp-card"><div class="rp-label">本局進度</div><div class="rp-value">第 ${wave} 波 · 距離第 ${ms.target} 波還差 ${ms.gap} 波</div></div>
+      <div class="rp-card"><div class="rp-label">本局魂晶</div><div class="rp-value">清波 +${runSoul}💎 · 任務 +${missionSoul}💎</div></div>
+      <div class="rp-card"><div class="rp-label">抽英雄路徑</div><div class="rp-value">${nextCost === 0 ? "首抽免費" : secondHeroLine}</div></div>`;
+  }
+
   function renderProgressOverlay(meta) {
     const m = meta || loadMeta();
     renderBoardTabs(m);
+    renderRunProgress(m);
     renderBoardList(m);
     renderAchievements(m);
   }
@@ -454,7 +617,7 @@
     const diff = TD.getDifficulty();
     const kills = (run && run.kills) || 0;
     const settlement = RULES.settleRunRewards({
-      meta: loadMeta(),
+      meta: claimBeginnerMissions(),
       wave,
       score,
       kills,

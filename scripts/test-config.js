@@ -5,7 +5,7 @@
 
 const path = require("path");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
-const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, MAPS, ACHIEVEMENTS } = cfg;
+const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, MAPS, ACHIEVEMENTS, BEGINNER_MISSIONS } = cfg;
 
 let failed = 0;
 function assert(cond, msg) {
@@ -155,6 +155,18 @@ for (const a of Object.values(ACHIEVEMENTS || {})) {
 }
 assert(Object.keys(ACHIEVEMENTS || {}).length >= 8, `成就至少 8 個（實際 ${Object.keys(ACHIEVEMENTS || {}).length}）`);
 assert(badAch === 0, `成就欄位完整且 reward 合法（異常 ${badAch}）`);
+
+console.log("== R7：首 10 波任務線 ==");
+let badMission = 0;
+let missionRewardTotal = 0;
+for (const m of Object.values(BEGINNER_MISSIONS || {})) {
+  if (!m.id || !m.label || !m.desc || typeof m.check !== "function" || !(m.reward > 0)) badMission++;
+  missionRewardTotal += m.reward || 0;
+}
+assert(Object.keys(BEGINNER_MISSIONS || {}).length >= 5 && Object.keys(BEGINNER_MISSIONS || {}).length <= 8,
+  `任務數量 5~8 個（實際 ${Object.keys(BEGINNER_MISSIONS || {}).length}）`);
+assert(badMission === 0, `任務欄位完整且 reward 合法（異常 ${badMission}）`);
+assert(missionRewardTotal <= 40, `任務線總增發 ≤40💎（實際 ${missionRewardTotal}💎）`);
 
 console.log("");
 if (failed === 0) { console.log("✅ 全部測試通過"); process.exit(0); }

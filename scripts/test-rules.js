@@ -14,6 +14,7 @@ const {
   waveSoulReward,
   runSoulRewardTotal,
   settleRunRewards,
+  evaluateBeginnerMissions,
   generateWaveQueue,
   applyDifficulty,
   distanceToPath,
@@ -69,6 +70,7 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
   const missing = migrateMeta({ version: 1, bestWave: 2 });
   assert(missing.bestWave === 2 && missing.soulCrystal === 0 && missing.gachaCount === 0, "缺欄位以預設值補齊");
   assert(missing.bestByDiff && Object.keys(missing.bestByDiff).length === 0, "缺 bestByDiff 時補空物件");
+  assert(missing.beginnerMissions && Object.keys(missing.beginnerMissions).length === 0, "缺 beginnerMissions 時補空物件");
 
   const bad = migrateMeta({
     version: NaN,
@@ -79,10 +81,13 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
     gachaPity: undefined,
     gachaCount: 5,
     bestByDiff: { normal: NaN, brutal: 8 },
+    beginnerMissions: { firstTower: true, firstWave: false, bad: "yes" },
   });
   assert(bad.version === META_VERSION, "NaN version 會修成目前版本");
   assert(bad.bestWave === 0 && bad.totalKills === 0 && bad.soulCrystal === 0 && bad.games === 0 && bad.gachaPity === 0, "NaN/非數字欄位回預設值");
   assert(bad.gachaCount === 5 && bad.bestByDiff.brutal === 8 && bad.bestByDiff.normal == null, "有效數字保留，巢狀 NaN 紀錄丟棄");
+  assert(bad.beginnerMissions.firstTower === true && bad.beginnerMissions.firstWave == null && bad.beginnerMissions.bad == null,
+    "beginnerMissions 只保留 true 標記");
 
   const mapMeta = migrateMeta({ lastMap: "canyon" });
   const badMapMeta = migrateMeta({ lastMap: "missing-map" });
@@ -92,6 +97,42 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
     const polluted = migrateMeta({ lastMap: pollutedKey });
     assert(polluted.lastMap === "plains", `lastMap 原型鍵 ${pollutedKey} 會回預設地圖`);
   }
+}
+
+console.log("\n== R7：新手任務一次性發獎 ==");
+{
+  const missionRewardTotal = Object.values(cfg.BEGINNER_MISSIONS).reduce((sum, m) => sum + m.reward, 0);
+  const meta = migrateMeta({ soulCrystal: 0 });
+  const result = evaluateBeginnerMissions(meta, {
+    towersBuilt: 1,
+    clearedWave: 3,
+    deployedHeroCount: 1,
+    maxTowerLevel: 2,
+    towerUpgrades: 1,
+    skillCasts: 1,
+    bossKills: 1,
+    ownedHeroCount: 2,
+    gachaCount: 2,
+  });
+  const ids = result.unlocked.map((m) => m.id).sort();
+  const expected = Object.keys(cfg.BEGINNER_MISSIONS).sort();
+  assert(missionRewardTotal === 38 && missionRewardTotal <= 40, `任務總額 38💎 且低於上限（actual ${missionRewardTotal}）`);
+  assert(JSON.stringify(ids) === JSON.stringify(expected), "所有新手任務可由 context 觸發");
+  assert(result.meta.soulCrystal === missionRewardTotal, `任務獎勵正確入帳（+${missionRewardTotal}💎）`);
+  assert(expected.every((id) => result.meta.beginnerMissions[id] === true), "任務領取標記會寫入 meta");
+  assert(meta.soulCrystal === 0 && Object.keys(meta.beginnerMissions).length === 0, "evaluateBeginnerMissions 不改動原 meta");
+  const second = evaluateBeginnerMissions(result.meta, {
+    towersBuilt: 1,
+    clearedWave: 3,
+    deployedHeroCount: 1,
+    maxTowerLevel: 2,
+    towerUpgrades: 1,
+    skillCasts: 1,
+    bossKills: 1,
+    ownedHeroCount: 2,
+    gachaCount: 2,
+  });
+  assert(second.unlocked.length === 0 && second.meta.soulCrystal === missionRewardTotal, "已領任務不重複發獎");
 }
 
 console.log("\n== waveSoulReward 即時魂晶總量守恆 ==");

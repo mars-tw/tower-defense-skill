@@ -79,7 +79,8 @@
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       mapId: mapDef.id, mapDef, path,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
-      runSoulEarned: 0, soulRewardedWaves: new Set(),
+      runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
+      towersBuilt: 0, towerUpgrades: 0, skillCasts: 0, bossKills: 0, clearedWave: 0,
       running: false, over: false, betweenWaves: true,
       selectedTowerType: null,   // 準備建造的塔
       selectedTower: null,        // 已選中的塔（看升級）
@@ -120,7 +121,13 @@
   function previewNextWave() {
     const w = state.wave + 1;
     const plan = TDRules.generateWaveQueue(w, getDifficulty());
-    return { wave: w, count: plan.count, isBoss: plan.isBoss, theme: plan.theme, event: plan.event };
+    const counts = {};
+    for (const item of plan.queue) counts[item.type] = (counts[item.type] || 0) + 1;
+    const enemyTypes = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([type, count]) => ({ type, count }));
+    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, enemyTypes };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -402,6 +409,7 @@
     // 波次結束判定
     if (!state.betweenWaves && state.spawnQueue.length === 0 && state.enemies.length === 0) {
       state.betweenWaves = true;
+      state.clearedWave = Math.max(state.clearedWave || 0, state.wave);
       const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1)); // 指數成長獎勵（D2）
       state.gold += bonus;
       state.score += state.wave * 10;
@@ -571,7 +579,7 @@
     state.gold += reward;
     state.score += reward;
     burst(e.x, e.y, e.color, e.boss ? 30 : 12);
-    if (e.boss) { ring(e.x, e.y, "#fde047", 70); screenShake(); }
+    if (e.boss) { state.bossKills = (state.bossKills || 0) + 1; ring(e.x, e.y, "#fde047", 70); screenShake(); }
     // combo 達門檻時畫面跳大數字
     if (state.combo >= 3) flashText(e.x, e.y - 12, `COMBO x${state.combo}`, { color: "#fde047", size: 14 + Math.min(state.combo, 10), big: true });
     if (typeof window.__tdUI === "function") window.__tdUI();
@@ -684,6 +692,7 @@
     const sk = SKILLS[skillId];
     if (!sk || state.skillCooldowns[skillId] > 0) return false;
     state.skillCooldowns[skillId] = sk.cooldown;
+    state.skillCasts = (state.skillCasts || 0) + 1;
     for (const e of state.enemies) {
       if (e._dead) continue;
       if (Math.hypot(e.x - x, e.y - y) <= sk.radius) {
@@ -741,6 +750,7 @@
       x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2,
       level: 1, cd: 0,
     });
+    state.towersBuilt = (state.towersBuilt || 0) + 1;
     state.buildGhost = null;
     state.mouse = null;
     log(`建造 ${def.name}！`);
@@ -753,6 +763,7 @@
     if (state.gold < cost) { log("金錢不足以升級！", "bad"); return; }
     state.gold -= cost;
     tw.level++;
+    state.towerUpgrades = (state.towerUpgrades || 0) + 1;
     log(`${TOWERS[tw.type].name} 升到 ${tw.level} 級！`);
     if (typeof window.__tdUI === "function") window.__tdUI();
   }

@@ -13,6 +13,7 @@ const {
   migrateMeta,
   updateBoard,
   evaluateAchievements,
+  evaluateBeginnerMissions,
   settleRunRewards,
   waveSoulReward,
   runSoulRewardTotal,
@@ -110,9 +111,9 @@ console.log("\n== 即時魂晶入袋後死亡不重複結算 ==");
 console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
 {
   const v1 = migrateMeta({ bestWave: 8, soulCrystal: 12, bestByDiff: { normal: 8 } });
-  assert(v1.version === META_VERSION && META_VERSION === 3, "v1 無 version 存檔升級到 version 3");
+  assert(v1.version === META_VERSION && META_VERSION === 4, "v1 無 version 存檔升級到 version 4");
   assert(v1.bestWave === 8 && v1.soulCrystal === 12 && v1.bestByDiff.normal === 8, "v1 有效欄位無損保留");
-  assert(v1.board && Object.keys(v1.board).length === 0 && v1.achievements && Object.keys(v1.achievements).length === 0, "v1 補齊 board/achievements");
+  assert(v1.board && Object.keys(v1.board).length === 0 && v1.achievements && Object.keys(v1.achievements).length === 0 && v1.beginnerMissions && Object.keys(v1.beginnerMissions).length === 0, "v1 補齊 board/achievements/beginnerMissions");
 
   const v2 = migrateMeta({
     version: 2,
@@ -124,7 +125,7 @@ console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
     gachaCount: 6,
     bestByDiff: { normal: 14 },
   });
-  assert(v2.version === 3 && v2.totalKills === 120 && v2.gachaCount === 6, "v2 存檔無損升級到 version 3");
+  assert(v2.version === 4 && v2.totalKills === 120 && v2.gachaCount === 6, "v2 存檔無損升級到 version 4");
   const mapMeta = migrateMeta({ lastMap: "canyon" });
   const badMapMeta = migrateMeta({ lastMap: "unknown" });
   assert(mapMeta.lastMap === "canyon" && badMapMeta.lastMap === "plains", "lastMap 合法保留、非法回預設");
@@ -144,12 +145,45 @@ console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
       brutal: "bad",
     },
     achievements: { wave10: true, wave20: false, bad: "yes" },
+    beginnerMissions: { firstTower: true, firstWave: false, bad: "yes" },
   });
   assert(polluted.board.normal.length === 2 && polluted.board.normal[0].wave === 7 && polluted.board.brutal == null, "board 只保留合法項並排序，非法難度資料丟棄");
   assert(polluted.achievements.wave10 === true && polluted.achievements.wave20 == null && polluted.achievements.bad == null, "achievements 只保留 true 標記");
+  assert(polluted.beginnerMissions.firstTower === true && polluted.beginnerMissions.firstWave == null && polluted.beginnerMissions.bad == null, "beginnerMissions 只保留 true 標記");
 
-  const badAch = migrateMeta({ achievements: "污染", board: [{ wave: 1 }] });
-  assert(Object.keys(badAch.achievements).length === 0 && Object.keys(badAch.board).length === 0, "achievements 非物件、board 非物件時重置");
+  const badAch = migrateMeta({ achievements: "污染", beginnerMissions: "污染", board: [{ wave: 1 }] });
+  assert(Object.keys(badAch.achievements).length === 0 && Object.keys(badAch.beginnerMissions).length === 0 && Object.keys(badAch.board).length === 0, "achievements/beginnerMissions 非物件、board 非物件時重置");
+}
+
+console.log("\n== R7 新手任務發獎、總額與一次性 ==");
+{
+  const rewardSum = Object.values(cfg.BEGINNER_MISSIONS).reduce((sum, m) => sum + m.reward, 0);
+  const meta = migrateMeta({ soulCrystal: 3 });
+  const result = evaluateBeginnerMissions(meta, {
+    towersBuilt: 1,
+    clearedWave: 3,
+    deployedHeroCount: 1,
+    towerUpgrades: 1,
+    skillCasts: 1,
+    bossKills: 1,
+    ownedHeroCount: 2,
+    gachaCount: 2,
+  });
+  assert(rewardSum === 38 && rewardSum <= 40, `新手任務總增發受控（${rewardSum}💎）`);
+  assert(result.unlocked.length === Object.keys(cfg.BEGINNER_MISSIONS).length, "任務 context 會解鎖全部新手任務");
+  assert(result.meta.soulCrystal === 3 + rewardSum, `任務魂晶正確累加（+${rewardSum}）`);
+  assert(JSON.stringify(meta) !== JSON.stringify(result.meta) && meta.soulCrystal === 3, "evaluateBeginnerMissions 不 mutate 原 meta");
+  const second = evaluateBeginnerMissions(result.meta, {
+    towersBuilt: 1,
+    clearedWave: 3,
+    deployedHeroCount: 1,
+    towerUpgrades: 1,
+    skillCasts: 1,
+    bossKills: 1,
+    ownedHeroCount: 2,
+    gachaCount: 2,
+  });
+  assert(second.unlocked.length === 0 && second.meta.soulCrystal === result.meta.soulCrystal, "任務不重複發獎");
 }
 
 console.log("");

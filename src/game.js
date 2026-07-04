@@ -456,13 +456,27 @@
     if (!def) return false;
     const end = state.path[state.path.length - 1];
     const h = {
-      id: heroId, level: 1, xp: 0,
+      id: heroId, level: 1, xp: 0, startLevel: 1, startXp: 0, runXp: 0, levelsGained: 0,
       x: end.x - 60 + (Math.random() * 40 - 20), y: end.y - 60 + (Math.random() * 40 - 20),
       hp: heroStat({ id: heroId, level: 1 }, "hp"), maxHp: heroStat({ id: heroId, level: 1 }, "hp"),
       facing: "down", cd: 0, hitFlash: 0, uid: "h" + (Math.random() * 1e9 | 0),
     };
     state.heroes.push(h);
     log(`${def.name} 上場！`);
+    if (typeof window.__tdUI === "function") window.__tdUI();
+    return true;
+  }
+
+  function selectHeroGuard(uid) {
+    const h = state.heroes.find((hero) => hero.uid === uid);
+    if (!h) return false;
+    state.pendingHero = h.uid;
+    state.selectedTowerType = null;
+    state.selectedTower = null;
+    state.pendingSkill = null;
+    state.buildGhost = null;
+    canvas.style.cursor = "crosshair";
+    log(`已選 ${HEROES[h.id].name}，點地圖指定駐守點。`);
     if (typeof window.__tdUI === "function") window.__tdUI();
     return true;
   }
@@ -553,10 +567,13 @@
   function grantXp(h, enemy) {
     const def = HEROES[h.id];
     if (h.level >= HERO_LEVEL.maxLevel) return;
-    h.xp += HERO_LEVEL.xpPerKill * (enemy.boss ? 5 : 1);
+    const gained = HERO_LEVEL.xpPerKill * (enemy.boss ? 5 : 1);
+    h.xp += gained;
+    h.runXp = (h.runXp || 0) + gained;
     while (h.level < HERO_LEVEL.maxLevel && h.xp >= xpForLevel(h.level)) {
       h.xp -= xpForLevel(h.level);
       h.level++;
+      h.levelsGained = (h.levelsGained || 0) + 1;
       const newMax = heroStat(h, "hp");
       h.hp = newMax; h.maxHp = newMax; // 升級回滿
       burst(h.x, h.y, "#fde047", 20);
@@ -839,6 +856,13 @@
         kills: state.kills,
         difficulty: getDifficulty(),
         soulEarned: state.runSoulEarned || 0,
+        heroGrowth: state.heroes.map((h) => ({
+          id: h.id,
+          level: h.level,
+          startLevel: h.startLevel || 1,
+          xp: h.runXp || 0,
+          levelsGained: h.levelsGained || Math.max(0, (h.level || 1) - (h.startLevel || 1)),
+        })),
       });
     }
   }
@@ -1418,7 +1442,7 @@
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
     upgradeCost, towerStat, getTowerBuff: supportBuffFor, effectiveTowerDamage, supportDpsGain,
-    deployHero, rollHero,  // 英雄上場與抽卡
+    deployHero, selectHeroGuard, rollHero,  // 英雄上場、駐守與抽卡
     rollHeroWithPity,      // 含保底的抽卡（Stage 1：pity 由 ui.js 的 meta 持久化）
     rollHeroWithPityPreferNew, // 新手第二隻英雄避開重複
     previewNextWave,       // 下一波預告（D4）

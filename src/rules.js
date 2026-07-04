@@ -15,7 +15,7 @@
     ? require("./config.js")
     : root;
 
-  const META_VERSION = 4;
+  const META_VERSION = 5;
   const META_NUMERIC_KEYS = ["bestWave", "totalKills", "soulCrystal", "games", "gachaPity", "gachaCount"];
   const META_DEFAULT = {
     version: META_VERSION,
@@ -45,6 +45,14 @@
     return !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   }
 
+  function sanitizeMapId(mapId) {
+    return typeof mapId === "string" && hasOwn(cfg.MAPS, mapId) ? mapId : META_DEFAULT.lastMap;
+  }
+
+  function sanitizeDiffId(diffId) {
+    return typeof diffId === "string" && hasOwn(cfg.DIFFICULTIES, diffId) ? diffId : "normal";
+  }
+
   function sanitizeBestByDiff(value) {
     const result = {};
     if (!value || typeof value !== "object" || Array.isArray(value)) return result;
@@ -54,7 +62,7 @@
     return result;
   }
 
-  function sanitizeBoardEntry(entry) {
+  function sanitizeBoardEntry(entry, fallbackMap) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
     if (!isFiniteNumber(entry.wave) || !isFiniteNumber(entry.score) || !isFiniteNumber(entry.kills) || !isFiniteNumber(entry.at)) return null;
     return {
@@ -62,7 +70,7 @@
       score: Math.max(0, Math.floor(entry.score)),
       kills: Math.max(0, Math.floor(entry.kills)),
       at: entry.at,
-      map: typeof entry.map === "string" ? entry.map : undefined,
+      map: sanitizeMapId(typeof entry.map === "string" ? entry.map : fallbackMap),
     };
   }
 
@@ -76,10 +84,36 @@
     const limit = Math.max(1, Math.floor(safeNumber(maxEntries, 10)));
     const result = {};
     if (!board || typeof board !== "object" || Array.isArray(board)) return result;
-    for (const [diffId, entries] of Object.entries(board)) {
-      if (!Array.isArray(entries)) continue;
-      const clean = entries.map(sanitizeBoardEntry).filter(Boolean).sort(compareBoardEntry).slice(0, limit);
-      if (clean.length) result[diffId] = clean;
+    const addEntries = (diffId, entries, fallbackMap) => {
+      if (!Array.isArray(entries)) return;
+      for (const entry of entries) {
+        const clean = sanitizeBoardEntry(entry, fallbackMap);
+        if (!clean) continue;
+        const mapId = sanitizeMapId(clean.map);
+        if (!result[diffId]) result[diffId] = {};
+        if (!result[diffId][mapId]) result[diffId][mapId] = [];
+        result[diffId][mapId].push(clean);
+      }
+    };
+
+    for (const [rawDiffId, value] of Object.entries(board)) {
+      if (!hasOwn(cfg.DIFFICULTIES, rawDiffId)) continue;
+      const diffId = rawDiffId;
+      if (Array.isArray(value)) {
+        addEntries(diffId, value, META_DEFAULT.lastMap);
+      } else if (value && typeof value === "object") {
+        for (const [rawMapId, entries] of Object.entries(value)) {
+          if (!hasOwn(cfg.MAPS, rawMapId)) continue;
+          addEntries(diffId, entries, rawMapId);
+        }
+      }
+    }
+    for (const maps of Object.values(result)) {
+      for (const [mapId, entries] of Object.entries(maps)) {
+        const clean = entries.sort(compareBoardEntry).slice(0, limit);
+        if (clean.length) maps[mapId] = clean;
+        else delete maps[mapId];
+      }
     }
     return result;
   }
@@ -113,7 +147,7 @@
     meta.board = sanitizeBoard(meta.board);
     meta.achievements = sanitizeAchievements(meta.achievements);
     meta.beginnerMissions = sanitizeBeginnerMissions(meta.beginnerMissions);
-    if (!hasOwn(cfg.MAPS, meta.lastMap)) meta.lastMap = META_DEFAULT.lastMap;
+    meta.lastMap = sanitizeMapId(meta.lastMap);
     return meta;
   }
 
@@ -237,26 +271,33 @@
     return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale, queue };
   }
 
-  function updateBoard(board, diffId, entry, maxEntries) {
+  function updateBoard(board, diffId, mapIdOrEntry, entryOrMaxEntries, maybeMaxEntries) {
+    const legacySignature = mapIdOrEntry && typeof mapIdOrEntry === "object" && !Array.isArray(mapIdOrEntry);
+    const entry = legacySignature ? mapIdOrEntry : entryOrMaxEntries;
+    const maxEntries = legacySignature ? entryOrMaxEntries : maybeMaxEntries;
     const limit = Math.max(1, Math.floor(safeNumber(maxEntries, 10)));
-    const id = typeof diffId === "string" && diffId ? diffId : "normal";
+    const id = sanitizeDiffId(diffId);
+    const mapId = sanitizeMapId(legacySignature ? (entry && entry.map) : mapIdOrEntry);
     const cleanBoard = sanitizeBoard(board, limit);
-    const cleanEntry = sanitizeBoardEntry(entry);
+    const cleanEntry = sanitizeBoardEntry(Object.assign({}, entry, { map: mapId }), mapId);
     const nextBoard = Object.assign({}, cleanBoard);
     if (!cleanEntry) return { board: nextBoard, rank: null };
 
     const candidate = Object.assign({}, cleanEntry, { _candidate: true });
-    const all = (cleanBoard[id] || []).map((item) => Object.assign({}, item)).concat(candidate);
+    const currentDiff = cleanBoard[id] || {};
+    const all = (currentDiff[mapId] || []).map((item) => Object.assign({}, item)).concat(candidate);
     all.sort(compareBoardEntry);
     const candidateIndex = all.indexOf(candidate);
     const rank = candidateIndex >= 0 && candidateIndex < limit ? candidateIndex + 1 : null;
-    nextBoard[id] = all.slice(0, limit).map((item) => ({
+    const nextDiff = Object.assign({}, currentDiff);
+    nextDiff[mapId] = all.slice(0, limit).map((item) => ({
       wave: item.wave,
       score: item.score,
       kills: item.kills,
       at: item.at,
-      map: item.map,
+      map: mapId,
     }));
+    nextBoard[id] = nextDiff;
     return { board: nextBoard, rank };
   }
 

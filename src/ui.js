@@ -10,6 +10,7 @@
   const hasOwn = (obj, key) => !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   const RULES = window.TDRules;
   let selectedBoardDiff = TD.getDifficulty().id;
+  let selectedBoardMap = (TD.getMap && TD.getMap().id) || "plains";
   let progressWasPaused = false;
   const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6" };
   const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E" };
@@ -262,6 +263,40 @@
     });
   }
 
+  function renderDeployedHeroes() {
+    const box = $("deployedHeroes");
+    if (!box) return;
+    const st = TD.state();
+    const deployed = (st.heroes || []).filter((h) => h && hasOwn(TD.config.HEROES, h.id));
+    if (!deployed.length) {
+      box.innerHTML = '<div class="deployed-empty">已上場英雄會顯示在這裡</div>';
+      return;
+    }
+    box.innerHTML = "";
+    deployed.forEach((h) => {
+      const def = TD.config.HEROES[h.id];
+      const hpPct = Math.max(0, Math.min(100, Math.round(((h.hp || 0) / Math.max(1, h.maxHp || 1)) * 100)));
+      const active = st.pendingHero === h.uid;
+      const guarded = !!h.guardPoint;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `deployed-hero-slot${active ? " active" : ""}${guarded ? " guarded" : ""}`;
+      btn.dataset.heroSlot = h.uid;
+      btn.title = active ? "點地圖設定駐守點" : "點擊後在地圖設定駐守點";
+      btn.innerHTML = `
+        <span class="dh-avatar">${heroAvatar(def)}</span>
+        <span class="dh-body">
+          <span class="dh-top"><b>${def.name}</b><em>Lv.${h.level || 1}</em></span>
+          <span class="dh-hp"><span style="width:${hpPct}%"></span></span>
+          <span class="dh-status">${active ? "選擇駐守點" : (guarded ? "駐守中" : "點我駐守")}</span>
+        </span>`;
+      btn.onclick = () => {
+        if (TD.selectHeroGuard && TD.selectHeroGuard(h.uid)) renderDeployedHeroes();
+      };
+      box.appendChild(btn);
+    });
+  }
+
   function missionContext(meta) {
     const st = TD.state();
     const towers = st.towers || [];
@@ -417,6 +452,7 @@
       gMeta.textContent = `${meta.soulCrystal}💎｜保底 ${pityShown}/${TD.config.GACHA.pityLegendary}｜英雄 ${ownedHeroes.size}/${totalHeroes}${secondLine}`;
     }
     renderBeginnerMissions(meta);
+    renderDeployedHeroes();
 
     // 建塔按鈕：金錢不足變灰、選中的高亮
     document.querySelectorAll(".tower-btn").forEach((b) => {
@@ -512,13 +548,27 @@
       btn.onclick = () => { selectedBoardDiff = d.id; renderProgressOverlay(loadMeta()); };
       box.appendChild(btn);
     });
+    const mapBox = $("mapTabs");
+    if (!mapBox) return;
+    if (!hasOwn(TD.config.MAPS, selectedBoardMap)) selectedBoardMap = "plains";
+    mapBox.innerHTML = "";
+    Object.values(TD.config.MAPS).forEach((m) => {
+      const btn = document.createElement("button");
+      btn.className = "progress-tab" + (selectedBoardMap === m.id ? " active" : "");
+      btn.textContent = `${m.emoji} ${m.label}`;
+      btn.onclick = () => { selectedBoardMap = m.id; renderProgressOverlay(loadMeta()); };
+      mapBox.appendChild(btn);
+    });
   }
 
   function renderBoardList(meta) {
     const box = $("boardList"); box.innerHTML = "";
-    const entries = (meta.board && meta.board[selectedBoardDiff]) || [];
+    if (!hasOwn(TD.config.MAPS, selectedBoardMap)) selectedBoardMap = "plains";
+    const diffBoard = (meta.board && meta.board[selectedBoardDiff]) || {};
+    const entries = diffBoard[selectedBoardMap] || [];
     if (!entries.length) {
-      box.innerHTML = '<div class="empty-state">還沒有紀錄，完成一局就會寫入排行榜。</div>';
+      const map = TD.config.MAPS[selectedBoardMap];
+      box.innerHTML = `<div class="empty-state">${map ? map.label : "此地圖"}尚無紀錄。完成一局後就會列入排行榜。</div>`;
       return;
     }
     entries.forEach((entry, idx) => {
@@ -586,6 +636,7 @@
   function openProgressOverlay() {
     if ($("progressOverlay").classList.contains("show")) return;
     selectedBoardDiff = TD.getDifficulty().id;
+    selectedBoardMap = (TD.getMap && TD.getMap().id) || "plains";
     progressWasPaused = !!TD.state().paused;
     TD.setPaused(true);
     syncPauseButton(true);
@@ -625,7 +676,8 @@
       soulEarned: (run && run.soulEarned) || 0,
     });
     const currentMap = TD.getMap ? TD.getMap() : null;
-    const boardResult = RULES.updateBoard(settlement.meta.board, diff.id, { wave, score, kills, at: Date.now(), map: currentMap && currentMap.id });
+    const currentMapId = currentMap && currentMap.id;
+    const boardResult = RULES.updateBoard(settlement.meta.board, diff.id, currentMapId, { wave, score, kills, at: Date.now() });
     const withBoard = Object.assign({}, settlement.meta, { board: boardResult.board });
     const achievementResult = RULES.evaluateAchievements(withBoard, {
       wave,
@@ -641,6 +693,7 @@
     saveMeta(meta);
     const ctaCost = gachaCostNow(meta);
     const ctaAffordable = meta.soulCrystal >= ctaCost;
+    const heroGrowth = Array.isArray(run && run.heroGrowth) ? run.heroGrowth : [];
 
     $("finalWave").textContent = wave;
     $("finalScore").textContent = score;
@@ -656,12 +709,22 @@
       const unlockLine = achievementResult.unlocked.length
         ? `<div class="unlock-list">${achievementResult.unlocked.map((ach) => `<div>🎖️ 解鎖「${ach.label}」 +${ach.reward}💎</div>`).join("")}</div>`
         : '<div class="meta-sub">本場沒有新成就。</div>';
+      const heroGrowthLine = heroGrowth.length
+        ? `<div class="hero-growth"><div class="hg-title">本局英雄成長</div>${heroGrowth.map((item) => {
+          const def = TD.config.HEROES[item.id] || {};
+          const xp = Math.max(0, Math.round(item.xp || item.runXp || 0));
+          const level = Math.max(1, Math.round(item.level || 1));
+          const up = Math.max(0, Math.round(item.levelsGained || 0));
+          return `<div>${def.name || item.id}：+${xp} XP，Lv.${level}${up ? `（升 ${up} 級）` : ""}</div>`;
+        }).join("")}</div>`
+        : "";
       metaLine.innerHTML = `
         <div class="diff-tag" style="color:${diff.color}">${diff.emoji} ${diff.label}難度</div>
         ${rankLine}
         ${isRecord ? '<div class="record">🎉 新紀錄！</div>' : `<div>此難度最高：第 ${meta.bestByDiff[diff.id]} 波</div>`}
         <div>💎 本局清波已獲得 +${earned}（目前 ${meta.soulCrystal}）</div>
         ${unlockLine}
+        ${heroGrowthLine}
         <div class="hook">${isHard || wave >= 10 ? "覺得難？" : ""}<b>分享你的攻略</b>，讓大家膜拜你的塔陣！</div>
         <div class="share-row">
           <button class="share-btn" id="copyResult">📋 複製戰績</button>

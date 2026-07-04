@@ -146,6 +146,23 @@
   .hero-card .hname { font-weight: 800; color: var(--hr-color,var(--ink)); }
   .hero-card .hmeta { font-size: 11px; color: var(--ink-meta); line-height: 1.3; }
   .hero-card .hdeploy { font-size: 11px; font-weight: 800; color: var(--accent); }
+  .deployed-heroes { display: flex; flex-direction: column; gap: 6px; }
+  .deployed-empty { padding: 7px 8px; color: var(--ink-meta); font-size: 11px;
+    border: 1px dashed var(--border-soft); border-radius: 8px; background: rgba(255,255,255,.025); }
+  .deployed-hero-slot { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 48px;
+    padding: 8px; border-radius: 10px; border: 1px solid var(--border-soft); background: var(--surface-1);
+    color: var(--ink); cursor: pointer; text-align: left; font-family: inherit; box-shadow: var(--shadow-card); }
+  .deployed-hero-slot:hover, .deployed-hero-slot.active { border-color: var(--gold); background: var(--surface-2); }
+  .deployed-hero-slot.guarded { border-color: rgba(74,222,128,.65); }
+  .dh-avatar { width: 34px; height: 34px; flex: 0 0 34px; display: flex; align-items: center; justify-content: center; font-size: 21px; }
+  .dh-avatar img { max-width: 34px; max-height: 34px; object-fit: contain; display: block; }
+  .dh-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
+  .dh-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .dh-top b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dh-top em { color: var(--gold); font-style: normal; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .dh-hp { display: block; height: 5px; border-radius: 999px; background: rgba(239,68,68,.25); overflow: hidden; }
+  .dh-hp span { display: block; height: 100%; background: linear-gradient(90deg,#22c55e,#86efac); }
+  .dh-status { color: var(--ink-meta); font-size: 10px; font-weight: 800; }
 
   /* 選中塔的升級面板 */
   .sel-panel { background: var(--surface-1); border: 1px solid var(--border-soft); border-radius: 11px;
@@ -172,6 +189,9 @@
   .meta-result .hook { font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
   .meta-result .hook b { color: var(--gold); }
   .meta-result .share-row { display: flex; gap: 8px; margin-top: 6px; }
+  .hero-growth { display: grid; gap: 3px; padding: 8px 10px; border-radius: 10px;
+    background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.22); font-size: 12px; }
+  .hero-growth .hg-title { color: var(--accent); font-weight: 900; }
   .share-btn { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-hi);
     padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
     text-decoration: none; transition: all .12s; }
@@ -345,11 +365,11 @@
     .wrap { flex-direction: column; align-items: stretch; }
     .panel { width: 100%; }
     /* 建塔/技能/英雄列改橫向可滑動 */
-    #towerList, #skillList, #heroRoster {
+    #towerList, #skillList, #heroRoster, #deployedHeroes {
       display: flex; flex-direction: row; gap: 6px; overflow-x: auto;
       -webkit-overflow-scrolling: touch; padding-bottom: 4px;
     }
-    #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card {
+    #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card, #deployedHeroes .deployed-hero-slot {
       flex: 0 0 auto; min-width: 150px; width: auto;
     }
     .tower-title { order: 1; }
@@ -366,11 +386,12 @@
     .gacha-meta { order: 12; }
     #beginnerMissions { order: 13; }
     #heroRoster { order: 14; }
-    .hero-scroll-hint { order: 15; display: block; }
-    .skill-title { order: 16; }
-    #skillList { order: 17; }
-    .skill-scroll-hint { order: 18; display: block; }
-    .sel-panel { order: 19; }
+    #deployedHeroes { order: 15; }
+    .hero-scroll-hint { order: 16; display: block; }
+    .skill-title { order: 17; }
+    #skillList { order: 18; }
+    .skill-scroll-hint { order: 19; display: block; }
+    .sel-panel { order: 20; }
     .panel h3 { margin-top: 4px; }
     .controls { flex-wrap: nowrap; }
   }
@@ -383,7 +404,7 @@
     button[data-hotkey] { padding-right: 11px; }
     button[data-hotkey]::after, .shortcut-help { display: none; }
     .tower-btn .meta, .skill-btn .meta, .hero-card .hmeta { display: none; } /* 手機隱藏說明文字省空間 */
-    #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card { min-width: 120px; }
+    #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card, #deployedHeroes .deployed-hero-slot { min-width: 120px; }
     .reveal-hero { font-size: 80px; } .reveal-hero img { width: 110px; height: 110px; }
     .chest-body { font-size: 80px; }
     .progress-grid { grid-template-columns: 1fr; padding: 10px; }
@@ -433,6 +454,7 @@
       <div class="gacha-meta" id="gachaMeta"></div>
       <div class="mission-panel" id="beginnerMissions"></div>
       <div id="heroRoster"></div>
+      <div class="deployed-heroes" id="deployedHeroes"></div>
       <div class="scroll-hint hero-scroll-hint">左右滑動查看更多英雄 →</div>
 
       <h3 class="skill-title">✨ 主動技能</h3>
@@ -496,6 +518,7 @@
         <section class="progress-section">
           <h3>排行榜</h3>
           <div class="progress-tabs" id="boardTabs"></div>
+          <div class="progress-tabs map-tabs" id="mapTabs"></div>
           <div class="board-list" id="boardList"></div>
         </section>
         <section class="progress-section">

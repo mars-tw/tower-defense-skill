@@ -574,6 +574,37 @@ async function run() {
     assert(secondHeroDeploy.rosterCount === 2 && secondHeroDeploy.deployedIds.length === 2 && new Set(secondHeroDeploy.deployedIds).size === 2,
       `第 2 隻英雄可上場（${secondHeroDeploy.deployedIds.join(",")}）`);
 
+    const heroCommand = await page.evaluate(() => {
+      window.__tdUI();
+      const slots = [...document.querySelectorAll("#deployedHeroes .deployed-hero-slot")];
+      const slotTextBefore = document.getElementById("deployedHeroes").innerText;
+      if (slots[0]) slots[0].click();
+      const pendingAfterCard = !!window.TD.state().pendingHero;
+      const activeAfterCard = !!document.querySelector("#deployedHeroes .deployed-hero-slot.active");
+      const canvas = document.getElementById("game");
+      const rect = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(new MouseEvent("click", {
+        clientX: rect.left + rect.width * 0.55,
+        clientY: rect.top + rect.height * 0.52,
+        bubbles: true,
+      }));
+      window.__tdUI();
+      const first = window.TD.state().heroes[0];
+      return {
+        slotCount: slots.length,
+        hpBars: document.querySelectorAll("#deployedHeroes .dh-hp").length,
+        slotTextBefore,
+        pendingAfterCard,
+        activeAfterCard,
+        guardSet: !!(first && first.guardPoint),
+        slotTextAfter: document.getElementById("deployedHeroes").innerText,
+      };
+    });
+    assert(heroCommand.slotCount === 2 && heroCommand.hpBars === 2 && heroCommand.slotTextBefore.includes("Lv.") && heroCommand.slotTextBefore.includes("點我駐守"),
+      `部署英雄小卡顯示頭像/血條/等級與入口（${heroCommand.slotTextBefore.replace(/\n/g, " / ")}）`);
+    assert(heroCommand.pendingAfterCard && heroCommand.activeAfterCard && heroCommand.guardSet && heroCommand.slotTextAfter.includes("駐守中"),
+      "點英雄小卡可進入駐守模式，點地圖後成功設定駐守點");
+
     // 5. 主題波一致性：直接跳到主題波（wave 8 之後找一個 ice/fire 主題波），驗證出怪偏壓
     const themed = await page.evaluate(() => {
       const st = window.TD.state();
@@ -627,33 +658,57 @@ async function run() {
       const before = JSON.parse(localStorage.getItem("td_meta_v1"));
       const beforeCrystal = before.soulCrystal;
       const runSoulEarned = window.TD.state().runSoulEarned || 0;
-      window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty(), soulEarned: runSoulEarned });
+      window.TD.state().heroes.forEach((h, idx) => {
+        h.runXp = (h.runXp || 0) + 12 + idx;
+        if (idx === 0) { h.level += 1; h.levelsGained = (h.levelsGained || 0) + 1; }
+      });
+      const heroGrowth = window.TD.state().heroes.map((h) => ({
+        id: h.id,
+        level: h.level,
+        xp: h.runXp || 0,
+        levelsGained: h.levelsGained || 0,
+      }));
+      window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty(), soulEarned: runSoulEarned, heroGrowth });
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const expectedCrystal = beforeCrystal
         + window.ACHIEVEMENTS.wave10.reward
         + window.ACHIEVEMENTS.wave10First.reward
         + window.ACHIEVEMENTS.kills100.reward;
+      const firstDeathCta = document.getElementById("deathCtaBtn").textContent;
+      const firstMetaText = document.getElementById("metaResult").innerText;
+      window.TD.setMap("plains");
+      window.TD.newGame();
+      window.__tdGameOver(6, 777, { kills: 12, difficulty: window.TD.getDifficulty(), soulEarned: 0, heroGrowth: [] });
+      const afterBoth = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const canyonBoard = (afterBoth.board.normal && afterBoth.board.normal.canyon) || [];
+      const plainsBoard = (afterBoth.board.normal && afterBoth.board.normal.plains) || [];
       return {
         beforeCrystal,
         runSoulEarned,
-        crystal: after.soulCrystal,
+        crystal: afterBoth.soulCrystal,
         expectedCrystal,
-        boardLen: after.board.normal.length,
-        boardWave: after.board.normal[0].wave,
-        boardScore: after.board.normal[0].score,
-        boardKills: after.board.normal[0].kills,
-        boardMap: after.board.normal[0].map,
-        wave10: after.achievements.wave10 === true,
-        wave10First: after.achievements.wave10First === true,
-        kills100: after.achievements.kills100 === true,
-        deathCta: document.getElementById("deathCtaBtn").textContent,
-        metaText: document.getElementById("metaResult").innerText,
+        canyonLen: canyonBoard.length,
+        canyonWave: canyonBoard[0] && canyonBoard[0].wave,
+        canyonScore: canyonBoard[0] && canyonBoard[0].score,
+        canyonKills: canyonBoard[0] && canyonBoard[0].kills,
+        canyonMap: canyonBoard[0] && canyonBoard[0].map,
+        plainsLen: plainsBoard.length,
+        plainsWave: plainsBoard[0] && plainsBoard[0].wave,
+        plainsScore: plainsBoard[0] && plainsBoard[0].score,
+        plainsMap: plainsBoard[0] && plainsBoard[0].map,
+        wave10: afterBoth.achievements.wave10 === true,
+        wave10First: afterBoth.achievements.wave10First === true,
+        kills100: afterBoth.achievements.kills100 === true,
+        deathCta: firstDeathCta,
+        metaText: firstMetaText,
       };
     });
-    assert(stage3Result.boardLen === 1 && stage3Result.boardWave === 10 && stage3Result.boardScore === 1234 && stage3Result.boardKills === 100 && stage3Result.boardMap === "canyon",
-      `排行榜寫入本場紀錄與地圖（${stage3Result.boardWave} 波 / ${stage3Result.boardScore} 分 / ${stage3Result.boardKills} 殺 / ${stage3Result.boardMap}）`);
-    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名") && stage3Result.metaText.includes(`+${stage3Result.runSoulEarned}`),
-      "結算畫面顯示本場名次、新解鎖成就與本局已獲得魂晶");
+    assert(stage3Result.canyonLen === 1 && stage3Result.canyonWave === 10 && stage3Result.canyonScore === 1234 && stage3Result.canyonKills === 100 && stage3Result.canyonMap === "canyon",
+      `峽谷榜寫入本場紀錄（${stage3Result.canyonWave} 波 / ${stage3Result.canyonScore} 分 / ${stage3Result.canyonKills} 殺 / ${stage3Result.canyonMap}）`);
+    assert(stage3Result.plainsLen === 1 && stage3Result.plainsWave === 6 && stage3Result.plainsScore === 777 && stage3Result.plainsMap === "plains",
+      `平原榜獨立寫入且不混入峽谷榜（${stage3Result.plainsWave} 波 / ${stage3Result.plainsScore} 分 / ${stage3Result.plainsMap}）`);
+    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名") && stage3Result.metaText.includes(`+${stage3Result.runSoulEarned}`) && stage3Result.metaText.includes("本局英雄成長") && stage3Result.metaText.includes("XP"),
+      "結算畫面顯示本場名次、新解鎖成就、本局魂晶與英雄成長");
     assert(stage3Result.crystal === stage3Result.expectedCrystal,
       `死亡不重複清波魂晶，成就正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
     assert(stage3Result.deathCta.includes("立即抽英雄"),
@@ -694,13 +749,18 @@ async function run() {
       document.getElementById("boardBtn").click();
       const pausedOpen = window.TD.state().paused;
       const shown = document.getElementById("progressOverlay").classList.contains("show");
+      const mapTabs = [...document.querySelectorAll("#mapTabs .progress-tab")];
+      const canyonTab = mapTabs.find((btn) => btn.innerText.includes("迂迴峽谷"));
+      if (canyonTab) canyonTab.click();
       const boardText = document.getElementById("boardList").innerText;
+      const mapTabText = document.getElementById("mapTabs").innerText;
       const achText = document.getElementById("achievementList").innerText;
       document.getElementById("progressClose").click();
-      return { shown, pausedOpen, pausedClose: window.TD.state().paused, boardText, achText };
+      return { shown, pausedOpen, pausedClose: window.TD.state().paused, boardText, mapTabText, achText };
     });
-    assert(progressOverlay.shown && progressOverlay.boardText.includes("第 10 波") && progressOverlay.boardText.includes("1234") && progressOverlay.boardText.includes("迂迴峽谷"),
-      "排行榜 overlay 顯示結算後的前 10 名紀錄");
+    assert(progressOverlay.shown && progressOverlay.mapTabText.includes("翠綠平原") && progressOverlay.mapTabText.includes("迂迴峽谷") &&
+      progressOverlay.boardText.includes("第 10 波") && progressOverlay.boardText.includes("1234") && progressOverlay.boardText.includes("迂迴峽谷"),
+      "排行榜 overlay 顯示地圖 tab，切到峽谷後只顯示該地圖紀錄");
     assert(progressOverlay.achText.includes("站穩防線") && progressOverlay.achText.includes("百人斬"),
       "成就 overlay 顯示已解鎖與未解鎖清單");
     assert(progressOverlay.pausedOpen === true && progressOverlay.pausedClose === false,

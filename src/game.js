@@ -129,7 +129,8 @@
       .sort((a, b) => b[1] - a[1])
       .slice(0, 4)
       .map(([type, count]) => ({ type, count }));
-    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes };
+    const recommendations = TDRules.recommendTowersForWave ? TDRules.recommendTowersForWave(plan) : [];
+    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes, recommendations };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====

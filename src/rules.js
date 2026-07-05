@@ -153,6 +153,11 @@
     return Math.max(1, Math.min(HERO_LONG_MAX_LEVEL, 1 + Math.floor(total / HERO_LONG_XP_PER_LEVEL)));
   }
 
+  function heroLongXpForLevel(level) {
+    const lv = Math.max(1, Math.min(HERO_LONG_MAX_LEVEL, Math.floor(safeNumber(level, 1))));
+    return (lv - 1) * HERO_LONG_XP_PER_LEVEL;
+  }
+
   function heroPermanentBonus(levelOrProgress) {
     const level = typeof levelOrProgress === "object"
       ? heroLongLevelFromXp(levelOrProgress && levelOrProgress.xp)
@@ -380,6 +385,98 @@
     return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale: hpScale * affixHpMul, affix, queue };
   }
 
+  function countWaveEnemies(input) {
+    const list = Array.isArray(input)
+      ? input
+      : (input && Array.isArray(input.queue) ? input.queue : []);
+    const counts = {};
+    for (const item of list) {
+      const type = typeof item === "string" ? item : item && item.type;
+      if (!isSafeRecordKey(type) || !hasOwn(cfg.ENEMIES, type)) continue;
+      counts[type] = (counts[type] || 0) + 1;
+    }
+    return counts;
+  }
+
+  function towerReason(towerId, facts) {
+    const f = facts || {};
+    if (towerId === "cannon") {
+      if (f.ice > 0) return "火系克制冰系敵人，範圍傷害也能清群。";
+      if (f.healer > 0) return "範圍爆破可優先壓低醫官與周邊敵人。";
+      return "範圍傷害適合處理密集敵群。";
+    }
+    if (towerId === "frost") {
+      if (f.thunder > 0) return "冰系克制雷系敵人，緩速能拖住高速單位。";
+      if (f.fast > 0) return "緩速讓高速敵人多吃幾輪火力。";
+      return "控場穩定，適合延長主力塔輸出時間。";
+    }
+    if (towerId === "tesla") {
+      if (f.fire > 0) return "雷系克制火系敵人，穿透適合成群小怪。";
+      if (f.shield > 0) return "穿透與連鎖能補破盾並清後排。";
+      return "穿透連鎖適合混波與多目標壓血。";
+    }
+    if (towerId === "poison") {
+      if (f.shield > 0) return "持續傷害能穿盾消耗本體。";
+      if (f.highHp > 0) return "持續傷害適合高血敵與 Boss。";
+      return "穩定疊毒，適合慢速或耐久敵人。";
+    }
+    if (towerId === "support") return "主力塔成形後增傷，放在核心火力區。";
+    return "便宜高攻速，適合補刀與觸發閃避後追擊。";
+  }
+
+  function recommendTowersForWave(input) {
+    const counts = countWaveEnemies(input);
+    const facts = { physical: 0, fire: 0, ice: 0, thunder: 0, shield: 0, healer: 0, fast: 0, highHp: 0, boss: 0, split: 0, total: 0 };
+    for (const [type, count] of Object.entries(counts)) {
+      const enemy = cfg.ENEMIES[type];
+      if (!enemy) continue;
+      const n = Math.max(0, Math.floor(safeNumber(count, 0)));
+      facts.total += n;
+      if (hasOwn(facts, enemy.element)) facts[enemy.element] += n;
+      if (enemy.shield) facts.shield += n;
+      if (enemy.healRadius) facts.healer += n;
+      if (enemy.speed >= 80) facts.fast += n;
+      if (enemy.hp >= 100) facts.highHp += n;
+      if (enemy.boss) facts.boss += n;
+      if (enemy.ability && enemy.ability.id === "splitBat") facts.split += n;
+    }
+
+    const recommendations = [];
+    for (const tower of Object.values(cfg.TOWERS || {})) {
+      if (!tower || !tower.id) continue;
+      let score = tower.support ? 0 : 0.2;
+      for (const [type, count] of Object.entries(counts)) {
+        const enemy = cfg.ENEMIES[type];
+        if (!enemy) continue;
+        const n = Math.max(0, Math.floor(safeNumber(count, 0)));
+        const mul = cfg.elementMultiplier ? cfg.elementMultiplier(tower.element, enemy.element) : 1;
+        score += n * mul;
+        if (cfg.COUNTERS && cfg.COUNTERS[tower.element] === enemy.element) score += n * 0.8;
+        if (tower.id === "arrow" && (enemy.element === "physical" || (enemy.ability && enemy.ability.id === "dodgeFirst"))) score += n * 0.35;
+        if (tower.id === "cannon" && (enemy.shield || enemy.healRadius || (enemy.ability && enemy.ability.id === "splitBat"))) score += n * 0.7;
+        if (tower.id === "frost" && (enemy.speed >= 80 || (enemy.ability && enemy.ability.id === "bloodrage"))) score += n * 0.85;
+        if (tower.id === "tesla" && (enemy.shield || enemy.healRadius || (enemy.ability && enemy.ability.id === "splitBat"))) score += n * 0.65;
+        if (tower.id === "poison" && (enemy.shield || enemy.hp >= 100 || enemy.boss)) score += n * 1.05;
+      }
+      if (tower.id === "support") {
+        score += facts.total >= 12 ? 4 : 0;
+        score += facts.boss ? 3 : 0;
+        score += facts.highHp >= 2 ? 1.5 : 0;
+      }
+      recommendations.push({
+        id: tower.id,
+        name: tower.name,
+        emoji: tower.emoji,
+        score: Math.round(score * 100) / 100,
+        reason: towerReason(tower.id, facts),
+      });
+    }
+    return recommendations
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+      .slice(0, 3);
+  }
+
   function updateBoard(board, diffId, mapIdOrEntry, entryOrMaxEntries, maybeMaxEntries) {
     const legacySignature = mapIdOrEntry && typeof mapIdOrEntry === "object" && !Array.isArray(mapIdOrEntry);
     const entry = legacySignature ? mapIdOrEntry : entryOrMaxEntries;
@@ -507,9 +604,11 @@
     settleRunRewards,
     settleHeroProgress,
     heroLongLevelFromXp,
+    heroLongXpForLevel,
     heroPermanentBonus,
     selectMapAffix,
     affixExpectedBalance,
+    recommendTowersForWave,
     applyDifficulty,
     generateWaveQueue,
     updateBoard,

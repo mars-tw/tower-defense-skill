@@ -47,22 +47,31 @@ const UPGRADE = { damageMul: 1.5, rangeMul: 1.08, costMul: 1.52, maxLevel: 10 };
 // ===== 敵人定義 =====
 // hp 基礎血量、speed 速度(px/s)、reward 擊殺金錢、leak 漏過扣的生命
 const ENEMIES = {
-  slime:  { id: "slime",  name: "史萊姆", emoji: "🟢", element: "physical", hp: 40,  speed: 45, reward: 8,  leak: 1, color: "#22c55e" },
+  slime:  { id: "slime",  name: "史萊姆", emoji: "🟢", element: "physical", hp: 40,  speed: 45, reward: 8,  leak: 1, color: "#22c55e",
+            counterHint: "弓箭塔便宜速射即可處理；混波時交給加農砲順清。" },
   goblin: { id: "goblin", name: "哥布林", emoji: "👺", element: "physical", hp: 28,  speed: 80, reward: 10, leak: 1, color: "#84cc16",
+            counterHint: "寒冰塔先降速，首擊閃避後靠弓箭塔高攻速補刀。",
             ability: { id: "dodgeFirst", label: "狡詐閃避", desc: "35% 機率閃避第一次直接傷害。", chance: 0.35 } },
   orc:    { id: "orc",    name: "獸人",   emoji: "👹", element: "physical", hp: 120, speed: 35, reward: 18, leak: 2, color: "#b45309",
+            counterHint: "毒霧塔持續咬血，殘血狂暴前用寒冰塔拖住。",
             ability: { id: "bloodrage", label: "殘血狂暴", desc: "生命低於 40% 時速度 +35%。", threshold: 0.4, speedMul: 1.35 } },
   bat:    { id: "bat",    name: "蝙蝠群", emoji: "🦇", element: "thunder",  hp: 22,  speed: 95, reward: 7,  leak: 1, color: "#7c3aed",
+            counterHint: "寒冰塔克制雷系並降速，分裂後用加農砲或電磁塔清群。",
             ability: { id: "splitBat", label: "群翼分裂", desc: "死亡時分裂 1 隻小蝙蝠。", childHpMul: 0.45, childRewardMul: 0.35 } },
   // Stage 1 補元素克制閉環：原本沒有冰/火系普通敵人，「火克冰」在實戰永遠打不出來，
   // 加農砲（火）拿不到克制加成、教學跟實際對不上。現在每種元素塔都有明確克制目標：
   // 加農砲(火)→冰霜狼、寒冰塔(冰)→蝙蝠、電磁塔(雷)→火焰小鬼（無 PNG 時自動用 emoji 畫）
-  frostwolf: { id: "frostwolf", name: "冰霜狼",   emoji: "🐺", element: "ice",  hp: 60, speed: 65, reward: 12, leak: 1, color: "#38bdf8" },
-  imp:       { id: "imp",       name: "火焰小鬼", emoji: "👿", element: "fire", hp: 45, speed: 70, reward: 10, leak: 1, color: "#f97316" },
-  shieldman: { id: "shieldman", name: "盾兵",     emoji: "🛡️", element: "physical", hp: 85, shield: 65, speed: 42, reward: 16, leak: 2, color: "#64748b" },
+  frostwolf: { id: "frostwolf", name: "冰霜狼",   emoji: "🐺", element: "ice",  hp: 60, speed: 65, reward: 12, leak: 1, color: "#38bdf8",
+               counterHint: "加農砲火系克制冰，配寒冰塔延長集火時間。" },
+  imp:       { id: "imp",       name: "火焰小鬼", emoji: "👿", element: "fire", hp: 45, speed: 70, reward: 10, leak: 1, color: "#f97316",
+               counterHint: "電磁塔雷系克制火，穿透可順清小鬼群。" },
+  shieldman: { id: "shieldman", name: "盾兵",     emoji: "🛡️", element: "physical", hp: 85, shield: 65, speed: 42, reward: 16, leak: 2, color: "#64748b",
+               counterHint: "毒霧塔穿盾直咬本體，電磁塔或加農砲補破盾。" },
   medic:     { id: "medic",     name: "醫官",     emoji: "💚", element: "physical", hp: 70, speed: 32, reward: 20, leak: 1,
-               healRadius: 80, healAmount: 14, healInterval: 2, color: "#4ade80" },
-  boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 500, speed: 28, reward: 150, leak: 8, color: "#dc2626", boss: true },
+               healRadius: 80, healAmount: 14, healInterval: 2, color: "#4ade80",
+               counterHint: "優先電磁塔穿透或加農砲範圍擊殺，避免拖長治療。" },
+  boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 500, speed: 28, reward: 150, leak: 8, color: "#dc2626", boss: true,
+            counterHint: "電磁塔克制火，毒霧塔持續傷害，聖光塔支援主力塔。" },
 };
 
 // ===== 主動技能 =====
@@ -107,30 +116,35 @@ const MAP_AFFIXES = {
   fog: {
     id: "fog", label: "濃霧", emoji: "🌫️",
     desc: "塔射程 -10%，擊殺金 +15%。",
+    towerImpact: "長射程塔受影響最大；靠近路徑建塔，毒霧塔與寒冰塔補控場。",
     towerRangeMul: 0.90, killGoldMul: 1.15, waveGoldMul: 1.00, enemyHpMul: 1.00, enemySpeedMul: 1.00, towerDamageMul: 1.00,
     expectedGoldDelta: 0.10, expectedPowerDelta: -0.10,
   },
   aftershock: {
     id: "aftershock", label: "餘震", emoji: "🪨",
     desc: "每 3 波隨機一塔停火 2 秒，清波金 +12%。",
+    towerImpact: "高單點塔停火最痛；分散主力塔並讓聖光塔覆蓋多點。",
     towerStunEvery: 3, towerStunDuration: 2, waveGoldMul: 1.12, killGoldMul: 1.00, enemyHpMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
     expectedGoldDelta: 0.07, expectedPowerDelta: -0.06,
   },
   harvest: {
     id: "harvest", label: "豐收", emoji: "🌾",
     desc: "清波金 +20%，敵人生命 +10%。",
+    towerImpact: "敵血變厚；優先升級主力塔，波獎勵可提早補聖光塔。",
     waveGoldMul: 1.20, enemyHpMul: 1.10, killGoldMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
     expectedGoldDelta: 0.12, expectedPowerDelta: 0.10,
   },
   overcharge: {
     id: "overcharge", label: "超載", emoji: "⚡",
     desc: "塔傷害 +8%，敵人速度 +8%。",
+    towerImpact: "所有攻擊塔受益；敵速也快，寒冰塔攔截價值提高。",
     towerDamageMul: 1.08, enemySpeedMul: 1.08, waveGoldMul: 1.00, killGoldMul: 1.00, enemyHpMul: 1.00, towerRangeMul: 1.00,
     expectedGoldDelta: 0.00, expectedPowerDelta: 0.00,
   },
   brittle: {
     id: "brittle", label: "脆弱前線", emoji: "🛡️",
     desc: "敵人生命 -8%，漏怪傷害 +25%。",
+    towerImpact: "前期更好清但漏怪更痛；路尾補寒冰塔與電磁塔攔截。",
     enemyHpMul: 0.92, leakDamageMul: 1.25, waveGoldMul: 1.00, killGoldMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
     expectedGoldDelta: 0.00, expectedPowerDelta: -0.08,
   },

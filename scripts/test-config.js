@@ -39,8 +39,10 @@ console.log("== 敵人欄位 ==");
 let badE = 0;
 for (const e of Object.values(ENEMIES)) {
   if (!e.id || e.hp == null || e.speed == null || e.reward == null || !e.element) badE++;
+  if (!e.counterHint || typeof e.counterHint !== "string") badE++;
 }
 assert(badE === 0, `敵人欄位完整（異常 ${badE}）`);
+assert(Object.values(ENEMIES).every((e) => e.counterHint && e.counterHint.length >= 8), "每種敵人都有反制提示");
 assert(ENEMIES.shieldman && ENEMIES.shieldman.shield > 0 && ENEMIES.shieldman.element === "physical",
   "盾兵有護盾且歸物理系");
 assert(ENEMIES.medic && ENEMIES.medic.healRadius === 80 && ENEMIES.medic.healAmount > 0 && ENEMIES.medic.healInterval === 2,
@@ -75,12 +77,15 @@ console.log("== R17：地圖詞綴配置 ==");
   let badAffix = 0;
   for (const a of affixes) {
     if (!a.id || !a.label || !a.desc) badAffix++;
+    if (!a.towerImpact || typeof a.towerImpact !== "string") badAffix++;
     if (!(a.enemyHpMul > 0) || !(a.enemySpeedMul > 0) || !(a.towerRangeMul > 0) || !(a.towerDamageMul > 0)) badAffix++;
     if (!(a.waveGoldMul > 0) || !(a.killGoldMul > 0)) badAffix++;
     if (!Number.isFinite(a.expectedGoldDelta) || !Number.isFinite(a.expectedPowerDelta)) badAffix++;
   }
   assert(affixes.length >= 4 && affixes.length <= 6, `地圖詞綴 4~6 種（目前 ${affixes.length}）`);
   assert(badAffix === 0, `地圖詞綴欄位完整且倍率為正（缺陷 ${badAffix}）`);
+  assert(affixes.every((a) => a.towerImpact.includes("塔") || a.towerImpact.includes("控場") || a.towerImpact.includes("升級")),
+    "每個詞綴都有對塔種影響摘要");
 }
 
 console.log("== 元素克制 ==");

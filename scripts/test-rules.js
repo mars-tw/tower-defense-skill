@@ -16,9 +16,11 @@ const {
   settleRunRewards,
   settleHeroProgress,
   heroLongLevelFromXp,
+  heroLongXpForLevel,
   heroPermanentBonus,
   selectMapAffix,
   affixExpectedBalance,
+  recommendTowersForWave,
   evaluateBeginnerMissions,
   generateWaveQueue,
   applyDifficulty,
@@ -170,6 +172,22 @@ console.log("\n== R17：地圖詞綴與英雄長線養成 ==");
     "新英雄長線 XP 會建立進度與等級");
   assert(heroPermanentBonus(1) === 0 && heroPermanentBonus(5) === 0.05 && heroPermanentBonus(15) === 0.15,
     "羈絆永久加成每 5 級 +5%，上限 +15%");
+  assert(heroLongXpForLevel(5) === 96 && heroLongXpForLevel(10) === 216 && heroLongXpForLevel(15) === 336,
+    "羈絆節點 XP 可由純函式查詢");
+}
+
+console.log("\n== R21：下一波建議塔種純函式 ==");
+{
+  const names = (queue) => recommendTowersForWave({ queue }).map((item) => item.id);
+  const iceWave = names([{ type: "frostwolf" }, { type: "frostwolf" }, { type: "slime" }]);
+  const batWave = names([{ type: "bat" }, { type: "bat" }, { type: "goblin" }]);
+  const shieldWave = names([{ type: "shieldman" }, { type: "shieldman" }, { type: "orc" }]);
+  const bossWave = recommendTowersForWave({ queue: [{ type: "boss" }, { type: "medic" }, { type: "imp" }] });
+  assert(iceWave.includes("cannon"), `冰系敵人會推薦火系加農砲（${iceWave.join(",")}）`);
+  assert(batWave.includes("frost"), `雷系/高速敵人會推薦寒冰塔（${batWave.join(",")}）`);
+  assert(shieldWave.includes("poison"), `盾兵與高血敵會推薦毒霧塔（${shieldWave.join(",")}）`);
+  assert(bossWave.length <= 3 && bossWave.some((item) => item.id === "tesla") && bossWave.every((item) => item.reason),
+    `Boss/火系混波會推薦含理由的前三塔種（${bossWave.map((item) => `${item.id}:${item.reason}`).join(" / ")}）`);
 }
 
 console.log("\n== waveSoulReward 即時魂晶總量守恆 ==");

@@ -152,9 +152,9 @@ async function run() {
       affixText: document.getElementById("affixCard").innerText,
       affixId: window.TD.state().affix && window.TD.state().affix.id,
     }));
-    assert(nextWaveCardInitial.text.includes("下一波情報") && nextWaveCardInitial.text.includes("主元素") && nextWaveCardInitial.enemyButtons > 0,
-      `下一波情報卡顯示元素與主要敵人（敵人按鈕 ${nextWaveCardInitial.enemyButtons} 個）`);
-    assert(nextWaveCardInitial.affixId && nextWaveCardInitial.affixText.includes("本局詞綴") && nextWaveCardInitial.affixText.includes("預期"),
+    assert(nextWaveCardInitial.text.includes("下一波情報") && nextWaveCardInitial.text.includes("主元素") && nextWaveCardInitial.text.includes("建議塔種") && nextWaveCardInitial.enemyButtons > 0,
+      `下一波情報卡顯示元素、主要敵人與建議塔種（敵人按鈕 ${nextWaveCardInitial.enemyButtons} 個）`);
+    assert(nextWaveCardInitial.affixId && nextWaveCardInitial.affixText.includes("本局詞綴") && nextWaveCardInitial.affixText.includes("預期") && nextWaveCardInitial.affixText.includes("塔種影響"),
       `本局詞綴卡顯示效果與期望值（${nextWaveCardInitial.affixText.replace(/\n/g, " / ")}）`);
     if (vp.w <= 560) {
       await page.evaluate(() => document.querySelector("#nextWaveCard .enemy-chip-btn").click());
@@ -162,7 +162,7 @@ async function run() {
         shown: !document.getElementById("enemyInfo").classList.contains("hidden"),
         text: document.getElementById("enemyInfo").innerText,
       }));
-      assert(enemyInfo.shown && enemyInfo.text.includes("血量") && enemyInfo.text.includes("速度") && enemyInfo.text.includes("元素") && enemyInfo.text.includes("特性"),
+      assert(enemyInfo.shown && enemyInfo.text.includes("血量") && enemyInfo.text.includes("速度") && enemyInfo.text.includes("元素") && enemyInfo.text.includes("特性") && enemyInfo.text.includes("反制"),
         `手機可點敵人開小圖鑑（${enemyInfo.text.split("\n")[0]}）`);
       const abilityInfo = await page.evaluate(() => {
         const st = window.TD.state();
@@ -182,7 +182,7 @@ async function run() {
         window.__tdUI();
         return text;
       });
-      assert(abilityInfo.includes("狡詐閃避") && abilityInfo.includes("閃避"),
+      assert(abilityInfo.includes("狡詐閃避") && abilityInfo.includes("閃避") && abilityInfo.includes("反制"),
         `手機圖鑑同步顯示敵人能力（${abilityInfo.replace(/\n/g, " / ")}）`);
     }
 
@@ -501,7 +501,8 @@ async function run() {
     assert(afterClose.owned === 1, `英雄入冊（擁有 ${afterClose.owned} 位）`);
     const deployFirstHeroMission = await page.evaluate(() => {
       const card = document.querySelector("#heroRoster .hero-card");
-      if (card) card.click();
+      const btn = card && card.querySelector(".hdeploy");
+      if (btn) btn.click();
       const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
       return {
         crystal: meta.soulCrystal,
@@ -619,16 +620,31 @@ async function run() {
       });
       localStorage.setItem("td_meta_v1", JSON.stringify(meta));
       window.__tdUI();
+      const card = document.querySelector("#heroRoster .hero-card");
+      if (card) card.click();
+      const detailOverlay = document.getElementById("heroDetailOverlay");
+      const detailText = detailOverlay.innerText;
+      const detailShown = detailOverlay.classList.contains("show");
+      document.getElementById("heroDetailClose").click();
       return {
         owned,
         rosterText: document.getElementById("heroRoster").innerText,
+        detailShown,
+        detailText,
+        pausedAfterClose: window.TD.state().paused,
       };
     });
     assert(heroLongUi.rosterText.includes("羈絆 Lv.6") && heroLongUi.rosterText.includes("+5%攻血"),
       `英雄卡顯示跨局羈絆等級與永久加成（${heroLongUi.rosterText.replace(/\n/g, " / ")}）`);
+    assert(heroLongUi.detailShown && heroLongUi.detailText.includes("英雄詳情") && heroLongUi.detailText.includes("羈絆 Lv.6") &&
+      heroLongUi.detailText.includes("下一節點 Lv.10") && heroLongUi.detailText.includes("本局表現摘要") && heroLongUi.pausedAfterClose === false,
+      `英雄詳情顯示羈絆進度、節點預告與本局表現（${heroLongUi.detailText.replace(/\n/g, " / ")}）`);
     const secondHeroDeploy = await page.evaluate(() => {
       const cards = [...document.querySelectorAll("#heroRoster .hero-card")];
-      cards.forEach((card) => card.click());
+      cards.forEach((card) => {
+        const btn = card.querySelector(".hdeploy");
+        if (btn && btn.textContent.includes("上場")) btn.click();
+      });
       return {
         rosterCount: cards.length,
         deployedIds: window.TD.state().heroes.map((h) => h.id),
@@ -734,6 +750,12 @@ async function run() {
         xp: h.runXp || 0,
         levelsGained: h.levelsGained || 0,
       }));
+      const firstHeroId = heroGrowth[0] && heroGrowth[0].id;
+      if (firstHeroId) {
+        before.heroProgress = before.heroProgress || {};
+        before.heroProgress[firstHeroId] = { xp: 94, level: window.TDRules.heroLongLevelFromXp(94) };
+        localStorage.setItem("td_meta_v1", JSON.stringify(before));
+      }
       window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty(), soulEarned: runSoulEarned, heroGrowth });
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const expectedCrystal = beforeCrystal
@@ -742,6 +764,7 @@ async function run() {
         + window.ACHIEVEMENTS.kills100.reward;
       const firstDeathCta = document.getElementById("deathCtaBtn").textContent;
       const firstMetaText = document.getElementById("metaResult").innerText;
+      const bondToastText = (document.querySelector(".bond-toast") && document.querySelector(".bond-toast").textContent) || "";
       window.TD.setMap("plains");
       window.TD.newGame();
       window.__tdGameOver(6, 777, { kills: 12, difficulty: window.TD.getDifficulty(), soulEarned: 0, heroGrowth: [] });
@@ -770,6 +793,7 @@ async function run() {
         kills100: afterBoth.achievements.kills100 === true,
         deathCta: firstDeathCta,
         metaText: firstMetaText,
+        bondToastText,
       };
     });
     assert(stage3Result.canyonLen === 1 && stage3Result.canyonWave === 10 && stage3Result.canyonScore === 1234 && stage3Result.canyonKills === 100 && stage3Result.canyonMap === "canyon",
@@ -780,6 +804,8 @@ async function run() {
       "結算畫面顯示本場名次、新解鎖成就、本局魂晶與英雄成長");
     assert(stage3Result.heroProgressCount >= 2 && stage3Result.heroProgressMaxXp > 120,
       `戰後寫入英雄長線 XP（英雄數 ${stage3Result.heroProgressCount}，最高 XP ${stage3Result.heroProgressMaxXp}）`);
+    assert(stage3Result.bondToastText.includes("羈絆升級"),
+      `羈絆升級時顯示 toast（${stage3Result.bondToastText}）`);
     assert(stage3Result.crystal === stage3Result.expectedCrystal,
       `死亡不重複清波魂晶，成就正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
     assert(stage3Result.deathCta.includes("立即抽英雄"),

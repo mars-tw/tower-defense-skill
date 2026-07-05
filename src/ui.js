@@ -12,6 +12,7 @@
   let selectedBoardDiff = TD.getDifficulty().id;
   let selectedBoardMap = (TD.getMap && TD.getMap().id) || "plains";
   let progressWasPaused = false;
+  let heroDetailWasPaused = false;
   const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6" };
   const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E" };
   const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
@@ -107,7 +108,7 @@
   }
 
   function isBlockingOverlayOpen() {
-    return ["gachaOverlay", "progressOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
+    return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
   }
 
   function isTextEntryTarget(target) {
@@ -261,6 +262,100 @@
     return parts.join(" · ");
   }
 
+  function heroLongXpForLevel(level) {
+    return RULES.heroLongXpForLevel ? RULES.heroLongXpForLevel(level) : (Math.max(1, Math.floor(Number(level) || 1)) - 1) * 24;
+  }
+
+  function nextBondNode(progress) {
+    const p = progress || { xp: 0, level: 1 };
+    const nodes = [5, 10, 15];
+    const node = nodes.find((lv) => p.level < lv) || 15;
+    const previous = nodes.filter((lv) => lv < node && p.level >= lv).pop() || 1;
+    const startXp = heroLongXpForLevel(previous);
+    const targetXp = heroLongXpForLevel(node);
+    const span = Math.max(1, targetXp - startXp);
+    const pct = node === 15 && p.level >= 15 ? 100 : Math.max(0, Math.min(100, Math.round(((p.xp - startXp) / span) * 100)));
+    return {
+      level: node,
+      previous,
+      startXp,
+      targetXp,
+      pct,
+      maxed: p.level >= 15,
+      totalBonus: Math.round(heroLongBonus({ xp: targetXp }) * 100),
+    };
+  }
+
+  function heroRunSummary(id) {
+    const hero = (TD.state().heroes || []).find((h) => h && h.id === id);
+    if (!hero) return "本局尚未上場";
+    const runXp = Math.max(0, Math.round(hero.runXp || 0));
+    const gained = Math.max(0, Math.round(hero.levelsGained || 0));
+    const hp = `${Math.max(0, Math.round(hero.hp || 0))}/${Math.max(1, Math.round(hero.maxHp || 1))}`;
+    return `戰鬥 Lv.${hero.level || 1}｜本局 XP +${runXp}｜升級 +${gained}｜血量 ${hp}`;
+  }
+
+  function deployHeroFromRoster(id, progress) {
+    if (TD.deployHero(id, progress)) {
+      deployedThisGame.add(id);
+      renderRoster();
+      refreshUI();
+      return true;
+    }
+    return false;
+  }
+
+  function closeHeroDetail() {
+    const overlay = $("heroDetailOverlay");
+    if (!overlay || !overlay.classList.contains("show")) return;
+    overlay.classList.remove("show");
+    if (!heroDetailWasPaused && !TD.state().over) {
+      TD.setPaused(false);
+      syncPauseButton(false);
+    }
+  }
+
+  function openHeroDetail(id) {
+    const hero = TD.config.HEROES[id];
+    const overlay = $("heroDetailOverlay");
+    const content = $("heroDetailContent");
+    if (!hero || !overlay || !content) return;
+    const meta = loadMeta();
+    const progress = heroProgressFor(id, meta);
+    const node = nextBondNode(progress);
+    const deployed = deployedThisGame.has(id);
+    const bonus = Math.round(heroLongBonus(progress) * 100);
+    const nextText = node.maxed
+      ? "羈絆節點已滿：永久 +15%攻血"
+      : `下一節點 Lv.${node.level}：再 +5%攻血（總 +${node.totalBonus}%）`;
+    if (!overlay.classList.contains("show")) {
+      heroDetailWasPaused = !!TD.state().paused;
+      TD.setPaused(true);
+      syncPauseButton(true);
+    }
+    content.innerHTML = `
+      <div class="hd-title">${heroAvatar(hero)} <span>英雄詳情｜${hero.name}</span></div>
+      <div class="hd-sub">${hero.desc}</div>
+      <div class="hd-grid">
+        <div><b>戰鬥數值</b><span>${heroStatLine(hero, progress)}</span></div>
+        <div><b>跨局羈絆</b><span>羈絆 Lv.${progress.level}｜${progress.xp}/${node.targetXp} XP｜永久 +${bonus}%攻血</span></div>
+      </div>
+      <div class="hd-progress-head"><span>羈絆進度</span><span>Lv.${node.previous} → Lv.${node.level}</span></div>
+      <div class="hd-progress"><span style="width:${node.pct}%"></span></div>
+      <div class="hd-node">${nextText}</div>
+      <div class="hd-run"><b>本局表現摘要</b><span>${heroRunSummary(id)}</span></div>
+      <div class="hd-actions">
+        <button type="button" id="heroDetailDeploy" ${deployed ? "disabled" : ""}>${deployed ? "已上場" : "上場"}</button>
+      </div>`;
+    const deployBtn = $("heroDetailDeploy");
+    if (deployBtn && !deployed) {
+      deployBtn.onclick = () => {
+        if (deployHeroFromRoster(id, progress)) openHeroDetail(id);
+      };
+    }
+    overlay.classList.add("show");
+  }
+
   function renderRoster() {
     const box = $("heroRoster"); box.innerHTML = "";
     const HEROES = TD.config.HEROES, HR = TD.config.HERO_RARITY;
@@ -282,9 +377,13 @@
       card.innerHTML = `
         <span class="hico">${heroAvatar(h)}</span>
         <span class="hinfo"><span class="hname">${h.name}</span> ${"★".repeat(r.stars)} <span class="hbond">羈絆 Lv.${progress.level}${longBonusPct ? ` +${longBonusPct}%攻血` : ""}</span><br><span class="hmeta">${h.desc}<br>${heroStatLine(h, progress)}<br>${heroLongMetaLine(id, meta)}</span></span>
-        <span class="hdeploy">${deployed ? "已上場" : "上場▶"}</span>`;
-      if (!deployed) card.onclick = () => {
-        if (TD.deployHero(id, progress)) { deployedThisGame.add(id); renderRoster(); refreshUI(); }
+        <button type="button" class="hdeploy">${deployed ? "詳情" : "上場▶"}</button>`;
+      card.onclick = () => openHeroDetail(id);
+      const deployBtn = card.querySelector(".hdeploy");
+      deployBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        if (deployed) openHeroDetail(id);
+        else deployHeroFromRoster(id, progress);
       };
       box.appendChild(card);
     });
@@ -361,6 +460,22 @@
     unlocked.forEach((m) => pushLog(`🎯 任務達成「${m.label}」已領 +${m.reward}💎`));
   }
 
+  function showBondToast(entries) {
+    const gained = (entries || []).filter((entry) => entry && entry.levelGained > 0);
+    if (!gained.length) return;
+    const first = gained[0];
+    const hero = TD.config.HEROES[first.id] || {};
+    const toast = document.createElement("div");
+    toast.className = "bond-toast";
+    toast.textContent = `羈絆升級：${hero.name || first.id} Lv.${first.newLevel}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2100);
+    gained.forEach((entry) => {
+      const def = TD.config.HEROES[entry.id] || {};
+      pushLog(`💫 ${def.name || entry.id} 羈絆升級 Lv.${entry.newLevel}，永久加成 ${Math.round((entry.bonus || 0) * 100)}%`);
+    });
+  }
+
   function claimBeginnerMissions(baseMeta) {
     if (!RULES.evaluateBeginnerMissions) return baseMeta || loadMeta();
     const meta = baseMeta || loadMeta();
@@ -411,7 +526,8 @@
     box.innerHTML = `
       <div class="enemy-title">${e.emoji || ""} ${e.name}</div>
       <div class="enemy-stats">血量 ${e.hp}${e.shield ? ` + 護盾 ${e.shield}` : ""} · 速度 ${e.speed} · 元素 ${ELEM_ICON[e.element]}${ELEM_LABEL[e.element]}</div>
-      <div class="enemy-trait">特性：${enemyTrait(e)}</div>`;
+      <div class="enemy-trait">特性：${enemyTrait(e)}</div>
+      <div class="enemy-counter">反制：${e.counterHint || "用克制元素塔集火，必要時補寒冰塔控場。"}</div>`;
     document.querySelectorAll(".enemy-chip-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.enemy === id));
   }
 
@@ -428,6 +544,7 @@
     const event = p.event ? `${p.event.emoji}${p.event.label}：${p.event.desc}` : (p.isBoss ? "⚠️ Boss 波" : "標準波");
     const affixText = p.affix ? ` · 詞綴 ${p.affix.label}` : "";
     const enemyTypes = (p.enemyTypes || []).filter((item) => ENEMIES[item.type]);
+    const recs = (p.recommendations || []).filter((item) => TOWERS[item.id]);
     box.innerHTML = `
       <div class="nw-title">🧭 下一波情報：第 ${p.wave} 波</div>
       <div class="nw-meta">${event} · 主元素 ${theme} · 敵人 ${p.totalCount || p.count} 隻${affixText}</div>
@@ -436,6 +553,16 @@
           const e = ENEMIES[item.type];
           return `<button class="enemy-chip-btn" data-enemy="${item.type}" title="${enemySummary(item.type)}">${e.emoji || ""} ${e.name}×${item.count}</button>`;
         }).join("")}
+      </div>
+      <div class="tower-rec-row">
+        <div class="tower-rec-title">建議塔種</div>
+        <div class="tower-rec-list">
+          ${recs.map((item) => {
+            const t = TOWERS[item.id];
+            return `<span class="tower-rec-chip" title="${item.reason}">${t.emoji} ${t.name}</span>`;
+          }).join("") || '<span class="tower-rec-chip">依現有塔陣補強</span>'}
+        </div>
+        ${recs[0] ? `<div class="tower-rec-reason">${recs[0].reason}</div>` : ""}
       </div>`;
     box.querySelectorAll(".enemy-chip-btn").forEach((btn) => {
       btn.onclick = () => openEnemyInfo(btn.dataset.enemy);
@@ -458,7 +585,8 @@
     box.innerHTML = `
       <div class="affix-title">${affix.emoji || ""} 本局詞綴：${affix.label}</div>
       <div class="affix-desc">${affix.desc}</div>
-      <div class="affix-balance">預期：資源 ${pct(bal.goldDelta)} · 壓力 ${pct(bal.powerDelta)} · 淨值 ${pct(bal.netDelta)}</div>`;
+      <div class="affix-balance">預期：資源 ${pct(bal.goldDelta)} · 壓力 ${pct(bal.powerDelta)} · 淨值 ${pct(bal.netDelta)}</div>
+      <div class="affix-impact">塔種影響：${affix.towerImpact || "依本局詞綴調整主力塔位置與升級順序。"}</div>`;
   }
 
   // ===== HUD 與整體刷新 =====
@@ -744,6 +872,7 @@
     const earned = settlement.earned;
     const isRecord = settlement.isRecord;
     saveMeta(meta);
+    showBondToast(heroProgressResult.entries);
     const ctaCost = gachaCostNow(meta);
     const ctaAffordable = meta.soulCrystal >= ctaCost;
 
@@ -824,6 +953,7 @@
   $("gachaBtn").onclick = () => { $("gachaBtn").blur(); doGacha(); };
   $("boardBtn").onclick = () => { openProgressOverlay(); };
   $("progressClose").onclick = () => { closeProgressOverlay(); };
+  $("heroDetailClose").onclick = () => { closeHeroDetail(); };
   $("restartBtn").onclick = restartRun;
   $("upgBtn").onclick = () => { TD.upgradeSelected(); refreshUI(); };
   $("sellBtn").onclick = () => { TD.sellSelected(); refreshUI(); };
@@ -852,6 +982,11 @@
   }
   document.addEventListener("keydown", (e) => {
     if (isTextEntryTarget(e.target)) return;
+    if (isShown("heroDetailOverlay")) {
+      e.preventDefault();
+      if (e.code === "Escape") closeHeroDetail();
+      return;
+    }
     if (isShown("progressOverlay")) {
       if (e.code === "Escape") { e.preventDefault(); closeProgressOverlay(); }
       else { e.preventDefault(); }

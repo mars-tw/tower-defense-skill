@@ -5,7 +5,7 @@
 
 (() => {
   "use strict";
-  const { TOWERS, SKILLS, ENEMIES, BEGINNER_MISSIONS } = TD.config;
+  const { TOWERS, SKILLS, ENEMIES, BEGINNER_MISSIONS, MAP_AFFIXES } = TD.config;
   const $ = (id) => document.getElementById(id);
   const hasOwn = (obj, key) => !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   const RULES = window.TDRules;
@@ -29,6 +29,7 @@
     if (!e) return "一般敵人";
     const parts = [];
     if (e.boss) parts.push("高血 Boss，漏過會重創女神");
+    if (e.ability) parts.push(`${e.ability.label || "特殊能力"}：${e.ability.desc || ""}`);
     if (e.shield) parts.push(`護盾 ${e.shield}，需先破盾`);
     if (e.healRadius) parts.push(`每 ${e.healInterval} 秒治療附近敵人`);
     if (e.speed >= 85) parts.push("高速突進");
@@ -228,18 +229,42 @@
     return `<img src="${hero.sprite}" alt="${hero.name}" onerror="this.replaceWith(document.createTextNode('${hero.emoji}'))">`;
   }
 
-  function heroStatLine(hero) {
-    const parts = [`生命 ${hero.hp}`, `攻 ${hero.atk}`, `射 ${hero.range}`, `速 ${hero.speed}`];
+  function heroProgressFor(id, meta) {
+    const progress = meta && meta.heroProgress && meta.heroProgress[id];
+    if (!progress) return { xp: 0, level: 1 };
+    const xp = Math.max(0, Math.floor(Number(progress.xp) || 0));
+    const level = RULES.heroLongLevelFromXp ? RULES.heroLongLevelFromXp(xp) : Math.max(1, Math.floor(Number(progress.level) || 1));
+    return { xp, level };
+  }
+
+  function heroLongBonus(progress) {
+    return RULES.heroPermanentBonus ? RULES.heroPermanentBonus(progress) : 0;
+  }
+
+  function heroLongMetaLine(id, meta) {
+    const progress = heroProgressFor(id, meta);
+    const bonus = heroLongBonus(progress);
+    const bonusText = bonus > 0 ? `｜永久 +${Math.round(bonus * 100)}%攻血` : "";
+    return `羈絆 Lv.${progress.level}｜${progress.xp} XP${bonusText}`;
+  }
+
+  function heroStatLine(hero, progress) {
+    const bonus = progress ? heroLongBonus(progress) : 0;
+    const hp = bonus > 0 ? Math.round(hero.hp * (1 + bonus)) : hero.hp;
+    const atk = bonus > 0 ? Math.round(hero.atk * (1 + bonus)) : hero.atk;
+    const parts = [`生命 ${hp}`, `攻 ${atk}`, `射 ${hero.range}`, `速 ${hero.speed}`];
     if (hero.splash) parts.push(`濺射 ${hero.splash}`);
     if (hero.pierce) parts.push(`穿透 ${hero.pierce}`);
     if (hero.slow) parts.push("緩速");
     if (hero.healGoddess) parts.push(`治療 ${hero.healGoddess}`);
+    if (bonus > 0) parts.push(`羈絆 +${Math.round(bonus * 100)}%攻血`);
     return parts.join(" · ");
   }
 
   function renderRoster() {
     const box = $("heroRoster"); box.innerHTML = "";
     const HEROES = TD.config.HEROES, HR = TD.config.HERO_RARITY;
+    const meta = loadMeta();
     if (ownedHeroes.size === 0) {
       box.innerHTML = '<div style="font-size:11px;color:#8b98a8;padding:4px;">尚未抽到英雄</div>';
       return;
@@ -248,16 +273,18 @@
       const h = HEROES[id]; if (!h) return;
       const r = HR[h.rarity];
       const deployed = deployedThisGame.has(id);
+      const progress = heroProgressFor(id, meta);
+      const longBonusPct = Math.round(heroLongBonus(progress) * 100);
       const card = document.createElement("div");
       card.className = "hero-card" + (deployed ? " deployed" : "");
       card.style.setProperty("--hr-color", r.color);
       card.style.setProperty("--hr-glow", r.glow);
       card.innerHTML = `
         <span class="hico">${heroAvatar(h)}</span>
-        <span class="hinfo"><span class="hname">${h.name}</span> ${"★".repeat(r.stars)}<br><span class="hmeta">${h.desc}<br>${heroStatLine(h)}</span></span>
+        <span class="hinfo"><span class="hname">${h.name}</span> ${"★".repeat(r.stars)} <span class="hbond">羈絆 Lv.${progress.level}${longBonusPct ? ` +${longBonusPct}%攻血` : ""}</span><br><span class="hmeta">${h.desc}<br>${heroStatLine(h, progress)}<br>${heroLongMetaLine(id, meta)}</span></span>
         <span class="hdeploy">${deployed ? "已上場" : "上場▶"}</span>`;
       if (!deployed) card.onclick = () => {
-        if (TD.deployHero(id)) { deployedThisGame.add(id); renderRoster(); refreshUI(); }
+        if (TD.deployHero(id, progress)) { deployedThisGame.add(id); renderRoster(); refreshUI(); }
       };
       box.appendChild(card);
     });
@@ -286,7 +313,7 @@
       btn.innerHTML = `
         <span class="dh-avatar">${heroAvatar(def)}</span>
         <span class="dh-body">
-          <span class="dh-top"><b>${def.name}</b><em>Lv.${h.level || 1}</em></span>
+          <span class="dh-top"><b>${def.name}</b><em>Lv.${h.level || 1} / 羈絆Lv.${h.longLevel || 1}</em></span>
           <span class="dh-hp"><span style="width:${hpPct}%"></span></span>
           <span class="dh-status">${active ? "選擇駐守點" : (guarded ? "駐守中" : "點我駐守")}</span>
         </span>`;
@@ -399,10 +426,11 @@
     const p = TD.previewNextWave();
     const theme = p.theme ? `${ELEM_ICON[p.theme] || ""}${ELEM_LABEL[p.theme] || p.theme}` : "混合";
     const event = p.event ? `${p.event.emoji}${p.event.label}：${p.event.desc}` : (p.isBoss ? "⚠️ Boss 波" : "標準波");
+    const affixText = p.affix ? ` · 詞綴 ${p.affix.label}` : "";
     const enemyTypes = (p.enemyTypes || []).filter((item) => ENEMIES[item.type]);
     box.innerHTML = `
       <div class="nw-title">🧭 下一波情報：第 ${p.wave} 波</div>
-      <div class="nw-meta">${event} · 主元素 ${theme} · 敵人 ${p.totalCount || p.count} 隻</div>
+      <div class="nw-meta">${event} · 主元素 ${theme} · 敵人 ${p.totalCount || p.count} 隻${affixText}</div>
       <div class="enemy-chip-row">
         ${enemyTypes.map((item) => {
           const e = ENEMIES[item.type];
@@ -412,6 +440,25 @@
     box.querySelectorAll(".enemy-chip-btn").forEach((btn) => {
       btn.onclick = () => openEnemyInfo(btn.dataset.enemy);
     });
+  }
+
+  function renderAffixCard() {
+    const box = $("affixCard");
+    if (!box) return;
+    const st = TD.state();
+    const affix = st && st.affix;
+    if (!affix) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    const bal = RULES.affixExpectedBalance ? RULES.affixExpectedBalance(affix) : { goldDelta: 0, powerDelta: 0, netDelta: 0 };
+    const pct = (value) => `${value >= 0 ? "+" : ""}${Math.round(value * 100)}%`;
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <div class="affix-title">${affix.emoji || ""} 本局詞綴：${affix.label}</div>
+      <div class="affix-desc">${affix.desc}</div>
+      <div class="affix-balance">預期：資源 ${pct(bal.goldDelta)} · 壓力 ${pct(bal.powerDelta)} · 淨值 ${pct(bal.netDelta)}</div>`;
   }
 
   // ===== HUD 與整體刷新 =====
@@ -452,6 +499,7 @@
       gMeta.textContent = `${meta.soulCrystal}💎｜保底 ${pityShown}/${TD.config.GACHA.pityLegendary}｜英雄 ${ownedHeroes.size}/${totalHeroes}${secondLine}`;
     }
     renderBeginnerMissions(meta);
+    renderRoster();
     renderDeployedHeroes();
 
     // 建塔按鈕：金錢不足變灰、選中的高亮
@@ -488,6 +536,7 @@
       startBtn.textContent = "⚔ 防禦中…";
     }
     renderNextWaveCard();
+    renderAffixCard();
 
     // 選中塔的升級面板
     const sel = $("selPanel");
@@ -679,7 +728,11 @@
     const currentMapId = currentMap && currentMap.id;
     const boardResult = RULES.updateBoard(settlement.meta.board, diff.id, currentMapId, { wave, score, kills, at: Date.now() });
     const withBoard = Object.assign({}, settlement.meta, { board: boardResult.board });
-    const achievementResult = RULES.evaluateAchievements(withBoard, {
+    const heroGrowth = Array.isArray(run && run.heroGrowth) ? run.heroGrowth : [];
+    const heroProgressResult = RULES.settleHeroProgress
+      ? RULES.settleHeroProgress(withBoard, heroGrowth)
+      : { meta: withBoard, entries: [] };
+    const achievementResult = RULES.evaluateAchievements(heroProgressResult.meta, {
       wave,
       score,
       kills,
@@ -693,7 +746,6 @@
     saveMeta(meta);
     const ctaCost = gachaCostNow(meta);
     const ctaAffordable = meta.soulCrystal >= ctaCost;
-    const heroGrowth = Array.isArray(run && run.heroGrowth) ? run.heroGrowth : [];
 
     $("finalWave").textContent = wave;
     $("finalScore").textContent = score;
@@ -709,13 +761,17 @@
       const unlockLine = achievementResult.unlocked.length
         ? `<div class="unlock-list">${achievementResult.unlocked.map((ach) => `<div>🎖️ 解鎖「${ach.label}」 +${ach.reward}💎</div>`).join("")}</div>`
         : '<div class="meta-sub">本場沒有新成就。</div>';
+      const progressById = Object.fromEntries((heroProgressResult.entries || []).map((entry) => [entry.id, entry]));
       const heroGrowthLine = heroGrowth.length
         ? `<div class="hero-growth"><div class="hg-title">本局英雄成長</div>${heroGrowth.map((item) => {
           const def = TD.config.HEROES[item.id] || {};
           const xp = Math.max(0, Math.round(item.xp || item.runXp || 0));
           const level = Math.max(1, Math.round(item.level || 1));
           const up = Math.max(0, Math.round(item.levelsGained || 0));
-          return `<div>${def.name || item.id}：+${xp} XP，Lv.${level}${up ? `（升 ${up} 級）` : ""}</div>`;
+          const long = progressById[item.id];
+          const longText = long ? `｜長線 +${long.savedXp} XP｜羈絆 Lv.${long.newLevel}${long.levelGained ? `（+${long.levelGained}）` : ""}` : "";
+          const bonusText = long && long.bonus ? `｜攻血 +${Math.round(long.bonus * 100)}%` : "";
+          return `<div>${def.name || item.id}：+${xp} XP，Lv.${level}${up ? `（升 ${up} 級）` : ""}${longText}${bonusText}</div>`;
         }).join("")}</div>`
         : "";
       metaLine.innerHTML = `

@@ -112,9 +112,9 @@ console.log("\n== 即時魂晶入袋後死亡不重複結算 ==");
 console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
 {
   const v1 = migrateMeta({ bestWave: 8, soulCrystal: 12, bestByDiff: { normal: 8 } });
-  assert(v1.version === META_VERSION && META_VERSION === 5, "v1 無 version 存檔升級到 version 5");
+  assert(v1.version === META_VERSION && META_VERSION === 6, "v1 無 version 存檔升級到 version 6");
   assert(v1.bestWave === 8 && v1.soulCrystal === 12 && v1.bestByDiff.normal === 8, "v1 有效欄位無損保留");
-  assert(v1.board && Object.keys(v1.board).length === 0 && v1.achievements && Object.keys(v1.achievements).length === 0 && v1.beginnerMissions && Object.keys(v1.beginnerMissions).length === 0, "v1 補齊 board/achievements/beginnerMissions");
+  assert(v1.board && Object.keys(v1.board).length === 0 && v1.achievements && Object.keys(v1.achievements).length === 0 && v1.beginnerMissions && Object.keys(v1.beginnerMissions).length === 0 && v1.heroProgress && Object.keys(v1.heroProgress).length === 0, "v1 補齊 board/achievements/beginnerMissions/heroProgress");
 
   const v2 = migrateMeta({
     version: 2,
@@ -126,7 +126,7 @@ console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
     gachaCount: 6,
     bestByDiff: { normal: 14 },
   });
-  assert(v2.version === 5 && v2.totalKills === 120 && v2.gachaCount === 6, "v2 存檔無損升級到 version 5");
+  assert(v2.version === 6 && v2.totalKills === 120 && v2.gachaCount === 6, "v2 存檔無損升級到 version 6");
   const mapMeta = migrateMeta({ lastMap: "canyon" });
   const badMapMeta = migrateMeta({ lastMap: "unknown" });
   assert(mapMeta.lastMap === "canyon" && badMapMeta.lastMap === "plains", "lastMap 合法保留、非法回預設");
@@ -147,10 +147,13 @@ console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
     },
     achievements: { wave10: true, wave20: false, bad: "yes" },
     beginnerMissions: { firstTower: true, firstWave: false, bad: "yes" },
+    heroProgress: { fox: { xp: 120 }, bad: { xp: Infinity }, constructor: { xp: 999 } },
   });
   assert(polluted.board.normal.plains.length === 2 && polluted.board.normal.plains[0].wave === 7 && polluted.board.brutal == null, "board 只保留合法項並排序，flat 無 map 舊資料歸平原榜");
   assert(polluted.achievements.wave10 === true && polluted.achievements.wave20 == null && polluted.achievements.bad == null, "achievements 只保留 true 標記");
   assert(polluted.beginnerMissions.firstTower === true && polluted.beginnerMissions.firstWave == null && polluted.beginnerMissions.bad == null, "beginnerMissions 只保留 true 標記");
+  assert(polluted.heroProgress.fox && polluted.heroProgress.fox.level >= 1 && polluted.heroProgress.bad == null && !Object.prototype.hasOwnProperty.call(polluted.heroProgress, "constructor"),
+    "heroProgress 清洗非法數字與污染 key");
 
   const mappedBoard = migrateMeta({
     board: {

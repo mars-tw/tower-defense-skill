@@ -69,6 +69,8 @@
     loopToken++; // 作廢任何正在跑的舊迴圈
     const mapDef = getMap();
     const path = mapDef.path;
+    const affixSeed = Math.floor(Math.random() * 0x7fffffff);
+    const affix = TDRules.selectMapAffix ? TDRules.selectMapAffix(affixSeed) : null;
     markPathCells(path);
     const end = path[path.length - 1];
     state = {
@@ -77,7 +79,7 @@
       goddess: (() => { const gm = getDifficulty().goddessMul; const hp = Math.round(GODDESS.baseHp * gm); return { level: 1, hp, maxHp: hp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 }; })(),
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
-      mapId: mapDef.id, mapDef, path,
+      mapId: mapDef.id, mapDef, path, affixSeed, affix,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
       towersBuilt: 0, towerUpgrades: 0, skillCasts: 0, bossKills: 0, clearedWave: 0,
@@ -120,14 +122,14 @@
   // theme 用 config 的共用 waveTheme()——startWave 出怪讀同一個來源，預告才不會是假的
   function previewNextWave() {
     const w = state.wave + 1;
-    const plan = TDRules.generateWaveQueue(w, getDifficulty());
+    const plan = TDRules.generateWaveQueue(w, getDifficulty(), null, state.affix);
     const counts = {};
     for (const item of plan.queue) counts[item.type] = (counts[item.type] || 0) + 1;
     const enemyTypes = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 4)
       .map(([type, count]) => ({ type, count }));
-    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, enemyTypes };
+    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -141,10 +143,11 @@
     state.wave++;
     state.betweenWaves = false;
     const w = state.wave;
-    const plan = TDRules.generateWaveQueue(w, getDifficulty(), Math.random);
+    const plan = TDRules.generateWaveQueue(w, getDifficulty(), Math.random, state.affix);
     const isBoss = plan.isBoss;
     const ev = plan.event;
     state.currentEvent = ev;
+    applyAffixWaveStart(w);
 
     state.spawnQueue = plan.queue;
     state.spawnTimer = 0;
@@ -156,11 +159,46 @@
       log(`第 ${w} 波來襲！${isBoss ? "⚠️ Boss 出現！" : ""}`);
       if (isBoss) flashBanner("⚠️ BOSS 來襲", "#dc2626");
     }
+    if (w === 1 && state.affix) log(`${state.affix.emoji} 本局詞綴：${state.affix.label}｜${state.affix.desc}`);
     if (typeof window.__tdUI === "function") window.__tdUI();
   }
   // 事件波橫幅提示（畫面中央短暫顯示）
   function flashBanner(text, color) {
     state.banner = { text, color, life: 2.0 };
+  }
+
+  function affixMul(key) {
+    const affix = state && state.affix;
+    const val = affix && typeof affix[key] === "number" ? affix[key] : 1;
+    return Number.isFinite(val) ? val : 1;
+  }
+
+  function heroLongLevelFromProgress(progress) {
+    const xp = progress && typeof progress.xp === "number" ? progress.xp : 0;
+    return TDRules.heroLongLevelFromXp ? TDRules.heroLongLevelFromXp(xp) : 1;
+  }
+
+  function heroLongBonusFromProgress(progress) {
+    const level = progress && typeof progress.level === "number" ? progress.level : heroLongLevelFromProgress(progress);
+    return TDRules.heroPermanentBonus ? TDRules.heroPermanentBonus(level) : 0;
+  }
+
+  function heroBattleStat(hero, key) {
+    const value = heroStat(hero, key);
+    if (key !== "hp" && key !== "atk") return value;
+    const bonus = hero && typeof hero.longBonus === "number" ? hero.longBonus : 0;
+    return Math.round(value * (1 + bonus));
+  }
+
+  function applyAffixWaveStart(wave) {
+    const affix = state.affix;
+    if (!affix || !affix.towerStunEvery || wave % affix.towerStunEvery !== 0 || !state.towers.length) return;
+    const idx = Math.abs(((state.affixSeed || 1) + wave * 2654435761) | 0) % state.towers.length;
+    const tw = state.towers[idx];
+    tw.stunnedUntil = Math.max(tw.stunnedUntil || 0, state.clock + (affix.towerStunDuration || 2));
+    tw.cd = Math.max(tw.cd || 0, affix.towerStunDuration || 2);
+    flashText(tw.x, tw.y - 20, "餘震停火", { color: "#facc15", size: 13 });
+    log(`${affix.emoji} 餘震震停 ${TOWERS[tw.type].name} ${affix.towerStunDuration || 2} 秒。`, "bad");
   }
 
   function spawnEnemy(spec) {
@@ -175,16 +213,18 @@
     const def = ENEMIES[spec.type];
     const ev = spec.event;
     const scale = spec.hpScale || 1;
+    const affix = state.affix || null;
     const maxHp = Math.round(def.hp * scale);
     const maxShield = def.shield ? Math.round(def.shield * scale) : 0;
     return Object.assign({
       ...def, x: state.path[0].x, y: state.path[0].y, wp: 1,
-      speed: def.speed * (ev ? ev.speedMul : 1),         // 事件波速度
-      reward: Math.round(def.reward * (ev ? ev.goldMul : 1)), // 事件波金錢
+      speed: def.speed * (ev ? ev.speedMul : 1) * (affix ? affixMul("enemySpeedMul") : 1), // 事件波/詞綴速度
+      reward: Math.round(def.reward * (ev ? ev.goldMul : 1) * (affix ? affixMul("killGoldMul") : 1)), // 事件波/詞綴金錢
       hp: maxHp, maxHp, shield: maxShield, maxShield, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
       poisonStacks: [], _poisonAcc: 0, _poisonFloatAt: 0, healCd: def.healInterval || 0,
       walkDist: 0, animSeed: Math.random() * Math.PI * 2, vx: 1, vy: 0, flipX: false, hitFlash: 0, hitKick: 0,
       event: ev, color: ev && ev.id === "elite" ? "#a855f7" : def.color, // 精英波變色
+      _dodgeRoll: Math.random(),
       uid: "e" + (Math.random() * 1e9 | 0),
     }, overrides || {});
   }
@@ -194,6 +234,15 @@
     opts = opts || {};
     let dmg = Math.max(0, amount || 0);
     if (dmg <= 0) return 0;
+    e._dodgedLastHit = false;
+    if (!opts.bypassShield && !opts.noDodge && e.ability && e.ability.id === "dodgeFirst" && !e._dodgeTried) {
+      e._dodgeTried = true;
+      if ((e._dodgeRoll || 0) < (e.ability.chance || 0)) {
+        e._dodgedLastHit = true;
+        flashText(e.x, e.y - 14, "閃避", { color: "#bef264", size: 13 });
+        return 0;
+      }
+    }
     const hpBefore = e.hp;
     if (!opts.bypassShield && e.shield > 0) {
       const shieldHit = Math.min(e.shield, dmg);
@@ -249,7 +298,14 @@
 
   function updateEnemyAbilities(dt) {
     for (const e of state.enemies) {
-      if (e._dead || !e.healRadius || !e.healAmount || !e.healInterval) continue;
+      if (e._dead) continue;
+      if (e.ability && e.ability.id === "bloodrage" && !e._enraged && e.hp > 0 && e.maxHp > 0 && e.hp / e.maxHp <= (e.ability.threshold || 0.4)) {
+        e._enraged = true;
+        e.speed *= e.ability.speedMul || 1.35;
+        e.color = "#f97316";
+        flashText(e.x, e.y - 14, "狂暴", { color: "#fb923c", size: 13 });
+      }
+      if (!e.healRadius || !e.healAmount || !e.healInterval) continue;
       e.healCd -= dt;
       if (e.healCd > 0) continue;
       e.healCd += e.healInterval;
@@ -376,6 +432,7 @@
     // 塔射擊
     for (const tw of state.towers) {
       if (TOWERS[tw.type].support) continue;
+      if ((tw.stunnedUntil || 0) > state.clock) continue;
       tw.cd -= dt;
       if (tw.cd > 0) continue;
       const target = acquireTarget(tw);
@@ -410,7 +467,7 @@
     if (!state.betweenWaves && state.spawnQueue.length === 0 && state.enemies.length === 0) {
       state.betweenWaves = true;
       state.clearedWave = Math.max(state.clearedWave || 0, state.wave);
-      const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1)); // 指數成長獎勵（D2）
+      const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1) * affixMul("waveGoldMul")); // 指數成長獎勵（D2）
       state.gold += bonus;
       state.score += state.wave * 10;
       let soulReward = 0;
@@ -440,7 +497,7 @@
   function leak(e) {
     if (e._leaked || e._dead) return;
     e._leaked = true;
-    const dmg = e.leak * (e.boss ? 4 : 3); // 漏過對女神造成的傷害
+    const dmg = Math.round(e.leak * (e.boss ? 4 : 3) * affixMul("leakDamageMul")); // 漏過對女神造成的傷害
     state.goddess.hp -= dmg;
     state.goddess.hitFlash = 0.4;
     burst(state.goddess.x, state.goddess.y, "#ef4444", 14);
@@ -451,14 +508,18 @@
 
   // ===== 英雄系統 =====
   // 上場：在女神（終點）附近放一個英雄
-  function deployHero(heroId) {
+  function deployHero(heroId, progress) {
     const def = HEROES[heroId];
     if (!def) return false;
     const end = state.path[state.path.length - 1];
+    const longLevel = progress && typeof progress.level === "number" ? progress.level : heroLongLevelFromProgress(progress);
+    const longBonus = heroLongBonusFromProgress(progress);
+    const baseHero = { id: heroId, level: 1, longBonus };
+    const maxHp = heroBattleStat(baseHero, "hp");
     const h = {
-      id: heroId, level: 1, xp: 0, startLevel: 1, startXp: 0, runXp: 0, levelsGained: 0,
+      id: heroId, level: 1, xp: 0, startLevel: 1, startXp: 0, runXp: 0, levelsGained: 0, longLevel, longBonus,
       x: end.x - 60 + (Math.random() * 40 - 20), y: end.y - 60 + (Math.random() * 40 - 20),
-      hp: heroStat({ id: heroId, level: 1 }, "hp"), maxHp: heroStat({ id: heroId, level: 1 }, "hp"),
+      hp: maxHp, maxHp,
       facing: "down", cd: 0, hitFlash: 0, uid: "h" + (Math.random() * 1e9 | 0),
     };
     state.heroes.push(h);
@@ -531,7 +592,7 @@
 
   function heroAttack(h, target) {
     const def = HEROES[h.id];
-    const atk = heroStat(h, "atk");
+    const atk = heroBattleStat(h, "atk");
     if (def.role === "ranged") {
       // 遠程：發射子彈
       state.bullets.push({
@@ -574,7 +635,7 @@
       h.xp -= xpForLevel(h.level);
       h.level++;
       h.levelsGained = (h.levelsGained || 0) + 1;
-      const newMax = heroStat(h, "hp");
+      const newMax = heroBattleStat(h, "hp");
       h.hp = newMax; h.maxHp = newMax; // 升級回滿
       burst(h.x, h.y, "#fde047", 20);
       flashText(h.x, h.y, "LV UP!");
@@ -583,10 +644,35 @@
     if (typeof window.__tdUI === "function") window.__tdUI();
   }
 
+  function spawnSplitBat(parent) {
+    if (!parent || parent._splitChild || !parent.ability || parent.ability.id !== "splitBat") return;
+    const childHp = Math.max(1, Math.round((parent.maxHp || ENEMIES.bat.hp) * (parent.ability.childHpMul || 0.45)));
+    const childReward = Math.max(1, Math.round((parent.reward || ENEMIES.bat.reward) * (parent.ability.childRewardMul || 0.35)));
+    const child = createEnemy({ type: "bat", hpScale: 1 }, {
+      x: parent.x,
+      y: parent.y,
+      wp: parent.wp,
+      hp: childHp,
+      maxHp: childHp,
+      shield: 0,
+      maxShield: 0,
+      speed: (parent.speed || ENEMIES.bat.speed) * 1.08,
+      reward: childReward,
+      leak: 1,
+      name: "小蝙蝠",
+      ability: null,
+      _splitChild: true,
+      color: "#a78bfa",
+    });
+    state.enemies.push(child);
+    flashText(parent.x, parent.y - 16, "分裂", { color: "#c4b5fd", size: 13 });
+  }
+
   // 擊殺
   function killEnemy(e) {
     if (e._dead) return;
     e._dead = true;
+    spawnSplitBat(e);
     // D5 連殺：累積 combo，倍率提升金錢/分數
     state.combo++;
     state.comboTimer = 2.5; // 2.5 秒內再擊殺才接續
@@ -605,8 +691,8 @@
   // ===== 塔瞄準與射擊 =====
   function towerStat(tw, key) {
     const base = TOWERS[tw.type][key];
-    if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1);
-    if (key === "range") return base * Math.pow(UPGRADE.rangeMul, tw.level - 1);
+    if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul");
+    if (key === "range") return base * Math.pow(UPGRADE.rangeMul, tw.level - 1) * affixMul("towerRangeMul");
     if (key === "buff") return (base || 0) + (tw.level - 1) * (TOWERS[tw.type].buffPerLevel || 0);
     return base;
   }
@@ -697,8 +783,9 @@
     const chilled = (e.slowUntil > state.clock) || (e.frozenUntil > state.clock);
     const synergy = chilled ? 1.25 : 1;
     const dmg = b.damage * mult * synergy;
-    applyDamage(e, dmg);
-    damageNumber(e.x, e.y, dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
+    const dealt = applyDamage(e, dmg);
+    if (e._dodgedLastHit) return;
+    damageNumber(e.x, e.y, dealt || dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
     if (b.poison) applyPoison(e, b.poison);
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
     if (e.hp <= 0) { killEnemy(e); if (b._heroOwner && state.heroes.includes(b._heroOwner)) grantXp(b._heroOwner, e); }
@@ -731,12 +818,13 @@
     const def = TOWERS[state.selectedTowerType];
     const center = cellCenter(cx, cy);
     const pathDistance = def ? cellPathDistance(cx, cy) : Infinity;
+    const buildRange = def ? def.range * affixMul("towerRangeMul") : 0;
     let reason = "";
     if (!def) reason = "尚未選塔";
     else if (px < 0 || py < 0 || px >= W || py >= H) reason = "超出戰場";
     else if (blocked.has(cellKey(cx, cy))) reason = "路徑上不能放";
     else if (state.towers.some((t) => t.cx === cx && t.cy === cy)) reason = "已有塔";
-    else if (pathDistance > def.range) reason = "太遠打不到路徑";
+    else if (pathDistance > buildRange) reason = "太遠打不到路徑";
     else if (state.gold < def.cost) reason = "金錢不足";
     return {
       ok: reason === "",
@@ -745,7 +833,7 @@
       cy,
       x: center.x,
       y: center.y,
-      range: def ? def.range : 0,
+      range: buildRange,
       type: def ? def.id : null,
       pathDistance: Number.isFinite(pathDistance) ? Math.round(pathDistance) : null,
     };
@@ -1462,6 +1550,6 @@
       step: (dt) => { update(dt || 0.016); render(); },
       fireTower: (tw, target) => fire(tw, target),
     },
-    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, ACHIEVEMENTS },
+    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, MAP_AFFIXES, ACHIEVEMENTS },
   };
 })();

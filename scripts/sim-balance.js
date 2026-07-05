@@ -11,7 +11,7 @@ const cfg = require(path.join(__dirname, "..", "src", "config.js"));
 const rules = require(path.join(__dirname, "..", "src", "rules.js"));
 
 const {
-  TOWERS, UPGRADE, ENEMIES, GAME, GODDESS, MAPS,
+  TOWERS, UPGRADE, ENEMIES, GAME, GODDESS, MAPS, MAP_AFFIXES,
   waveGoldBonus, DIFFICULTIES, setDifficulty,
 } = cfg;
 
@@ -118,12 +118,15 @@ console.log(`  → Lv1 攻擊塔 CP 值最高/最低比 = ${cpRatio.toFixed(2)}�
 console.log(`  → 聖光塔價值：若範圍內主力塔總 DPS ≥ ${(TOWERS.support.cost / (TOWERS.support.buff || 0.25)).toFixed(0)} 的等價投資門檻，+${Math.round(TOWERS.support.buff * 100)}% 增傷開始優於單蓋低階塔。`);
 
 // ===== 2. 波次敵人總血量曲線 =====
-console.log("\n===== 波次強度曲線（普通難度，含盾兵護盾與醫官治療估值）=====");
+console.log("\n===== 波次強度曲線（普通難度，含護盾/治療/新敵人特性估值）=====");
 function enemyEffectiveHp(spec) {
   const def = ENEMIES[spec.type];
   const base = (def.hp || 0) + (def.shield || 0);
   let hp = base * spec.hpScale;
   if (def.healAmount) hp *= 1.08; // 醫官能抬高整波有效血量，保守估 8%
+  if (def.ability && def.ability.id === "dodgeFirst") hp *= 1 + (def.ability.chance || 0) * 0.16;
+  if (def.ability && def.ability.id === "bloodrage") hp *= 1.05;
+  if (def.ability && def.ability.id === "splitBat") hp *= 1 + (def.ability.childHpMul || 0.45) * 0.60;
   return hp;
 }
 const statsCache = new Map();
@@ -131,15 +134,16 @@ function percentile(sorted, pct) {
   const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * pct) - 1));
   return sorted[idx];
 }
-function waveEnemyHpStats(wave, diff, generator) {
+function waveEnemyHpStats(wave, diff, generator, affix) {
   const mode = generator === generateWaveQueueLegacy ? "legacy" : "current";
-  const key = `${mode}:${diff.id}:${wave}`;
+  const affixId = affix && affix.id ? affix.id : "none";
+  const key = `${mode}:${diff.id}:${wave}:${affixId}`;
   if (statsCache.has(key)) return statsCache.get(key);
-  const samplePlan = generator(wave, diff, makeRng((wave * 65537 + diff.bossEvery) >>> 0));
+  const samplePlan = generator(wave, diff, makeRng((wave * 65537 + diff.bossEvery) >>> 0), affix);
   const values = [];
   for (let i = 0; i < SEED_COUNT; i++) {
     const seed = (wave * 1000003 + (i + 1) * 9176 + diff.bossEvery * 101) >>> 0;
-    const plan = generator(wave, diff, makeRng(seed));
+    const plan = generator(wave, diff, makeRng(seed), affix);
     values.push(plan.queue.reduce((sum, spec) => sum + enemyEffectiveHp(spec), 0));
   }
   values.sort((a, b) => a - b);
@@ -190,18 +194,31 @@ for (let w = 3; w <= 6; w++) {
   console.log(`  第 ${w} 波: 調整前 ${Math.round(before.mean)}（${Math.round(before.min)}~${Math.round(before.max)}） → 調整後 ${Math.round(after.mean)}（${Math.round(after.min)}~${Math.round(after.max)}）`);
 }
 
+console.log("\n===== R17 地圖詞綴期望值（資源報酬 vs 壓力）=====");
+const affixValues = Object.values(MAP_AFFIXES || {});
+for (const affix of affixValues) {
+  const bal = rules.affixExpectedBalance(affix);
+  console.log(`  ${affix.label}: 資源 ${(bal.goldDelta * 100).toFixed(0)}% / 壓力 ${(bal.powerDelta * 100).toFixed(0)}% / 淨值 ${(bal.netDelta * 100).toFixed(0)}%`);
+}
+
 // ===== 3. 模擬：玩家防線輸出 vs 波次強度 =====
 console.log("\n===== 撐波模擬（兩張圖 × 三難度）=====");
 const plainsLen = pathLength(MAPS.plains.path);
 const bestTower = attackTowers.sort((a, b) => towerDPS(b, 1) / b.cost - towerDPS(a, 1) / a.cost)[0];
 console.log(`  主力塔: ${bestTower.name}`);
 
-function simulate(map, diff) {
+function simulate(map, diff, affix) {
   setDifficulty(diff.id);
   let gold = Math.round(GAME.startGold * (map.goldMul || 1));
   let goddessHp = GODDESS.baseHp * (diff.goddessMul || 1);
   const myTowers = [];
   const mapExposureMul = Math.sqrt(pathLength(map.path) / plainsLen);
+  const affixRangeMul = affix && affix.towerRangeMul ? affix.towerRangeMul : 1;
+  const affixDamageMul = affix && affix.towerDamageMul ? affix.towerDamageMul : 1;
+  const affixSpeedMul = affix && affix.enemySpeedMul ? affix.enemySpeedMul : 1;
+  const affixWaveGoldMul = affix && affix.waveGoldMul ? affix.waveGoldMul : 1;
+  const affixKillGoldMul = affix && affix.killGoldMul ? affix.killGoldMul : 1;
+  const affixLeakMul = affix && affix.leakDamageMul ? affix.leakDamageMul : 1;
 
   for (let w = 1; w <= 50; w++) {
     while (gold >= bestTower.cost && myTowers.length < 12) {
@@ -218,20 +235,21 @@ function simulate(map, diff) {
       }
     }
 
-    let totalDPS = myTowers.reduce((s, m) => s + towerDPS(m.t, m.level), 0);
+    let totalDPS = myTowers.reduce((s, m) => s + towerDPS(m.t, m.level), 0) * affixDamageMul;
     if (myTowers.length >= 6 && gold >= TOWERS.support.cost) {
       totalDPS *= 1 + TOWERS.support.buff; // 中後期一座聖光塔覆蓋核心火力區的近似值
     }
-    const waveHp = waveEnemyHpStats(w, diff, rules.generateWaveQueue).mean;
-    const exposureTime = (8 + Math.min(8, myTowers.length * 0.7)) * mapExposureMul;
+    if (affix && affix.towerStunEvery && w % affix.towerStunEvery === 0) totalDPS *= 0.96;
+    const waveHp = waveEnemyHpStats(w, diff, rules.generateWaveQueue, affix).mean;
+    const exposureTime = (8 + Math.min(8, myTowers.length * 0.7)) * mapExposureMul * Math.sqrt(affixRangeMul) / affixSpeedMul;
     const dealt = totalDPS * exposureTime;
     const leaked = Math.max(0, waveHp - dealt);
-    const leakDmg = Math.round(leaked / 52);
+    const leakDmg = Math.round((leaked / 52) * affixLeakMul);
     goddessHp -= leakDmg;
-    gold += Math.round(waveGoldBonus(w) * (map.goldMul || 1)) + Math.round(waveHp / 85);
+    gold += Math.round(waveGoldBonus(w) * (map.goldMul || 1) * affixWaveGoldMul) + Math.round((waveHp / 85) * affixKillGoldMul);
     if (goddessHp <= 0) return { survivedWave: w, totalDPS: Math.round(totalDPS), towers: myTowers.length };
   }
-  const totalDPS = myTowers.reduce((s, m) => s + towerDPS(m.t, m.level), 0);
+  const totalDPS = myTowers.reduce((s, m) => s + towerDPS(m.t, m.level), 0) * affixDamageMul;
   return { survivedWave: 50, totalDPS: Math.round(totalDPS), towers: myTowers.length };
 }
 
@@ -242,6 +260,20 @@ for (const map of Object.values(MAPS)) {
   for (const diff of Object.values(DIFFICULTIES)) {
     simByMapDiff[map.id][diff.id] = simulate(map, diff);
     console.log(`    ${diff.emoji} ${diff.label}: 第 ${simByMapDiff[map.id][diff.id].survivedWave} 波（DPS ${simByMapDiff[map.id][diff.id].totalDPS}，塔 ${simByMapDiff[map.id][diff.id].towers}）`);
+  }
+}
+
+console.log("\n===== R17 詞綴包絡模擬（最差/最好存活波）=====");
+const affixEnvelopeByMapDiff = {};
+for (const map of Object.values(MAPS)) {
+  affixEnvelopeByMapDiff[map.id] = {};
+  for (const diff of Object.values(DIFFICULTIES)) {
+    const sims = affixValues.map((affix) => ({ affix, result: simulate(map, diff, affix) }));
+    sims.sort((a, b) => a.result.survivedWave - b.result.survivedWave);
+    const worst = sims[0];
+    const best = sims[sims.length - 1];
+    affixEnvelopeByMapDiff[map.id][diff.id] = { worst, best };
+    console.log(`  ${map.label}/${diff.label}: 最差 ${worst.affix.label} 第 ${worst.result.survivedWave} 波，最好 ${best.affix.label} 第 ${best.result.survivedWave} 波`);
   }
 }
 setDifficulty("normal");
@@ -263,6 +295,8 @@ check(bossExpectedMax < 150, `第 5 波後 Boss 波平均成長受控（最大 +
 check(firstBossExpectedMax < 250, `首個早期 Boss 平均成長受控（最大 +${firstBossExpectedMax.toFixed(0)}% < 250%，無盡早期 Boss 特例）`);
 check(p95AdjacentMax < 250, `壞 seed p95 相鄰波成長受控（最大 +${p95AdjacentMax.toFixed(0)}% < 250%，${SEED_COUNT} seeds p95）`);
 check(GODDESS.baseHp >= 80, `女神起始血量足夠新手（${GODDESS.baseHp}）`);
+const maxAffixNet = Math.max(...affixValues.map((affix) => Math.abs(rules.affixExpectedBalance(affix).netDelta)));
+check(maxAffixNet <= 0.2, `詞綴期望淨值對稱（最大偏移 ${(maxAffixNet * 100).toFixed(0)}% <= 20%）`);
 
 for (const map of Object.values(MAPS)) {
   const normal = simByMapDiff[map.id].normal.survivedWave;
@@ -273,6 +307,12 @@ for (const map of Object.values(MAPS)) {
   check(brutal >= 10, `【${map.label} / 嚴酷】可玩到有感（${brutal}，目標 ≥10）`);
   check(endless >= 10, `【${map.label} / 無盡】可玩到有感（${endless}，目標 ≥10）`);
   check(brutal <= normal, `【${map.label}】嚴酷不比普通輕鬆（${brutal} ≤ ${normal}）`);
+  const normalWorst = affixEnvelopeByMapDiff[map.id].normal.worst.result.survivedWave;
+  const brutalWorst = affixEnvelopeByMapDiff[map.id].brutal.worst.result.survivedWave;
+  const endlessWorst = affixEnvelopeByMapDiff[map.id].endless.worst.result.survivedWave;
+  check(normalWorst >= normalTarget - 3, `【${map.label} / 普通】最差詞綴仍接近主線門檻（${normalWorst} ≥ ${normalTarget - 3}）`);
+  check(brutalWorst >= 8, `【${map.label} / 嚴酷】最差詞綴仍有前期策略空間（${brutalWorst} ≥ 8）`);
+  check(endlessWorst >= 8, `【${map.label} / 無盡】最差詞綴仍有前期策略空間（${endlessWorst} ≥ 8）`);
 }
 check(simByMapDiff.canyon.normal.survivedWave <= simByMapDiff.plains.normal.survivedWave + 3,
   `迂迴峽谷因資源較少仍維持挑戰性（普通 ${simByMapDiff.canyon.normal.survivedWave} vs 平原 ${simByMapDiff.plains.normal.survivedWave}）`);

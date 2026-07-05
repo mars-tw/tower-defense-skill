@@ -15,7 +15,7 @@
     ? require("./config.js")
     : root;
 
-  const META_VERSION = 5;
+  const META_VERSION = 6;
   const META_NUMERIC_KEYS = ["bestWave", "totalKills", "soulCrystal", "games", "gachaPity", "gachaCount"];
   const META_DEFAULT = {
     version: META_VERSION,
@@ -29,9 +29,16 @@
     board: {},
     achievements: {},
     beginnerMissions: {},
+    heroProgress: {},
     lastMap: "plains",
   };
   const SOUL_REWARD_MUL_BY_DIFF = { normal: 1.8, brutal: 2.4, endless: 2.2 };
+  const HERO_LONG_XP_RATE = 0.2;
+  const HERO_LONG_XP_PER_LEVEL = 24;
+  const HERO_LONG_MAX_LEVEL = 15;
+  const HERO_LONG_BONUS_EVERY = 5;
+  const HERO_LONG_BONUS_STEP = 0.05;
+  const HERO_LONG_BONUS_CAP = 0.15;
 
   function isFiniteNumber(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -136,6 +143,105 @@
     return result;
   }
 
+  function isSafeRecordKey(key) {
+    return typeof key === "string" && /^[A-Za-z0-9_-]{1,48}$/.test(key) &&
+      key !== "__proto__" && key !== "prototype" && key !== "constructor";
+  }
+
+  function heroLongLevelFromXp(xp) {
+    const total = Math.max(0, Math.floor(safeNumber(xp, 0)));
+    return Math.max(1, Math.min(HERO_LONG_MAX_LEVEL, 1 + Math.floor(total / HERO_LONG_XP_PER_LEVEL)));
+  }
+
+  function heroPermanentBonus(levelOrProgress) {
+    const level = typeof levelOrProgress === "object"
+      ? heroLongLevelFromXp(levelOrProgress && levelOrProgress.xp)
+      : Math.max(1, Math.floor(safeNumber(levelOrProgress, 1)));
+    return Math.min(HERO_LONG_BONUS_CAP, Math.floor(level / HERO_LONG_BONUS_EVERY) * HERO_LONG_BONUS_STEP);
+  }
+
+  function sanitizeHeroProgress(value) {
+    const result = {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+    for (const [key, item] of Object.entries(value)) {
+      if (!isSafeRecordKey(key) || !item || typeof item !== "object" || Array.isArray(item)) continue;
+      const xp = Math.max(0, Math.floor(safeNumber(item.xp, 0)));
+      if (xp <= 0) continue;
+      result[key] = { xp, level: heroLongLevelFromXp(xp) };
+    }
+    return result;
+  }
+
+  function settleHeroProgress(meta, heroGrowth) {
+    const baseMeta = migrateMeta(meta);
+    const progress = Object.assign({}, baseMeta.heroProgress);
+    const entries = [];
+    const list = Array.isArray(heroGrowth) ? heroGrowth : [];
+    for (const item of list) {
+      if (!item || !isSafeRecordKey(item.id)) continue;
+      const runXp = Math.max(0, Math.floor(safeNumber(item.xp || item.runXp, 0)));
+      if (runXp <= 0) continue;
+      const savedXp = Math.max(0, Math.round(runXp * HERO_LONG_XP_RATE));
+      if (savedXp <= 0) continue;
+      const before = progress[item.id] || { xp: 0, level: 1 };
+      const oldXp = Math.max(0, Math.floor(safeNumber(before.xp, 0)));
+      const oldLevel = heroLongLevelFromXp(oldXp);
+      const newXp = oldXp + savedXp;
+      const newLevel = heroLongLevelFromXp(newXp);
+      progress[item.id] = { xp: newXp, level: newLevel };
+      entries.push({
+        id: item.id,
+        runXp,
+        savedXp,
+        oldXp,
+        newXp,
+        oldLevel,
+        newLevel,
+        levelGained: Math.max(0, newLevel - oldLevel),
+        bonus: heroPermanentBonus(newLevel),
+      });
+    }
+    return { meta: Object.assign({}, baseMeta, { heroProgress: progress }), entries };
+  }
+
+  function seedToUnit(seed) {
+    if (typeof seed === "string") {
+      let h = 2166136261;
+      for (let i = 0; i < seed.length; i++) {
+        h ^= seed.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      seed = h;
+    }
+    let s = (Math.floor(safeNumber(seed, 1)) >>> 0) || 1;
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  }
+
+  function normalizeAffix(affix) {
+    const affixes = cfg.MAP_AFFIXES || {};
+    if (typeof affix === "string" && hasOwn(affixes, affix)) return affixes[affix];
+    if (affix && typeof affix === "object" && typeof affix.id === "string" && hasOwn(affixes, affix.id)) return affixes[affix.id];
+    return null;
+  }
+
+  function selectMapAffix(seedOrRng) {
+    const affixes = Object.values(cfg.MAP_AFFIXES || {});
+    if (!affixes.length) return null;
+    const unit = typeof seedOrRng === "function" ? normalizeUnit(seedOrRng()) : seedToUnit(seedOrRng);
+    return affixes[Math.min(affixes.length - 1, Math.floor(unit * affixes.length))];
+  }
+
+  function affixExpectedBalance(affixInput) {
+    const affix = normalizeAffix(affixInput);
+    if (!affix) return { goldDelta: 0, powerDelta: 0, netDelta: 0 };
+    const goldDelta = safeNumber(affix.expectedGoldDelta, ((safeNumber(affix.killGoldMul, 1) - 1) * 0.55) + ((safeNumber(affix.waveGoldMul, 1) - 1) * 0.45));
+    const enemyDelta = (safeNumber(affix.enemyHpMul, 1) - 1) + (safeNumber(affix.enemySpeedMul, 1) - 1) * 0.75;
+    const playerDelta = (safeNumber(affix.towerDamageMul, 1) - 1) + (safeNumber(affix.towerRangeMul, 1) - 1) * 0.8;
+    const powerDelta = safeNumber(affix.expectedPowerDelta, enemyDelta - playerDelta);
+    return { goldDelta, powerDelta, netDelta: goldDelta - powerDelta };
+  }
+
   function migrateMeta(raw) {
     const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     const meta = Object.assign({}, META_DEFAULT, source);
@@ -147,6 +253,7 @@
     meta.board = sanitizeBoard(meta.board);
     meta.achievements = sanitizeAchievements(meta.achievements);
     meta.beginnerMissions = sanitizeBeginnerMissions(meta.beginnerMissions);
+    meta.heroProgress = sanitizeHeroProgress(meta.heroProgress);
     meta.lastMap = sanitizeMapId(meta.lastMap);
     return meta;
   }
@@ -238,9 +345,10 @@
     return true;
   }
 
-  function generateWaveQueue(wave, difficulty, rng) {
+  function generateWaveQueue(wave, difficulty, rng, affixInput) {
     const w = Math.max(1, Math.floor(safeNumber(wave, 1)));
     const diff = normalizeDifficulty(difficulty);
+    const affix = normalizeAffix(affixInput);
     const bossEvery = difficultyValue(diff, "bossEvery", cfg.GAME.bossEveryWaves || 5);
     const isBoss = w % bossEvery === 0;
     const hpScale = applyDifficulty({ hpScale: baseWaveHpScale(w) }, diff).hpScale;
@@ -253,7 +361,8 @@
     if (isBoss) baseCount = Math.floor(baseCount * 0.5);
     if (event) baseCount = Math.max(2, Math.round(baseCount * event.countMul));
 
-    const eventHpScale = hpScale * (event ? event.hpMul : 1);
+    const affixHpMul = affix ? safeNumber(affix.enemyHpMul, 1) : 1;
+    const eventHpScale = hpScale * (event ? event.hpMul : 1) * affixHpMul;
     const queue = [];
     for (let i = 0; i < baseCount; i++) {
       let type;
@@ -264,11 +373,11 @@
       } else {
         type = pickDefaultEnemy(w, rand());
       }
-      queue.push({ type, hpScale: eventHpScale, event });
+      queue.push({ type, hpScale: eventHpScale, event, affix: affix ? affix.id : null });
     }
 
-    if (isBoss) queue.push({ type: "boss", hpScale: hpScale * (cfg.GAME.bossHpMul || 1.0) });
-    return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale, queue };
+    if (isBoss) queue.push({ type: "boss", hpScale: hpScale * (cfg.GAME.bossHpMul || 1.0) * affixHpMul, affix: affix ? affix.id : null });
+    return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale: hpScale * affixHpMul, affix, queue };
   }
 
   function updateBoard(board, diffId, mapIdOrEntry, entryOrMaxEntries, maybeMaxEntries) {
@@ -396,6 +505,11 @@
     waveSoulReward,
     runSoulRewardTotal,
     settleRunRewards,
+    settleHeroProgress,
+    heroLongLevelFromXp,
+    heroPermanentBonus,
+    selectMapAffix,
+    affixExpectedBalance,
     applyDifficulty,
     generateWaveQueue,
     updateBoard,

@@ -48,9 +48,12 @@ const UPGRADE = { damageMul: 1.5, rangeMul: 1.08, costMul: 1.52, maxLevel: 10 };
 // hp 基礎血量、speed 速度(px/s)、reward 擊殺金錢、leak 漏過扣的生命
 const ENEMIES = {
   slime:  { id: "slime",  name: "史萊姆", emoji: "🟢", element: "physical", hp: 40,  speed: 45, reward: 8,  leak: 1, color: "#22c55e" },
-  goblin: { id: "goblin", name: "哥布林", emoji: "👺", element: "physical", hp: 28,  speed: 80, reward: 10, leak: 1, color: "#84cc16" },
-  orc:    { id: "orc",    name: "獸人",   emoji: "👹", element: "physical", hp: 120, speed: 35, reward: 18, leak: 2, color: "#b45309" },
-  bat:    { id: "bat",    name: "蝙蝠群", emoji: "🦇", element: "thunder",  hp: 22,  speed: 95, reward: 7,  leak: 1, color: "#7c3aed" },
+  goblin: { id: "goblin", name: "哥布林", emoji: "👺", element: "physical", hp: 28,  speed: 80, reward: 10, leak: 1, color: "#84cc16",
+            ability: { id: "dodgeFirst", label: "狡詐閃避", desc: "35% 機率閃避第一次直接傷害。", chance: 0.35 } },
+  orc:    { id: "orc",    name: "獸人",   emoji: "👹", element: "physical", hp: 120, speed: 35, reward: 18, leak: 2, color: "#b45309",
+            ability: { id: "bloodrage", label: "殘血狂暴", desc: "生命低於 40% 時速度 +35%。", threshold: 0.4, speedMul: 1.35 } },
+  bat:    { id: "bat",    name: "蝙蝠群", emoji: "🦇", element: "thunder",  hp: 22,  speed: 95, reward: 7,  leak: 1, color: "#7c3aed",
+            ability: { id: "splitBat", label: "群翼分裂", desc: "死亡時分裂 1 隻小蝙蝠。", childHpMul: 0.45, childRewardMul: 0.35 } },
   // Stage 1 補元素克制閉環：原本沒有冰/火系普通敵人，「火克冰」在實戰永遠打不出來，
   // 加農砲（火）拿不到克制加成、教學跟實際對不上。現在每種元素塔都有明確克制目標：
   // 加農砲(火)→冰霜狼、寒冰塔(冰)→蝙蝠、電磁塔(雷)→火焰小鬼（無 PNG 時自動用 emoji 畫）
@@ -96,6 +99,41 @@ const GAME = {
   hpGrowthLate: 0.10,  // 第 11 波起血量成長率（降低，消除後期斷崖）
   bossHpMul: 1.0,      // Boss 額外血量倍率
   spawnInterval: 0.8,  // 同波敵人生成間隔(秒)
+};
+
+// ===== 地圖詞綴 =====
+// 以「風險 / 報酬」成對設計；rules.js 只負責純函式抽選與數值套用。
+const MAP_AFFIXES = {
+  fog: {
+    id: "fog", label: "濃霧", emoji: "🌫️",
+    desc: "塔射程 -10%，擊殺金 +15%。",
+    towerRangeMul: 0.90, killGoldMul: 1.15, waveGoldMul: 1.00, enemyHpMul: 1.00, enemySpeedMul: 1.00, towerDamageMul: 1.00,
+    expectedGoldDelta: 0.10, expectedPowerDelta: -0.10,
+  },
+  aftershock: {
+    id: "aftershock", label: "餘震", emoji: "🪨",
+    desc: "每 3 波隨機一塔停火 2 秒，清波金 +12%。",
+    towerStunEvery: 3, towerStunDuration: 2, waveGoldMul: 1.12, killGoldMul: 1.00, enemyHpMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
+    expectedGoldDelta: 0.07, expectedPowerDelta: -0.06,
+  },
+  harvest: {
+    id: "harvest", label: "豐收", emoji: "🌾",
+    desc: "清波金 +20%，敵人生命 +10%。",
+    waveGoldMul: 1.20, enemyHpMul: 1.10, killGoldMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
+    expectedGoldDelta: 0.12, expectedPowerDelta: 0.10,
+  },
+  overcharge: {
+    id: "overcharge", label: "超載", emoji: "⚡",
+    desc: "塔傷害 +8%，敵人速度 +8%。",
+    towerDamageMul: 1.08, enemySpeedMul: 1.08, waveGoldMul: 1.00, killGoldMul: 1.00, enemyHpMul: 1.00, towerRangeMul: 1.00,
+    expectedGoldDelta: 0.00, expectedPowerDelta: 0.00,
+  },
+  brittle: {
+    id: "brittle", label: "脆弱前線", emoji: "🛡️",
+    desc: "敵人生命 -8%，漏怪傷害 +25%。",
+    enemyHpMul: 0.92, leakDamageMul: 1.25, waveGoldMul: 1.00, killGoldMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
+    expectedGoldDelta: 0.00, expectedPowerDelta: -0.08,
+  },
 };
 
 // ===== 地圖 =====
@@ -237,8 +275,8 @@ function waveHpScale(wave) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, MAP_AFFIXES, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, MAP_AFFIXES, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS };
 }

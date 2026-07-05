@@ -149,9 +149,13 @@ async function run() {
     const nextWaveCardInitial = await page.evaluate(() => ({
       text: document.getElementById("nextWaveCard").innerText,
       enemyButtons: document.querySelectorAll("#nextWaveCard .enemy-chip-btn").length,
+      affixText: document.getElementById("affixCard").innerText,
+      affixId: window.TD.state().affix && window.TD.state().affix.id,
     }));
     assert(nextWaveCardInitial.text.includes("下一波情報") && nextWaveCardInitial.text.includes("主元素") && nextWaveCardInitial.enemyButtons > 0,
       `下一波情報卡顯示元素與主要敵人（敵人按鈕 ${nextWaveCardInitial.enemyButtons} 個）`);
+    assert(nextWaveCardInitial.affixId && nextWaveCardInitial.affixText.includes("本局詞綴") && nextWaveCardInitial.affixText.includes("預期"),
+      `本局詞綴卡顯示效果與期望值（${nextWaveCardInitial.affixText.replace(/\n/g, " / ")}）`);
     if (vp.w <= 560) {
       await page.evaluate(() => document.querySelector("#nextWaveCard .enemy-chip-btn").click());
       const enemyInfo = await page.evaluate(() => ({
@@ -160,6 +164,26 @@ async function run() {
       }));
       assert(enemyInfo.shown && enemyInfo.text.includes("血量") && enemyInfo.text.includes("速度") && enemyInfo.text.includes("元素") && enemyInfo.text.includes("特性"),
         `手機可點敵人開小圖鑑（${enemyInfo.text.split("\n")[0]}）`);
+      const abilityInfo = await page.evaluate(() => {
+        const st = window.TD.state();
+        const originalWave = st.wave;
+        let text = "";
+        for (let w = 0; w <= 4 && !text; w++) {
+          st.wave = w;
+          st.betweenWaves = true;
+          window.__tdUI();
+          const btn = [...document.querySelectorAll("#nextWaveCard .enemy-chip-btn")].find((el) => el.dataset.enemy === "goblin");
+          if (btn) {
+            btn.click();
+            text = document.getElementById("enemyInfo").innerText;
+          }
+        }
+        st.wave = originalWave;
+        window.__tdUI();
+        return text;
+      });
+      assert(abilityInfo.includes("狡詐閃避") && abilityInfo.includes("閃避"),
+        `手機圖鑑同步顯示敵人能力（${abilityInfo.replace(/\n/g, " / ")}）`);
     }
 
     // 1. 建塔準備階段畫面會重繪（idle render loop），且未建任何塔時不能開第 1 波
@@ -386,12 +410,33 @@ async function run() {
       const duplicateGainA = window.TD.supportDpsGain(support);
       const duplicateGainB = window.TD.supportDpsGain(support2);
 
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      const dodgeEnemy = window.TD.debug.spawnEnemy("goblin", { x: 300, y: 300, wp: 1, hp: 60, maxHp: 60, speed: 0, _dodgeRoll: 0 });
+      const dodgeTower = { type: "arrow", level: 1, x: 300, y: 300, cx: 6, cy: 6, cd: 999 };
+      st.towers = [dodgeTower];
+      window.TD.debug.fireTower(dodgeTower, dodgeEnemy);
+      window.TD.debug.step(0.05);
+      const goblinDodged = dodgeEnemy._dodgeTried === true && dodgeEnemy.hp === 60;
+
+      st.towers = []; st.enemies = []; st.bullets = [];
+      const orc = window.TD.debug.spawnEnemy("orc", { x: 320, y: 320, wp: 1, hp: 30, maxHp: 100, speed: 10 });
+      window.TD.debug.step(0.05);
+      const orcRaged = orc._enraged === true && orc.speed > 10;
+
+      st.towers = []; st.enemies = []; st.bullets = [];
+      const splitBat = window.TD.debug.spawnEnemy("bat", { x: 340, y: 340, wp: 1, hp: 1, maxHp: 10, speed: 0 });
+      const splitTower = { type: "arrow", level: 1, x: 340, y: 340, cx: 7, cy: 7, cd: 999 };
+      st.towers = [splitTower];
+      window.TD.debug.fireTower(splitTower, splitBat);
+      window.TD.debug.step(0.05);
+      const splitChildren = st.enemies.filter((enemy) => enemy._splitChild).length;
+
       st.towers = saved.towers;
       st.enemies = saved.enemies;
       st.bullets = saved.bullets;
       st.spawnQueue = saved.spawnQueue;
       st.particles = saved.particles;
-      return { afterHit, afterDot, stacks, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB };
+      return { afterHit, afterDot, stacks, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB, goblinDodged, orcRaged, splitChildren };
     });
     assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
       `毒霧塔 DoT 生效（命中後 ${stage4Combat.afterHit.toFixed(1)} → tick 後 ${stage4Combat.afterDot.toFixed(1)}，層數 ${stage4Combat.stacks}）`);
@@ -401,6 +446,8 @@ async function run() {
       `聖光塔 DPS 估算只計直擊、不把毒 DoT 乘 buff（${stage4Combat.poisonGain.toFixed(2)}）`);
     assert(stage4Combat.singleSupportGain > 0 && stage4Combat.duplicateGainA < 0.001 && stage4Combat.duplicateGainB < 0.001,
       "同等聖光塔重疊時，單座顯示邊際 DPS 為 0");
+    assert(stage4Combat.goblinDodged && stage4Combat.orcRaged && stage4Combat.splitChildren === 1,
+      "敵人能力觸發：哥布林首擊閃避、獸人殘血狂暴、蝙蝠死亡分裂");
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");
@@ -563,16 +610,35 @@ async function run() {
     await sleep(1100);
     await page.evaluate(() => document.getElementById("revealOk").click());
     await sleep(200);
+    const heroLongUi = await page.evaluate(() => {
+      const owned = JSON.parse(localStorage.getItem("td_heroes_owned_v1")) || [];
+      const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+      meta.heroProgress = meta.heroProgress || {};
+      owned.forEach((id) => {
+        meta.heroProgress[id] = { xp: 120, level: window.TDRules.heroLongLevelFromXp(120) };
+      });
+      localStorage.setItem("td_meta_v1", JSON.stringify(meta));
+      window.__tdUI();
+      return {
+        owned,
+        rosterText: document.getElementById("heroRoster").innerText,
+      };
+    });
+    assert(heroLongUi.rosterText.includes("羈絆 Lv.6") && heroLongUi.rosterText.includes("+5%攻血"),
+      `英雄卡顯示跨局羈絆等級與永久加成（${heroLongUi.rosterText.replace(/\n/g, " / ")}）`);
     const secondHeroDeploy = await page.evaluate(() => {
       const cards = [...document.querySelectorAll("#heroRoster .hero-card")];
       cards.forEach((card) => card.click());
       return {
         rosterCount: cards.length,
         deployedIds: window.TD.state().heroes.map((h) => h.id),
+        slotText: document.getElementById("deployedHeroes").innerText,
       };
     });
     assert(secondHeroDeploy.rosterCount === 2 && secondHeroDeploy.deployedIds.length === 2 && new Set(secondHeroDeploy.deployedIds).size === 2,
       `第 2 隻英雄可上場（${secondHeroDeploy.deployedIds.join(",")}）`);
+    assert(secondHeroDeploy.slotText.includes("羈絆Lv.6"),
+      `部署小卡顯示跨局羈絆等級（${secondHeroDeploy.slotText.replace(/\n/g, " / ")}）`);
 
     const heroCommand = await page.evaluate(() => {
       window.__tdUI();
@@ -682,11 +748,14 @@ async function run() {
       const afterBoth = JSON.parse(localStorage.getItem("td_meta_v1"));
       const canyonBoard = (afterBoth.board.normal && afterBoth.board.normal.canyon) || [];
       const plainsBoard = (afterBoth.board.normal && afterBoth.board.normal.plains) || [];
+      const heroProgressValues = Object.values(afterBoth.heroProgress || {});
       return {
         beforeCrystal,
         runSoulEarned,
         crystal: afterBoth.soulCrystal,
         expectedCrystal,
+        heroProgressCount: heroProgressValues.length,
+        heroProgressMaxXp: heroProgressValues.reduce((max, item) => Math.max(max, item.xp || 0), 0),
         canyonLen: canyonBoard.length,
         canyonWave: canyonBoard[0] && canyonBoard[0].wave,
         canyonScore: canyonBoard[0] && canyonBoard[0].score,
@@ -707,8 +776,10 @@ async function run() {
       `峽谷榜寫入本場紀錄（${stage3Result.canyonWave} 波 / ${stage3Result.canyonScore} 分 / ${stage3Result.canyonKills} 殺 / ${stage3Result.canyonMap}）`);
     assert(stage3Result.plainsLen === 1 && stage3Result.plainsWave === 6 && stage3Result.plainsScore === 777 && stage3Result.plainsMap === "plains",
       `平原榜獨立寫入且不混入峽谷榜（${stage3Result.plainsWave} 波 / ${stage3Result.plainsScore} 分 / ${stage3Result.plainsMap}）`);
-    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名") && stage3Result.metaText.includes(`+${stage3Result.runSoulEarned}`) && stage3Result.metaText.includes("本局英雄成長") && stage3Result.metaText.includes("XP"),
+    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名") && stage3Result.metaText.includes(`+${stage3Result.runSoulEarned}`) && stage3Result.metaText.includes("本局英雄成長") && stage3Result.metaText.includes("XP") && stage3Result.metaText.includes("長線") && stage3Result.metaText.includes("羈絆"),
       "結算畫面顯示本場名次、新解鎖成就、本局魂晶與英雄成長");
+    assert(stage3Result.heroProgressCount >= 2 && stage3Result.heroProgressMaxXp > 120,
+      `戰後寫入英雄長線 XP（英雄數 ${stage3Result.heroProgressCount}，最高 XP ${stage3Result.heroProgressMaxXp}）`);
     assert(stage3Result.crystal === stage3Result.expectedCrystal,
       `死亡不重複清波魂晶，成就正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
     assert(stage3Result.deathCta.includes("立即抽英雄"),

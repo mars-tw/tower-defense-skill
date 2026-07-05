@@ -14,6 +14,11 @@ const {
   waveSoulReward,
   runSoulRewardTotal,
   settleRunRewards,
+  settleHeroProgress,
+  heroLongLevelFromXp,
+  heroPermanentBonus,
+  selectMapAffix,
+  affixExpectedBalance,
   evaluateBeginnerMissions,
   generateWaveQueue,
   applyDifficulty,
@@ -71,6 +76,7 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
   assert(missing.bestWave === 2 && missing.soulCrystal === 0 && missing.gachaCount === 0, "缺欄位以預設值補齊");
   assert(missing.bestByDiff && Object.keys(missing.bestByDiff).length === 0, "缺 bestByDiff 時補空物件");
   assert(missing.beginnerMissions && Object.keys(missing.beginnerMissions).length === 0, "缺 beginnerMissions 時補空物件");
+  assert(missing.heroProgress && Object.keys(missing.heroProgress).length === 0, "缺 heroProgress 時補空物件");
 
   const bad = migrateMeta({
     version: NaN,
@@ -82,12 +88,15 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
     gachaCount: 5,
     bestByDiff: { normal: NaN, brutal: 8 },
     beginnerMissions: { firstTower: true, firstWave: false, bad: "yes" },
+    heroProgress: { fox: { xp: 120 }, bad: { xp: NaN }, "__proto__": { xp: 999 } },
   });
   assert(bad.version === META_VERSION, "NaN version 會修成目前版本");
   assert(bad.bestWave === 0 && bad.totalKills === 0 && bad.soulCrystal === 0 && bad.games === 0 && bad.gachaPity === 0, "NaN/非數字欄位回預設值");
   assert(bad.gachaCount === 5 && bad.bestByDiff.brutal === 8 && bad.bestByDiff.normal == null, "有效數字保留，巢狀 NaN 紀錄丟棄");
   assert(bad.beginnerMissions.firstTower === true && bad.beginnerMissions.firstWave == null && bad.beginnerMissions.bad == null,
     "beginnerMissions 只保留 true 標記");
+  assert(bad.heroProgress.fox && bad.heroProgress.fox.level === heroLongLevelFromXp(120) && bad.heroProgress.bad == null,
+    "heroProgress 會清洗數字與危險 key");
 
   const mapMeta = migrateMeta({ lastMap: "canyon" });
   const badMapMeta = migrateMeta({ lastMap: "missing-map" });
@@ -133,6 +142,34 @@ console.log("\n== R7：新手任務一次性發獎 ==");
     gachaCount: 2,
   });
   assert(second.unlocked.length === 0 && second.meta.soulCrystal === missionRewardTotal, "已領任務不重複發獎");
+}
+
+console.log("\n== R17：地圖詞綴與英雄長線養成 ==");
+{
+  const affixes = Object.values(cfg.MAP_AFFIXES || {});
+  assert(affixes.length >= 4 && affixes.length <= 6, `地圖詞綴維持 4~6 種（目前 ${affixes.length}）`);
+  const first = selectMapAffix("daily-2026-07-05");
+  const second = selectMapAffix("daily-2026-07-05");
+  assert(first && first.id === second.id, "selectMapAffix 對相同 seed 可重現");
+  const balances = affixes.map((a) => affixExpectedBalance(a));
+  assert(balances.every((b) => Number.isFinite(b.goldDelta) && Number.isFinite(b.powerDelta) && Math.abs(b.netDelta) <= 0.2),
+    "詞綴期望淨值維持在 +/-20% 內");
+  const harvest = cfg.MAP_AFFIXES.harvest;
+  const base = generateWaveQueue(4, cfg.DIFFICULTIES.normal, makeRng(123));
+  const withAffix = generateWaveQueue(4, cfg.DIFFICULTIES.normal, makeRng(123), harvest);
+  assert(withAffix.affix.id === "harvest" && withAffix.hpScale > base.hpScale,
+    "generateWaveQueue 會套用詞綴血量倍率並回傳 affix");
+
+  const progress = settleHeroProgress(migrateMeta({ heroProgress: { fox: { xp: 20 } } }), [
+    { id: "fox", runXp: 50 },
+    { id: "nezha", xp: 120 },
+  ]);
+  assert(progress.meta.heroProgress.fox.xp === 30 && progress.entries.find((e) => e.id === "fox").savedXp === 10,
+    "本局 XP 20% 轉入既有英雄長線 XP");
+  assert(progress.meta.heroProgress.nezha.xp === 24 && progress.meta.heroProgress.nezha.level === 2,
+    "新英雄長線 XP 會建立進度與等級");
+  assert(heroPermanentBonus(1) === 0 && heroPermanentBonus(5) === 0.05 && heroPermanentBonus(15) === 0.15,
+    "羈絆永久加成每 5 級 +5%，上限 +15%");
 }
 
 console.log("\n== waveSoulReward 即時魂晶總量守恆 ==");

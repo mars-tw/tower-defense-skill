@@ -105,12 +105,15 @@
   .gacha-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
   .gacha-meta { font-size: 11px; color: var(--ink-dim); text-align: center; margin-top: -4px; }
   .board-btn { background: linear-gradient(180deg,#facc15,#f59e0b); color: #241707; width: 100%; }
-  .next-wave-card, .mission-panel, .enemy-info {
+  .next-wave-card, .mission-panel, .enemy-info, .affix-card {
     background: rgba(255,255,255,.045); border: 1px solid var(--border-soft); border-radius: 11px;
     padding: 9px 10px; box-shadow: var(--shadow-card); font-size: 12px; line-height: 1.4;
   }
-  .next-wave-card .nw-title, .mission-panel .mission-title, .enemy-info .enemy-title { font-weight: 900; color: var(--gold); margin-bottom: 5px; }
-  .next-wave-card .nw-meta, .mission-progress { color: var(--ink-dim); font-size: 11px; }
+  .next-wave-card .nw-title, .mission-panel .mission-title, .enemy-info .enemy-title, .affix-card .affix-title { font-weight: 900; color: var(--gold); margin-bottom: 5px; }
+  .next-wave-card .nw-meta, .mission-progress, .affix-card .affix-desc, .affix-card .affix-balance { color: var(--ink-dim); font-size: 11px; }
+  .affix-card.hidden { display: none; }
+  .affix-card { border-color: rgba(250,204,21,.28); background: rgba(250,204,21,.055); }
+  .affix-card .affix-balance { margin-top: 4px; color: #c4b5fd; font-weight: 800; }
   .enemy-chip-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
   .enemy-chip-btn {
     border: 1px solid var(--border-hi); border-radius: 999px; background: var(--surface-1); color: var(--ink);
@@ -144,6 +147,7 @@
   .hero-card .hico img { max-width: 34px; max-height: 34px; object-fit: contain; display: block; }
   .hero-card .hinfo { flex: 1; font-size: 12px; }
   .hero-card .hname { font-weight: 800; color: var(--hr-color,var(--ink)); }
+  .hero-card .hbond { color: var(--gold); font-size: 10px; font-weight: 900; white-space: nowrap; }
   .hero-card .hmeta { font-size: 11px; color: var(--ink-meta); line-height: 1.3; }
   .hero-card .hdeploy { font-size: 11px; font-weight: 800; color: var(--accent); }
   .deployed-heroes { display: flex; flex-direction: column; gap: 6px; }
@@ -358,6 +362,10 @@
   canvas { width: 100%; max-width: 960px; height: auto; aspect-ratio: 3 / 2; touch-action: none; }
   .wrap { width: 100%; max-width: 1200px; }
 
+  @media (min-width: 901px) and (max-height: 940px) {
+    #towerList { max-height: 190px; overflow-y: auto; padding-right: 2px; }
+  }
+
   /* 平板/手機（窄於 900px）：側欄移到 canvas 下方、橫向排列 */
   @media (max-width: 900px) {
     body { padding: 4px; gap: 6px; }
@@ -380,18 +388,19 @@
     .goddess-btn { order: 6; }
     .board-btn { order: 7; }
     #nextWaveCard { order: 8; }
-    #enemyInfo { order: 9; }
-    .hero-title { order: 10; }
-    .gacha-btn { order: 11; }
-    .gacha-meta { order: 12; }
-    #beginnerMissions { order: 13; }
-    #heroRoster { order: 14; }
-    #deployedHeroes { order: 15; }
-    .hero-scroll-hint { order: 16; display: block; }
-    .skill-title { order: 17; }
-    #skillList { order: 18; }
-    .skill-scroll-hint { order: 19; display: block; }
-    .sel-panel { order: 20; }
+    #affixCard { order: 9; }
+    #enemyInfo { order: 10; }
+    .hero-title { order: 11; }
+    .gacha-btn { order: 12; }
+    .gacha-meta { order: 13; }
+    #beginnerMissions { order: 14; }
+    #heroRoster { order: 15; }
+    #deployedHeroes { order: 16; }
+    .hero-scroll-hint { order: 17; display: block; }
+    .skill-title { order: 18; }
+    #skillList { order: 19; }
+    .skill-scroll-hint { order: 20; display: block; }
+    .sel-panel { order: 21; }
     .panel h3 { margin-top: 4px; }
     .controls { flex-wrap: nowrap; }
   }
@@ -442,6 +451,7 @@
       <button class="act goddess-btn" id="goddessBtn">👸 升級女神</button>
       <button class="act board-btn" id="boardBtn">🏆 排行榜/成就</button>
       <div class="next-wave-card" id="nextWaveCard"></div>
+      <div class="affix-card" id="affixCard"></div>
       <div class="enemy-info hidden" id="enemyInfo"></div>
       <div class="shortcut-help">快捷鍵：1-6 建塔 · Q/W/E 技能 · Enter 下一波 · Tab 加速 · H 抽英雄</div>
 

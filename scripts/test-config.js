@@ -5,7 +5,7 @@
 
 const path = require("path");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
-const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, MAPS, ACHIEVEMENTS, BEGINNER_MISSIONS } = cfg;
+const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, MAPS, MAP_AFFIXES, ACHIEVEMENTS, BEGINNER_MISSIONS } = cfg;
 
 let failed = 0;
 function assert(cond, msg) {
@@ -45,6 +45,12 @@ assert(ENEMIES.shieldman && ENEMIES.shieldman.shield > 0 && ENEMIES.shieldman.el
   "盾兵有護盾且歸物理系");
 assert(ENEMIES.medic && ENEMIES.medic.healRadius === 80 && ENEMIES.medic.healAmount > 0 && ENEMIES.medic.healInterval === 2,
   "醫官有治療半徑、治療量與 2 秒間隔");
+assert(ENEMIES.goblin.ability && ENEMIES.goblin.ability.id === "dodgeFirst" && ENEMIES.goblin.ability.chance > 0,
+  "哥布林具備首擊閃避能力配置");
+assert(ENEMIES.orc.ability && ENEMIES.orc.ability.id === "bloodrage" && ENEMIES.orc.ability.speedMul > 1,
+  "獸人具備殘血狂暴加速配置");
+assert(ENEMIES.bat.ability && ENEMIES.bat.ability.id === "splitBat" && ENEMIES.bat.ability.childHpMul > 0,
+  "蝙蝠具備死亡分裂配置");
 
 console.log("== Stage 4：地圖資料 ==");
 let badMap = 0;
@@ -62,6 +68,20 @@ for (const pollutedKey of ["__proto__", "toString", "constructor"]) {
   assert(cfg.getMap().id === "canyon", `setMap 忽略原型鍵 ${pollutedKey}`);
 }
 cfg.setMap("plains");
+
+console.log("== R17：地圖詞綴配置 ==");
+{
+  const affixes = Object.values(MAP_AFFIXES || {});
+  let badAffix = 0;
+  for (const a of affixes) {
+    if (!a.id || !a.label || !a.desc) badAffix++;
+    if (!(a.enemyHpMul > 0) || !(a.enemySpeedMul > 0) || !(a.towerRangeMul > 0) || !(a.towerDamageMul > 0)) badAffix++;
+    if (!(a.waveGoldMul > 0) || !(a.killGoldMul > 0)) badAffix++;
+    if (!Number.isFinite(a.expectedGoldDelta) || !Number.isFinite(a.expectedPowerDelta)) badAffix++;
+  }
+  assert(affixes.length >= 4 && affixes.length <= 6, `地圖詞綴 4~6 種（目前 ${affixes.length}）`);
+  assert(badAffix === 0, `地圖詞綴欄位完整且倍率為正（缺陷 ${badAffix}）`);
+}
 
 console.log("== 元素克制 ==");
 assert(elementMultiplier("fire", "ice") === 1.5, "火克冰 = 1.5");

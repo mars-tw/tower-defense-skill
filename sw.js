@@ -1,11 +1,13 @@
-const CACHE_VERSION = "td-r33-v1";
+const CACHE_VERSION = "td-r37-v1";
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./offline.html",
   "./manifest.webmanifest",
+  "./sw.js",
   "./src/config.js",
   "./src/heroes.js",
   "./src/rules.js",
@@ -44,7 +46,9 @@ async function networkFirst(request) {
   } catch (err) {
     const cached = await cache.match(request);
     if (cached) return cached;
-    return cache.match("./index.html");
+    const shell = await caches.match("./index.html");
+    if (shell) return shell;
+    return caches.match("./offline.html");
   }
 }
 

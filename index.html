@@ -22,6 +22,10 @@
     --space: 8px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  button:focus-visible, a:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 3px solid var(--info); outline-offset: 3px;
+    box-shadow: 0 0 0 4px rgba(125,211,252,.18);
+  }
   body {
     font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
     background: radial-gradient(ellipse at 50% 0%, #16242c, var(--surface-0));
@@ -386,15 +390,29 @@
   .settings-section { display: grid; gap: 8px; padding: 11px; border: 1px solid var(--border-soft);
     border-radius: 12px; background: rgba(255,255,255,.04); font-size: 12px; line-height: 1.45; }
   .settings-section h3 { color: var(--ink); font-size: 14px; margin: 0; }
-  .perf-segment, .save-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-  .perf-segment button, .save-actions button { flex: 1; min-width: 120px; border: 1px solid var(--border-hi);
+  .perf-segment, .save-actions, .text-size-segment, .update-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .perf-segment button, .save-actions button, .text-size-segment button, .update-actions button { flex: 1; min-width: 120px; border: 1px solid var(--border-hi);
     border-radius: 10px; background: var(--surface-2); color: var(--ink); padding: 9px 10px;
     font: inherit; font-weight: 900; cursor: pointer; }
-  .perf-segment button.active { background: var(--accent); color: #06210f; border-color: var(--accent); }
+  .perf-segment button.active, .text-size-segment button.active { background: var(--accent); color: #06210f; border-color: var(--accent); }
   .save-code { width: 100%; min-height: 96px; resize: vertical; border-radius: 10px;
     border: 1px solid var(--border-hi); background: rgba(6,10,8,.8); color: var(--ink);
     padding: 9px; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; user-select: text; }
   .settings-status { min-height: 18px; color: var(--ink-dim); font-size: 12px; }
+  .version-line { color: var(--ink-dim); font-size: 12px; }
+  body.text-size-small .hud .stat { font-size: 14px; }
+  body.text-size-medium .hud .stat { font-size: 16px; }
+  body.text-size-large .hud .stat { font-size: 18px; }
+  body.text-size-small .panel, body.text-size-small .settings-card, body.text-size-small .progress-card,
+  body.text-size-small .hero-detail-card { font-size: 12px; }
+  body.text-size-medium .panel, body.text-size-medium .settings-card, body.text-size-medium .progress-card,
+  body.text-size-medium .hero-detail-card { font-size: 14px; }
+  body.text-size-large .panel, body.text-size-large .settings-card, body.text-size-large .progress-card,
+  body.text-size-large .hero-detail-card { font-size: 16px; }
+  body.text-size-large .next-wave-card, body.text-size-large .mission-panel,
+  body.text-size-large .enemy-info, body.text-size-large .affix-card { font-size: 14px; }
+  body.text-size-small .next-wave-card, body.text-size-small .mission-panel,
+  body.text-size-small .enemy-info, body.text-size-small .affix-card { font-size: 11px; }
 
   @keyframes chestFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
   @keyframes chestShake { 0%,100%{transform:translateX(0) rotate(0)} 20%{transform:translateX(-8px) rotate(-4deg)} 40%{transform:translateX(8px) rotate(4deg)} 60%{transform:translateX(-6px) rotate(-3deg)} 80%{transform:translateX(6px) rotate(3deg)} }
@@ -580,17 +598,17 @@
 
     <div class="panel">
       <div class="controls wave-start">
-        <button class="act start" id="startBtn" data-hotkey="⏎">▶ 開始下一波</button>
+        <button class="act start" id="startBtn" data-hotkey="⏎" aria-label="開始下一波">▶ 開始下一波</button>
       </div>
       <div class="wave-warning" id="waveWarning"></div>
       <div class="controls wave-speed">
-        <button class="act speed on" id="speed1" data-s="1">1×</button>
-        <button class="act speed" id="speed2" data-hotkey="Tab" data-s="2">2×</button>
-        <button class="act pause" id="pauseBtn" data-hotkey="P">⏸</button>
+        <button class="act speed on" id="speed1" data-s="1" aria-label="切換一倍速度">1×</button>
+        <button class="act speed" id="speed2" data-hotkey="Tab" data-s="2" aria-label="切換二倍速度">2×</button>
+        <button class="act pause" id="pauseBtn" data-hotkey="P" aria-label="暫停或恢復">⏸</button>
       </div>
-      <button class="act goddess-btn" id="goddessBtn">👸 升級女神</button>
-      <button class="act board-btn" id="boardBtn">🏆 排行榜/成就</button>
-      <button class="act settings-btn" id="settingsBtn">⚙️ 設定</button>
+      <button class="act goddess-btn" id="goddessBtn" aria-label="升級女神">👸 升級女神</button>
+      <button class="act board-btn" id="boardBtn" aria-label="開啟排行榜與成就">🏆 排行榜/成就</button>
+      <button class="act settings-btn" id="settingsBtn" aria-label="開啟設定">⚙️ 設定</button>
       <div class="next-wave-card" id="nextWaveCard"></div>
       <div class="affix-card" id="affixCard"></div>
       <div class="enemy-info hidden" id="enemyInfo"></div>
@@ -601,7 +619,7 @@
       <div class="scroll-hint tower-scroll-hint">左右滑動查看更多塔 →</div>
 
       <h3 class="hero-title">🦸 英雄</h3>
-      <button class="act gacha-btn" id="gachaBtn" data-hotkey="H">🎲 抽英雄（首抽免費！）</button>
+      <button class="act gacha-btn" id="gachaBtn" data-hotkey="H" aria-label="抽英雄，快捷鍵 H">🎲 抽英雄（首抽免費！）</button>
       <div class="gacha-meta" id="gachaMeta"></div>
       <div class="mission-panel" id="beginnerMissions"></div>
       <div id="heroRoster"></div>
@@ -615,8 +633,8 @@
       <div class="sel-panel hidden" id="selPanel">
         <div id="selInfo"></div>
         <div class="row">
-          <button class="upg" id="upgBtn">升級</button>
-          <button class="sell" id="sellBtn">賣出</button>
+          <button class="upg" id="upgBtn" aria-label="升級選取的塔">升級</button>
+          <button class="sell" id="sellBtn" aria-label="賣出選取的塔">賣出</button>
         </div>
       </div>
     </div>
@@ -631,7 +649,7 @@
     <a href="https://mars-tw.github.io/ashes-convoy/" target="_blank" rel="noopener">末日射擊</a>
   </footer>
 
-  <div class="overlay" id="overlay">
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="戰敗結算">
     <h2>💀 防線崩潰</h2>
     <div class="res">撐到第 <span id="finalWave">0</span> 波 · 得分 <span id="finalScore">0</span></div>
     <div class="meta-result" id="metaResult"></div>
@@ -640,9 +658,9 @@
   </div>
 
   <!-- 抽卡盲盒動畫覆層 -->
-  <div class="gacha-overlay" id="gachaOverlay">
+  <div class="gacha-overlay" id="gachaOverlay" role="dialog" aria-modal="true" aria-label="英雄抽卡">
     <div class="gacha-stage" id="gachaStage">
-      <div class="chest" id="chest">
+      <div class="chest" id="chest" role="button" tabindex="0" aria-label="開啟英雄寶箱">
         <div class="chest-lid"></div>
         <div class="chest-body">🎁</div>
         <div class="chest-hint">點擊開啟</div>
@@ -658,14 +676,14 @@
   </div>
 
   <!-- 英雄詳情 -->
-  <div class="hero-detail-overlay" id="heroDetailOverlay">
+  <div class="hero-detail-overlay" id="heroDetailOverlay" role="dialog" aria-modal="true" aria-label="英雄詳情">
     <div class="hero-detail-card">
       <button class="hero-detail-close" id="heroDetailClose" aria-label="關閉">×</button>
       <div id="heroDetailContent"></div>
     </div>
   </div>
 
-  <div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-label="設定">
     <div class="settings-card">
       <div class="settings-head">
         <h2>⚙️ 設定</h2>
@@ -681,6 +699,23 @@
         <div class="settings-status" id="perfStatus"></div>
       </section>
       <section class="settings-section">
+        <h3>文字大小</h3>
+        <div class="text-size-segment" id="textSizeGroup">
+          <button type="button" data-text-size="small">小</button>
+          <button type="button" data-text-size="medium">中</button>
+          <button type="button" data-text-size="large">大</button>
+        </div>
+        <div class="settings-status" id="textSizeStatus"></div>
+      </section>
+      <section class="settings-section">
+        <h3>版本與更新</h3>
+        <div class="version-line" id="pwaVersion">版本：讀取中</div>
+        <div class="update-actions">
+          <button type="button" id="checkUpdateBtn">檢查更新</button>
+        </div>
+        <div class="settings-status" id="updateStatus"></div>
+      </section>
+      <section class="settings-section">
         <h3>存檔管家</h3>
         <div class="save-actions">
           <button type="button" id="exportSaveBtn">匯出並複製</button>
@@ -693,7 +728,7 @@
   </div>
 
   <!-- 排行榜 / 成就 -->
-  <div class="progress-overlay" id="progressOverlay">
+  <div class="progress-overlay" id="progressOverlay" role="dialog" aria-modal="true" aria-label="排行榜與成就">
     <div class="progress-card">
       <div class="progress-head">
         <h2>🏆 排行榜 / 成就</h2>
@@ -716,7 +751,7 @@
   </div>
 
   <!-- 首次遊玩引導（D3）-->
-  <div class="tutorial-overlay" id="tutorial">
+  <div class="tutorial-overlay" id="tutorial" role="dialog" aria-modal="true" aria-label="新手教學">
     <div class="tutorial-card">
       <h2>🏰 如何遊玩</h2>
       <p class="tut-tip">選一座塔蓋在路徑旁，再開始下一波。怪物漏到終點會攻擊女神；戰敗拿魂晶抽英雄，下局更強。</p>
@@ -728,7 +763,7 @@
   </div>
 
   <!-- 難度選擇（社群鉤子）-->
-  <div class="diff-overlay" id="diffOverlay">
+  <div class="diff-overlay" id="diffOverlay" role="dialog" aria-modal="true" aria-label="選擇難度">
     <div class="diff-card">
       <h2>⚔️ 選擇難度</h2>
       <div id="diffOptions"></div>
@@ -737,7 +772,7 @@
   </div>
 
   <!-- 地圖選擇 -->
-  <div class="map-overlay" id="mapOverlay">
+  <div class="map-overlay" id="mapOverlay" role="dialog" aria-modal="true" aria-label="選擇地圖">
     <div class="map-card">
       <h2>🗺️ 選擇地圖</h2>
       <div id="mapOptions"></div>
@@ -753,16 +788,65 @@
   <script>
     (() => {
       "use strict";
-      if (!("serviceWorker" in navigator) || navigator.webdriver) return;
+      const PWA_VERSION = "td-r37-v1";
+      const swTest = new URLSearchParams(location.search).get("swtest") === "1";
+      window.__tdPwa = {
+        version: PWA_VERSION,
+        status: "離線更新尚未啟用",
+        registration: null,
+        waitingWorker: null,
+        checkForUpdate: async () => ({ ok: false, status: "此瀏覽器不支援離線更新" }),
+        applyUpdate: () => false,
+      };
+      function setPwaStatus(text) {
+        window.__tdPwa.status = text;
+        if (typeof window.__tdPwa.onStatus === "function") window.__tdPwa.onStatus(text);
+        return text;
+      }
+      if (!("serviceWorker" in navigator)) {
+        setPwaStatus("此瀏覽器不支援離線更新");
+        return;
+      }
+      if (navigator.webdriver && !swTest) {
+        setPwaStatus("自動化測試環境跳過離線更新註冊");
+        return;
+      }
       let refreshing = false;
       function showUpdatePrompt(worker) {
         if (!worker || document.querySelector(".pwa-update-toast")) return;
+        window.__tdPwa.waitingWorker = worker;
+        setPwaStatus("有新版本可套用");
         const box = document.createElement("div");
         box.className = "pwa-update-toast";
-        box.innerHTML = '<span>新版本已準備好</span><button type="button">立即更新</button>';
+        box.innerHTML = '<span>新版本已準備好</span><button type="button" aria-label="立即套用新版本">立即更新</button>';
         box.querySelector("button").onclick = () => worker.postMessage({ type: "SKIP_WAITING" });
         document.body.appendChild(box);
       }
+      window.__tdPwa.applyUpdate = () => {
+        const worker = window.__tdPwa.waitingWorker || (window.__tdPwa.registration && window.__tdPwa.registration.waiting);
+        if (!worker) {
+          setPwaStatus("目前沒有待套用的新版本");
+          return false;
+        }
+        worker.postMessage({ type: "SKIP_WAITING" });
+        return true;
+      };
+      window.__tdPwa.checkForUpdate = async () => {
+        const reg = window.__tdPwa.registration || await navigator.serviceWorker.getRegistration();
+        if (!reg) return { ok: false, status: setPwaStatus("離線更新尚未註冊") };
+        window.__tdPwa.registration = reg;
+        setPwaStatus("正在檢查更新...");
+        try {
+          await reg.update();
+          if (reg.waiting) {
+            showUpdatePrompt(reg.waiting);
+            return { ok: true, status: window.__tdPwa.status };
+          }
+          return { ok: true, status: setPwaStatus("已是最新版本") };
+        } catch (err) {
+          return { ok: false, status: setPwaStatus("檢查更新失敗，稍後再試") };
+        }
+      };
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (refreshing) return;
         refreshing = true;
@@ -770,6 +854,8 @@
       });
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("sw.js").then((reg) => {
+          window.__tdPwa.registration = reg;
+          setPwaStatus("離線更新已啟用");
           if (reg.waiting) showUpdatePrompt(reg.waiting);
           reg.addEventListener("updatefound", () => {
             const worker = reg.installing;
@@ -778,7 +864,7 @@
               if (worker.state === "installed" && navigator.serviceWorker.controller) showUpdatePrompt(worker);
             });
           });
-        }).catch(() => {});
+        }).catch(() => { setPwaStatus("離線更新註冊失敗"); });
       });
     })();
   </script>

@@ -23,6 +23,41 @@
   const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E" };
   const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
   const SKILL_BY_KEY = Object.fromEntries(Object.entries(SKILL_HOTKEYS).map(([id, key]) => [key.toLowerCase(), id]));
+  const TEXT_SIZE_KEY = "td_text_size";
+  const TEXT_SIZE_LABELS = { small: "小", medium: "中", large: "大" };
+  let textSize = loadTextSize();
+
+  function normalizeTextSize(value) {
+    return hasOwn(TEXT_SIZE_LABELS, value) ? value : "medium";
+  }
+
+  function loadTextSize() {
+    try { return normalizeTextSize(localStorage.getItem(TEXT_SIZE_KEY)); }
+    catch { return "medium"; }
+  }
+
+  function applyTextSize(size) {
+    const next = normalizeTextSize(size);
+    document.body.classList.remove("text-size-small", "text-size-medium", "text-size-large");
+    document.body.classList.add(`text-size-${next}`);
+  }
+
+  function setTextSize(size) {
+    textSize = normalizeTextSize(size);
+    try { localStorage.setItem(TEXT_SIZE_KEY, textSize); } catch {}
+    applyTextSize(textSize);
+    renderTextSizeSettings();
+  }
+
+  function focusSoon(el) {
+    if (!el || typeof el.focus !== "function") return;
+    setTimeout(() => {
+      try { el.focus({ preventScroll: true }); }
+      catch { el.focus(); }
+    }, 0);
+  }
+
+  applyTextSize(textSize);
 
   // 元素圖示與克制提示（D3 元素克制可見化）
   const ELEM_ICON = { physical: "⚔️", fire: "🔥", ice: "❄️", thunder: "⚡" };
@@ -214,9 +249,17 @@
         $("revealName").textContent = hero.name + (isNew ? " ✨新英雄" : refund ? ` （重複 +${refund}💎）` : "");
         $("revealRarity").textContent = "★".repeat(r.stars) + " " + r.label;
         reveal.classList.add("show");
+        focusSoon($("revealOk"));
         if (hero.rarity === "legendary" || hero.rarity === "epic") gachaConfetti();
       }, 900);
     };
+    chest.onkeydown = (ev) => {
+      if (ev.code === "Enter" || ev.code === "Space") {
+        ev.preventDefault();
+        chest.click();
+      }
+    };
+    focusSoon(chest);
     $("revealOk").onclick = () => {
       ov.classList.remove("show");
       if (!wasPaused) TD.setPaused(false); // 收下英雄後恢復戰場（原本就手動暫停的除外）
@@ -365,11 +408,15 @@
       </div>`;
     const deployBtn = $("heroDetailDeploy");
     if (deployBtn && !deployed) {
+      deployBtn.setAttribute("aria-label", `部署 ${hero.name}`);
       deployBtn.onclick = () => {
         if (deployHeroFromRoster(id, progress)) openHeroDetail(id);
       };
+    } else if (deployBtn) {
+      deployBtn.setAttribute("aria-label", `${hero.name} 已上場`);
     }
     overlay.classList.add("show");
+    focusSoon($("heroDetailClose"));
   }
 
   function renderRoster() {
@@ -388,6 +435,9 @@
       const longBonusPct = Math.round(heroLongBonus(progress) * 100);
       const card = document.createElement("div");
       card.className = "hero-card" + (deployed ? " deployed" : "");
+      card.setAttribute("role", "button");
+      card.tabIndex = 0;
+      card.setAttribute("aria-label", `${h.name}英雄詳情，羈絆 Lv.${progress.level}，${deployed ? "已上場" : "可上場"}`);
       card.style.setProperty("--hr-color", r.color);
       card.style.setProperty("--hr-glow", r.glow);
       card.innerHTML = `
@@ -395,7 +445,14 @@
         <span class="hinfo"><span class="hname">${h.name}</span> ${"★".repeat(r.stars)} <span class="hbond">羈絆 Lv.${progress.level}${longBonusPct ? ` +${longBonusPct}%攻血` : ""}</span><br><span class="hmeta">${h.desc}<br>${heroStatLine(h, progress)}<br>${heroLongMetaLine(id, meta)}</span></span>
         <button type="button" class="hdeploy">${deployed ? "詳情" : "上場▶"}</button>`;
       card.onclick = () => openHeroDetail(id);
+      card.onkeydown = (ev) => {
+        if (ev.code === "Enter" || ev.code === "Space") {
+          ev.preventDefault();
+          openHeroDetail(id);
+        }
+      };
       const deployBtn = card.querySelector(".hdeploy");
+      deployBtn.setAttribute("aria-label", deployed ? `${h.name} 已上場，開啟詳情` : `部署 ${h.name}`);
       deployBtn.onclick = (ev) => {
         ev.stopPropagation();
         if (deployed) openHeroDetail(id);
@@ -424,6 +481,8 @@
       btn.type = "button";
       btn.className = `deployed-hero-slot${active ? " active" : ""}${guarded ? " guarded" : ""}`;
       btn.dataset.heroSlot = h.uid;
+      btn.setAttribute("aria-label", `${def.name}上場英雄，生命 ${hpPct}%，${active ? "選擇駐守點中" : guarded ? "已設定駐守點" : "可設定駐守點"}`);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
       btn.title = active ? "點地圖設定駐守點" : "點擊後在地圖設定駐守點";
       btn.innerHTML = `
         <span class="dh-avatar">${heroAvatar(def)}</span>
@@ -879,6 +938,40 @@
     }
   }
 
+  function renderTextSizeSettings() {
+    document.querySelectorAll("[data-text-size]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.textSize === textSize);
+      btn.setAttribute("aria-label", `文字大小${TEXT_SIZE_LABELS[btn.dataset.textSize] || btn.dataset.textSize}`);
+    });
+    const box = $("textSizeStatus");
+    if (box) box.textContent = `目前文字大小：${TEXT_SIZE_LABELS[textSize] || "中"}`;
+  }
+
+  function renderPwaSettings() {
+    const pwa = window.__tdPwa;
+    const version = $("pwaVersion");
+    const status = $("updateStatus");
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r37-v1"}`;
+    if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
+    if (pwa) pwa.onStatus = renderPwaSettings;
+  }
+
+  async function checkPwaUpdate() {
+    const btn = $("checkUpdateBtn");
+    const pwa = window.__tdPwa;
+    if (!pwa || typeof pwa.checkForUpdate !== "function") {
+      const status = $("updateStatus");
+      if (status) status.textContent = "此環境尚未提供離線更新";
+      return;
+    }
+    if (btn) btn.disabled = true;
+    try { await pwa.checkForUpdate(); }
+    finally {
+      if (btn) btn.disabled = false;
+      renderPwaSettings();
+    }
+  }
+
   function renderPerformanceSettings() {
     const status = TD.getPerformanceStatus ? TD.getPerformanceStatus() : { mode: "auto", quality: "high", fps: 60 };
     document.querySelectorAll("[data-perf-mode]").forEach((btn) => {
@@ -887,7 +980,10 @@
     const box = $("perfStatus");
     if (box) {
       const quality = status.quality === "low" ? "低特效" : "高特效";
-      box.textContent = `${status.modeLabel || "自動"}｜目前 ${quality}｜FPS ${status.fps || 60}`;
+      const reason = status.lastDowngradeLabel || status.reasonLabel || status.reason || "無";
+      const particle = Math.round(((status.particleScale == null ? 1 : status.particleScale) * 100));
+      const animation = Math.round(((status.animationScale == null ? 1 : status.animationScale) * 100));
+      box.textContent = `${status.modeLabel || "自動"}｜品質檔位 ${quality}｜即時 FPS ${status.fps || 60}｜最近降級原因 ${reason}｜粒子倍率 ${particle}%｜動畫倍率 ${animation}%`;
     }
   }
 
@@ -897,8 +993,11 @@
     TD.setPaused(true);
     syncPauseButton(true);
     renderPerformanceSettings();
+    renderTextSizeSettings();
+    renderPwaSettings();
     setSaveStatus("", true);
     $("settingsOverlay").classList.add("show");
+    focusSoon($("settingsClose"));
   }
 
   function closeSettingsOverlay() {
@@ -907,6 +1006,7 @@
       TD.setPaused(false);
       syncPauseButton(false);
     }
+    focusSoon($("settingsBtn"));
   }
 
   function formatDate(ts) {
@@ -1017,6 +1117,7 @@
     syncPauseButton(true);
     renderProgressOverlay();
     $("progressOverlay").classList.add("show");
+    focusSoon($("progressClose"));
   }
 
   function closeProgressOverlay() {
@@ -1025,6 +1126,7 @@
       TD.setPaused(false);
       syncPauseButton(false);
     }
+    focusSoon($("boardBtn"));
   }
 
   function onWaveCleared(result) {
@@ -1146,6 +1248,7 @@
       }
     }
     $("overlay").classList.add("show");
+    focusSoon($("deathCtaBtn"));
   }
 
   // ===== 綁定控制 =====
@@ -1196,6 +1299,10 @@
       renderPerformanceSettings();
     };
   });
+  document.querySelectorAll("[data-text-size]").forEach((btn) => {
+    btn.onclick = () => setTextSize(btn.dataset.textSize);
+  });
+  if ($("checkUpdateBtn")) $("checkUpdateBtn").onclick = () => { checkPwaUpdate(); };
   document.querySelectorAll(".speed").forEach((b) => {
     b.onclick = () => {
       TD.setSpeed(Number(b.dataset.s));
@@ -1282,6 +1389,11 @@
     decode: decodeSaveCode,
     backupKey: SAVE_BACKUP_KEY,
   };
+  window.__tdSettings = {
+    setTextSize,
+    getTextSize: () => textSize,
+    renderPwaSettings,
+  };
 
   function handleRuntimeFault() {
     saveMeta(loadMeta());
@@ -1347,6 +1459,7 @@
         $("diffOverlay").classList.remove("show");
         renderMaps();
         $("mapOverlay").classList.add("show");
+        focusSoon(document.querySelector(".map-opt"));
         const el = $("bestWave"); if (el) el.textContent = bestForDiff(d.id);
         refreshUI();
       };
@@ -1374,6 +1487,7 @@
     }
     if (!seen && !hasSave) {
       $("tutorial").classList.add("show");
+      focusSoon($("tutorialQuick"));
       $("tutorialQuick").onclick = () => {
         $("tutorial").classList.remove("show");
         markSeen();
@@ -1390,10 +1504,12 @@
         $("tutorial").classList.remove("show");
         markSeen();
         renderDifficulties(); $("diffOverlay").classList.add("show");
+        focusSoon(document.querySelector(".diff-opt"));
       };
     } else {
       // 看過引導：直接顯示難度選擇
       renderDifficulties(); $("diffOverlay").classList.add("show");
+      focusSoon(document.querySelector(".diff-opt"));
     }
   })();
 

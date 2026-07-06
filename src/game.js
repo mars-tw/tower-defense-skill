@@ -77,6 +77,7 @@
     lowSamples: 0,
     highSamples: 0,
     reason: "init",
+    lastDowngradeReason: "",
   };
   function readPerformanceMode() {
     try {
@@ -93,6 +94,7 @@
     if (perfState.quality === q && perfState.reason === reason) return;
     perfState.quality = q;
     perfState.reason = reason || "manual";
+    if (q === "low") perfState.lastDowngradeReason = reason || "manual";
     if (state && reason && reason !== "init") {
       const label = q === "low" ? "低特效" : "高特效";
       log(`效能模式已切換為${label}`);
@@ -143,12 +145,25 @@
     }
   }
   function getPerformanceStatus() {
+    const reasonLabel = {
+      init: "初始化",
+      manual: "手動設定",
+      "auto-low-fps": "FPS 低於 45",
+      "auto-recovered": "FPS 回穩",
+    };
+    const low = performanceLow();
     return {
       mode: perfState.mode,
       modeLabel: PERF_MODES[perfState.mode] || PERF_MODES.auto,
       quality: perfState.quality,
       fps: Math.round(perfState.fps),
       reason: perfState.reason,
+      reasonLabel: reasonLabel[perfState.reason] || perfState.reason,
+      lastDowngradeReason: perfState.lastDowngradeReason,
+      lastDowngradeLabel: perfState.lastDowngradeReason ? (reasonLabel[perfState.lastDowngradeReason] || perfState.lastDowngradeReason) : "無",
+      particleScale: low ? 0.45 : 1,
+      animationScale: low ? 0.42 : 1,
+      poisonFogScale: low ? 0.55 : 1,
     };
   }
   setPerformanceMode(perfState.mode);

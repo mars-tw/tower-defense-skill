@@ -20,12 +20,13 @@ assert(Object.keys(ENEMIES).length >= 9, `敵人 ≥9 種（${Object.keys(ENEMIE
 assert(Object.keys(SKILLS).length >= 3, `技能 ≥3 種（${Object.keys(SKILLS).length}）`);
 assert(Object.values(ENEMIES).some((e) => e.boss), "至少有一個 Boss");
 
-console.log("== R33：PWA 資產 ==");
+console.log("== R37：PWA/可近用性資產 ==");
 {
   const root = path.join(__dirname, "..");
   const manifestPath = path.join(root, "manifest.webmanifest");
   const swPath = path.join(root, "sw.js");
   const indexPath = path.join(root, "index.html");
+  const offlinePath = path.join(root, "offline.html");
   const iconSize = (rel) => {
     const buf = fs.readFileSync(path.join(root, rel));
     const png = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
@@ -34,16 +35,21 @@ console.log("== R33：PWA 資產 ==");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const sw = fs.readFileSync(swPath, "utf8");
   const index = fs.readFileSync(indexPath, "utf8");
+  const offline = fs.readFileSync(offlinePath, "utf8");
   const icon192 = iconSize("assets/icons/icon-192.png");
   const icon512 = iconSize("assets/icons/icon-512.png");
+  const shellJs = ["src/config.js", "src/heroes.js", "src/rules.js", "src/game.js", "src/ui.js"];
   assert(manifest.name === "無盡塔防" && manifest.short_name === "無盡塔防", "manifest 使用《無盡塔防》名稱");
   assert((manifest.icons || []).some((i) => i.src === "assets/icons/icon-192.png" && i.sizes === "192x192"), "manifest 指向 192 icon");
   assert((manifest.icons || []).some((i) => i.src === "assets/icons/icon-512.png" && i.sizes === "512x512"), "manifest 指向 512 icon");
   assert(icon192.png && icon192.width === 192 && icon192.height === 192, "192 icon 為有效 PNG");
   assert(icon512.png && icon512.width === 512 && icon512.height === 512, "512 icon 為有效 PNG");
-  assert(sw.includes("CACHE_VERSION") && sw.includes("networkFirst") && sw.includes("cacheFirst"), "sw.js 有版本與 network-first/cache-first 策略");
+  assert(sw.includes("CACHE_VERSION") && sw.includes("td-r37-v1") && sw.includes("networkFirst") && sw.includes("cacheFirst"), "sw.js 有 R37 版本與 network-first/cache-first 策略");
+  assert(sw.includes("offline.html") && fs.existsSync(offlinePath) && offline.includes("離線"), "sw.js 與離線 fallback 頁完整");
+  assert(shellJs.every((rel) => sw.includes(rel)), "sw.js app shell 補齊全部 src JS");
   assert(sw.includes("assets|enemies") || (sw.includes("heroes") && sw.includes("enemies") && sw.includes("towers")), "sw.js 涵蓋 heroes/enemies/towers 圖像資產");
-  assert(index.includes('rel="manifest"') && index.includes("navigator.webdriver"), "index 連結 manifest 且 webdriver 跳過 SW 註冊");
+  assert(index.includes('rel="manifest"') && index.includes("navigator.webdriver") && index.includes("swtest"), "index 連結 manifest、webdriver 跳過 SW 註冊且提供 swtest");
+  assert(index.includes("data-text-size") && index.includes(":focus-visible") && index.includes("checkUpdateBtn"), "index 有文字大小、focus-visible 與檢查更新 UI");
 }
 
 console.log("== 砲塔欄位 ==");

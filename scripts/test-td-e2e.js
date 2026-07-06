@@ -74,33 +74,120 @@ async function run() {
     await page.reload();
     await page.waitForFunction(() => window.TD && window.TD.state);
     await sleep(300);
-    const pwaR33 = await page.evaluate(async () => {
+    const pwaR37 = await page.evaluate(async () => {
       const manifest = await fetch("/manifest.webmanifest").then((r) => ({ ok: r.ok, type: r.headers.get("content-type"), json: r.json() }));
       manifest.json = await manifest.json;
       const sw = await fetch("/sw.js").then((r) => r.text());
+      const offline = await fetch("/offline.html").then(async (r) => ({ ok: r.ok, text: await r.text() }));
       const regs = navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations() : [];
+      const shellJs = ["src/config.js", "src/heroes.js", "src/rules.js", "src/game.js", "src/ui.js"];
       return {
         hasManifestLink: !!document.querySelector('link[rel="manifest"]'),
         manifestOk: manifest.ok,
         manifestType: manifest.type || "",
         name: manifest.json.name,
         iconSizes: (manifest.json.icons || []).map((i) => i.sizes).join(","),
-        swHasVersion: sw.includes("CACHE_VERSION"),
+        swHasVersion: sw.includes("CACHE_VERSION") && sw.includes("td-r37-v1"),
         swHasNetworkFirst: sw.includes("networkFirst"),
         swHasCacheFirst: sw.includes("cacheFirst"),
         swHasAssets: sw.includes("heroes") && sw.includes("enemies") && sw.includes("towers"),
+        swHasOffline: sw.includes("offline.html") && offline.ok && offline.text.includes("離線"),
+        swHasAllJs: shellJs.every((rel) => sw.includes(rel)),
+        pwaVersion: window.__tdPwa && window.__tdPwa.version,
+        swtestGate: document.documentElement.innerHTML.includes("swtest"),
+        hasTextSize: !!document.querySelector('[data-text-size="large"]'),
+        settingsRole: document.getElementById("settingsOverlay").getAttribute("role"),
         webdriver: navigator.webdriver === true,
         regCount: regs.length,
       };
     });
-    assert(pwaR33.hasManifestLink && pwaR33.manifestOk && pwaR33.manifestType.includes("manifest") &&
-      pwaR33.name === "無盡塔防" && pwaR33.iconSizes.includes("192x192") && pwaR33.iconSizes.includes("512x512") &&
-      pwaR33.swHasVersion && pwaR33.swHasNetworkFirst && pwaR33.swHasCacheFirst && pwaR33.swHasAssets &&
-      pwaR33.webdriver && pwaR33.regCount === 0,
-      `R33 PWA manifest/SW 正確，且 Playwright webdriver 跳過註冊（regs=${pwaR33.regCount}）`);
+    assert(pwaR37.hasManifestLink && pwaR37.manifestOk && pwaR37.manifestType.includes("manifest") &&
+      pwaR37.name === "無盡塔防" && pwaR37.iconSizes.includes("192x192") && pwaR37.iconSizes.includes("512x512") &&
+      pwaR37.swHasVersion && pwaR37.swHasNetworkFirst && pwaR37.swHasCacheFirst && pwaR37.swHasAssets &&
+      pwaR37.swHasOffline && pwaR37.swHasAllJs && pwaR37.pwaVersion === "td-r37-v1" && pwaR37.swtestGate &&
+      pwaR37.hasTextSize && pwaR37.settingsRole === "dialog" && pwaR37.webdriver && pwaR37.regCount === 0,
+      `R37 PWA manifest/SW/離線頁/設定可近用性正確，且一般 Playwright webdriver 跳過註冊（regs=${pwaR37.regCount}）`);
 
-    const perfR33 = await page.evaluate(() => {
+    if (vp.w === 1280) {
+      const swContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      const swPage = await swContext.newPage();
+      let swOfflineR37 = null;
+      try {
+        await swPage.goto(base + "?swtest=1", { waitUntil: "domcontentloaded" });
+        await swPage.evaluate(() => {
+          localStorage.clear();
+          localStorage.setItem("td_tutorial_seen", "1");
+        });
+        await swPage.reload({ waitUntil: "networkidle" });
+        await swPage.waitForFunction(() => window.TD && window.__tdPwa && navigator.serviceWorker);
+        await swPage.waitForFunction(async () => {
+          const reg = await navigator.serviceWorker.getRegistration();
+          return !!(reg && reg.active);
+        }, null, { timeout: 12000 });
+        await swPage.reload({ waitUntil: "networkidle" });
+        await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 12000 });
+        await swPage.waitForFunction(async () => (await caches.keys()).some((key) => key.includes("td-r37")), null, { timeout: 12000 });
+        await swContext.setOffline(true);
+        await swPage.reload({ waitUntil: "domcontentloaded" });
+        await swPage.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 12000 });
+        swOfflineR37 = await swPage.evaluate(async () => {
+          ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay", "progressOverlay"].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove("show");
+          });
+          localStorage.setItem("td_tutorial_seen", "1");
+          window.TD.setDifficulty("normal");
+          window.TD.setMap("plains");
+          window.TD.newGame();
+          window.TD.selectTower("arrow");
+          const canvas = document.getElementById("game");
+          const rect = canvas.getBoundingClientRect();
+          const sx = rect.width / 960, sy = rect.height / 640;
+          let target = null;
+          for (let y = 24; y < 640 && !target; y += 48) {
+            for (let x = 24; x < 960 && !target; x += 48) {
+              const preview = window.TD.buildPreviewAt(x, y);
+              if (preview && preview.ok) target = { x, y };
+            }
+          }
+          if (target) {
+            canvas.dispatchEvent(new MouseEvent("click", { clientX: rect.left + target.x * sx, clientY: rect.top + target.y * sy, bubbles: true }));
+          }
+          const keys = await caches.keys();
+          return {
+            loaded: !!(window.TD && window.TD.state),
+            towerCount: window.TD.state().towers.length,
+            target,
+            controlled: !!navigator.serviceWorker.controller,
+            cacheKeys: keys.filter((key) => key.includes("td-r37")).length,
+          };
+        });
+      } finally {
+        await swContext.setOffline(false).catch(() => {});
+        await swPage.evaluate(async () => {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((reg) => reg.unregister()));
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        }).catch(() => {});
+        await swContext.close().catch(() => {});
+      }
+      assert(swOfflineR37 && swOfflineR37.loaded && swOfflineR37.controlled && swOfflineR37.cacheKeys > 0 && swOfflineR37.towerCount >= 1,
+        `R37 真 SW 離線 reload 後仍可載入並建塔（towers=${swOfflineR37 && swOfflineR37.towerCount} target=${swOfflineR37 && JSON.stringify(swOfflineR37.target)} caches=${swOfflineR37 && swOfflineR37.cacheKeys}）`);
+    }
+
+    const perfR37 = await page.evaluate(async () => {
       document.getElementById("settingsBtn").click();
+      await new Promise((r) => setTimeout(r, 30));
+      const focusInSettings = document.getElementById("settingsOverlay").contains(document.activeElement);
+      const initialHudSize = parseFloat(getComputedStyle(document.querySelector(".hud .stat")).fontSize);
+      document.querySelector('[data-text-size="large"]').click();
+      const largeHudSize = parseFloat(getComputedStyle(document.querySelector(".hud .stat")).fontSize);
+      const textSizeSaved = localStorage.getItem("td_text_size");
+      const bodyLarge = document.body.classList.contains("text-size-large");
+      document.getElementById("checkUpdateBtn").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const updateText = document.getElementById("updateStatus").textContent;
       document.querySelector('[data-perf-mode="low"]').click();
       const lockedLow = window.TD.getPerformanceStatus();
       document.querySelector('[data-perf-mode="auto"]').click();
@@ -110,13 +197,35 @@ async function run() {
       window.TD.debug.forcePerformanceSample(60);
       const autoHigh = window.TD.debug.forcePerformanceSample(60);
       const text = document.getElementById("settingsOverlay").innerText;
+      document.querySelector('[data-text-size="medium"]').click();
       document.getElementById("settingsClose").click();
-      return { lockedLow, autoStart, autoLow, autoHigh, text, paused: window.TD.state().paused };
+      await new Promise((r) => setTimeout(r, 30));
+      return {
+        lockedLow, autoStart, autoLow, autoHigh, text,
+        paused: window.TD.state().paused,
+        focusInSettings,
+        focusReturned: document.activeElement && document.activeElement.id === "settingsBtn",
+        bodyLarge,
+        largeHudSize,
+        initialHudSize,
+        textSizeSaved,
+        updateText,
+        startAria: document.getElementById("startBtn").getAttribute("aria-label"),
+        towerAria: document.querySelector('.tower-btn[data-type="arrow"]').getAttribute("aria-label"),
+        skillAria: document.querySelector('.skill-btn[data-skill="meteor"]').getAttribute("aria-label"),
+      };
     });
-    assert(perfR33.lockedLow.mode === "low" && perfR33.lockedLow.quality === "low" &&
-      perfR33.autoStart.mode === "auto" && perfR33.autoLow.quality === "low" && perfR33.autoHigh.quality === "high" &&
-      perfR33.text.includes("效能模式") && perfR33.text.includes("存檔管家") && perfR33.paused === false,
-      `R33 自適應效能可鎖低/自動降級/回穩恢復（${perfR33.lockedLow.quality}→${perfR33.autoLow.quality}→${perfR33.autoHigh.quality}）`);
+    assert(perfR37.lockedLow.mode === "low" && perfR37.lockedLow.quality === "low" &&
+      perfR37.autoStart.mode === "auto" && perfR37.autoLow.quality === "low" && perfR37.autoHigh.quality === "high" &&
+      perfR37.text.includes("效能模式") && perfR37.text.includes("存檔管家") &&
+      perfR37.text.includes("文字大小") && perfR37.text.includes("版本") &&
+      perfR37.text.includes("即時 FPS") && perfR37.text.includes("品質檔位") &&
+      perfR37.text.includes("最近降級原因") && perfR37.text.includes("粒子倍率") && perfR37.text.includes("動畫倍率") &&
+      perfR37.bodyLarge && perfR37.largeHudSize > perfR37.initialHudSize && perfR37.textSizeSaved === "large" &&
+      perfR37.focusInSettings && perfR37.focusReturned && perfR37.paused === false &&
+      perfR37.updateText && (perfR37.updateText.includes("跳過") || perfR37.updateText.includes("未註冊") || perfR37.updateText.includes("尚未")) &&
+      perfR37.startAria && perfR37.towerAria && perfR37.skillAria,
+      `R37 設定含效能診斷/文字大小/更新狀態/焦點與 aria（${perfR37.lockedLow.quality}→${perfR37.autoLow.quality}→${perfR37.autoHigh.quality}，字級 ${perfR37.initialHudSize}→${perfR37.largeHudSize}）`);
 
     const saveManagerR33 = await page.evaluate(() => {
       const before = JSON.parse(localStorage.getItem("td_meta_v1") || "{}");
@@ -872,12 +981,16 @@ async function run() {
       const detailOverlay = document.getElementById("heroDetailOverlay");
       const detailText = detailOverlay.innerText;
       const detailShown = detailOverlay.classList.contains("show");
+      const cardAria = card && card.getAttribute("aria-label");
+      const deployAria = card && card.querySelector(".hdeploy") && card.querySelector(".hdeploy").getAttribute("aria-label");
       document.getElementById("heroDetailClose").click();
       return {
         owned,
         rosterText: document.getElementById("heroRoster").innerText,
         detailShown,
         detailText,
+        cardAria,
+        deployAria,
         pausedAfterClose: window.TD.state().paused,
       };
     });
@@ -886,6 +999,8 @@ async function run() {
     assert(heroLongUi.detailShown && heroLongUi.detailText.includes("英雄詳情") && heroLongUi.detailText.includes("羈絆 Lv.6") &&
       heroLongUi.detailText.includes("下一節點 Lv.10") && heroLongUi.detailText.includes("本局表現摘要") && heroLongUi.pausedAfterClose === false,
       `英雄詳情顯示羈絆進度、節點預告與本局表現（${heroLongUi.detailText.replace(/\n/g, " / ")}）`);
+    assert(heroLongUi.cardAria && heroLongUi.cardAria.includes("英雄詳情") && heroLongUi.deployAria,
+      `英雄名單卡與部署按鈕有 aria-label（${heroLongUi.cardAria}）`);
     const secondHeroDeploy = await page.evaluate(() => {
       const cards = [...document.querySelectorAll("#heroRoster .hero-card")];
       cards.forEach((card) => {
@@ -896,12 +1011,15 @@ async function run() {
         rosterCount: cards.length,
         deployedIds: window.TD.state().heroes.map((h) => h.id),
         slotText: document.getElementById("deployedHeroes").innerText,
+        slotAria: [...document.querySelectorAll("#deployedHeroes .deployed-hero-slot")].map((slot) => slot.getAttribute("aria-label")).join(" / "),
       };
     });
     assert(secondHeroDeploy.rosterCount === 2 && secondHeroDeploy.deployedIds.length === 2 && new Set(secondHeroDeploy.deployedIds).size === 2,
       `第 2 隻英雄可上場（${secondHeroDeploy.deployedIds.join(",")}）`);
     assert(secondHeroDeploy.slotText.includes("羈絆Lv.6"),
       `部署小卡顯示跨局羈絆等級（${secondHeroDeploy.slotText.replace(/\n/g, " / ")}）`);
+    assert(secondHeroDeploy.slotAria.includes("上場英雄") && secondHeroDeploy.slotAria.includes("生命"),
+      `部署小卡有 aria-label（${secondHeroDeploy.slotAria}）`);
 
     const heroCommand = await page.evaluate(() => {
       window.__tdUI();

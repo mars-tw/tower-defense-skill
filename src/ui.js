@@ -15,6 +15,7 @@
   let heroDetailWasPaused = false;
   let advisorCollapsed = false;
   let advisorHidden = false;
+  let advisorMode = "control";
   let warningSerial = 0;
   let recoveryNoticeShown = false;
   const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6" };
@@ -553,13 +554,21 @@
       box.innerHTML = `<div class="nw-title">⚔ 防禦中</div><div class="nw-meta">敵人進攻時可點技能救場，波間會顯示下一波情報。</div>`;
       return;
     }
-    const p = TD.previewNextWave();
+    const p = TD.previewNextWave({ advisorMode });
     const theme = p.theme ? `${ELEM_ICON[p.theme] || ""}${ELEM_LABEL[p.theme] || p.theme}` : "混合";
     const event = p.event ? `${p.event.emoji}${p.event.label}：${p.event.desc}` : (p.isBoss ? "⚠️ Boss 波" : "標準波");
     const affixText = p.affix ? ` · 詞綴 ${p.affix.label}` : "";
     const enemyTypes = (p.enemyTypes || []).filter((item) => ENEMIES[item.type]);
     const recs = (p.recommendations || []).filter((item) => TOWERS[item.id]);
     const advisor = (p.advisor || []).filter((item) => item && item.kind);
+    const advisorModes = RULES.ADVISOR_MODES || {
+      control: { label: "控場優先" },
+      aoe: { label: "範圍清怪" },
+      boss: { label: "Boss 單點" },
+    };
+    const modeHtml = Object.entries(advisorModes).map(([id, item]) =>
+      `<button type="button" data-advisor-mode="${id}" class="${advisorMode === id ? "active" : ""}">${item.label}</button>`
+    ).join("");
     const advisorHtml = advisorHidden ? "" : `
       <div class="advisor-row ${advisorCollapsed ? "collapsed" : ""}">
         <div class="advisor-head">
@@ -569,12 +578,13 @@
             <button type="button" data-advisor-close>關閉</button>
           </span>
         </div>
+        <div class="advisor-mode">${modeHtml}</div>
         <div class="advisor-actions">
-          ${advisor.map((item) => {
-            if (item.kind === "build") return `<div class="advisor-action"><b>補 ${item.emoji || ""}${item.towerName}</b><span>${item.zone}（${item.cx},${item.cy}）｜${item.reason}</span></div>`;
-            if (item.kind === "upgrade") return `<div class="advisor-action"><b>升 ${item.emoji || ""}${item.towerName}</b><span>Lv.${item.level}→${item.nextLevel}｜${item.reason}</span></div>`;
-            return `<div class="advisor-action"><b>存錢等 ${item.emoji || ""}${item.towerName}</b><span>${item.reason}</span></div>`;
-          }).join("") || '<div class="advisor-action"><b>維持陣型</b><span>目前沒有明顯補強缺口。</span></div>'}
+          ${advisor.map((item, index) => {
+            if (item.kind === "build") return `<button type="button" class="advisor-action" data-advisor-action="${index}"><b>補 ${item.emoji || ""}${item.towerName}</b><span>${item.zone}（${item.cx},${item.cy}）｜${item.reason}</span></button>`;
+            if (item.kind === "upgrade") return `<button type="button" class="advisor-action" data-advisor-action="${index}"><b>升 ${item.emoji || ""}${item.towerName}</b><span>Lv.${item.level}→${item.nextLevel}｜${item.reason}</span></button>`;
+            return `<button type="button" class="advisor-action" data-advisor-action="${index}"><b>存錢等 ${item.emoji || ""}${item.towerName}</b><span>${item.reason}</span></button>`;
+          }).join("") || '<div class="advisor-action static"><b>維持陣型</b><span>目前沒有明顯補強缺口。</span></div>'}
         </div>
       </div>`;
     box.innerHTML = `
@@ -604,6 +614,19 @@
     if (toggle) toggle.onclick = () => { advisorCollapsed = !advisorCollapsed; renderNextWaveCard(); };
     const close = box.querySelector("[data-advisor-close]");
     if (close) close.onclick = () => { advisorHidden = true; renderNextWaveCard(); };
+    box.querySelectorAll("[data-advisor-mode]").forEach((btn) => {
+      btn.onclick = () => {
+        advisorMode = btn.dataset.advisorMode || "control";
+        if (TD.setAdvisorMode) TD.setAdvisorMode(advisorMode);
+        renderNextWaveCard();
+      };
+    });
+    box.querySelectorAll("[data-advisor-action]").forEach((btn) => {
+      btn.onclick = () => {
+        const action = advisor[Number(btn.dataset.advisorAction)];
+        if (TD.previewAdvisorAction && TD.previewAdvisorAction(action)) refreshUI();
+      };
+    });
   }
 
   function renderAffixCard() {
@@ -689,7 +712,7 @@
       startBtn.disabled = true;
       startBtn.textContent = "先建一座塔！";
     } else if (st.betweenWaves && !st.over && TD.previewNextWave) {
-      const p = TD.previewNextWave();
+      const p = TD.previewNextWave({ advisorMode });
       if (p.event) {
         // 事件波預告（最醒目）
         startBtn.innerHTML = `▶ 第 ${p.wave} 波 ${p.event.emoji}${p.event.label}!`;
@@ -948,6 +971,12 @@
           return `<div>${def.name || item.id}：+${xp} XP，Lv.${level}${up ? `（升 ${up} 級）` : ""}${longText}${bonusText}</div>`;
         }).join("")}</div>`
         : "";
+      const learning = RULES.analyzeRunReport
+        ? RULES.analyzeRunReport({ wave, kills, leaks: run && run.leaks, towers: run && run.towers })
+        : null;
+      const learningLine = learning
+        ? `<div class="run-review"><div class="rr-title">本局檢討</div><b>${learning.summary}</b>${learning.adjustments.map((item) => `<div>下一局：${item}</div>`).join("")}</div>`
+        : "";
       metaLine.innerHTML = `
         <div class="diff-tag" style="color:${diff.color}">${diff.emoji} ${diff.label}難度</div>
         ${rankLine}
@@ -955,6 +984,7 @@
         <div>💎 本局清波已獲得 +${earned}（目前 ${meta.soulCrystal}）</div>
         ${unlockLine}
         ${heroGrowthLine}
+        ${learningLine}
         <div class="hook">${isHard || wave >= 10 ? "覺得難？" : ""}<b>分享你的攻略</b>，讓大家膜拜你的塔陣！</div>
         <div class="share-row">
           <button class="share-btn" id="copyResult">📋 複製戰績</button>
@@ -1010,7 +1040,7 @@
   }
 
   function startWaveWithAdvisor() {
-    const p = TD.previewNextWave ? TD.previewNextWave() : null;
+    const p = TD.previewNextWave ? TD.previewNextWave({ advisorMode }) : null;
     if (p && p.counterWarning) showWaveWarning(p.counterWarning);
     else hideWaveWarning();
     TD.startWave();

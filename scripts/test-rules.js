@@ -23,6 +23,7 @@ const {
   recommendTowersForWave,
   adviseTowerActions,
   counterWarningForWave,
+  analyzeRunReport,
   protectMetaWrite,
   evaluateBeginnerMissions,
   generateWaveQueue,
@@ -231,6 +232,38 @@ console.log("\n== R25：塔陣顧問、克制警告與存檔保護 ==");
   const goodWrite = protectMetaWrite(current, Object.assign({}, current, { soulCrystal: 88 }));
   assert(goodWrite.ok === true && goodWrite.meta.soulCrystal === 88,
     "合法 meta 寫入可通過保護層");
+}
+
+console.log("\n== R29：策略顧問模式與戰報學習 ==");
+{
+  const path = cfg.MAPS.plains.path;
+  const mixedWave = {
+    queue: [
+      { type: "bat" }, { type: "bat" }, { type: "bat" }, { type: "bat" },
+      { type: "slime" }, { type: "slime" }, { type: "goblin" }, { type: "orc" },
+      { type: "boss" },
+    ],
+    towers: [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1 }],
+    gold: 140,
+    path,
+  };
+  const control = adviseTowerActions(Object.assign({}, mixedWave, { advisorMode: "control" }));
+  const aoe = adviseTowerActions(Object.assign({}, mixedWave, { advisorMode: "aoe" }));
+  const boss = adviseTowerActions(Object.assign({}, mixedWave, { advisorMode: "boss" }));
+  const firstIds = [control[0] && control[0].towerId, aoe[0] && aoe[0].towerId, boss[0] && boss[0].towerId];
+  assert(new Set(firstIds).size >= 2 && firstIds.includes("frost"),
+    `同波切換策略模式會改變顧問建議（${firstIds.join(" / ")}）`);
+  assert(control[0].mode === "control" && aoe[0].mode === "aoe" && boss[0].mode === "boss",
+    "顧問建議會回傳目前策略模式");
+
+  const report = analyzeRunReport({
+    leaks: { byWave: { 7: { count: 4, damage: 12, byType: { bat: 4 } } } },
+    towers: [{ type: "arrow", level: 2 }],
+  });
+  assert(report.summary.includes("第 7 波漏 4 隻") && report.summary.includes("未被減速"),
+    `戰報學習指出主要漏怪波段與原因（${report.summary}）`);
+  assert(report.adjustments.length === 2 && report.adjustments.join(" / ").includes("寒冰塔"),
+    "戰報學習給出 2 條可行調整建議");
 }
 
 console.log("\n== waveSoulReward 即時魂晶總量守恆 ==");

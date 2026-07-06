@@ -138,11 +138,20 @@
   .advisor-tools { display: flex; gap: 4px; }
   .advisor-tools button { border: 1px solid var(--border-soft); border-radius: 7px; background: var(--surface-1);
     color: var(--ink-dim); padding: 3px 5px; font: inherit; font-size: 10px; font-weight: 900; cursor: pointer; }
+  .advisor-mode { display: flex; gap: 4px; padding: 0 7px 6px; }
+  .advisor-mode button { flex: 1; border: 1px solid rgba(74,222,128,.18); border-radius: 7px;
+    background: rgba(12,22,32,.72); color: var(--ink-dim); padding: 4px 5px; font: inherit;
+    font-size: 10px; font-weight: 900; cursor: pointer; }
+  .advisor-mode button.active { background: rgba(74,222,128,.18); color: var(--accent); }
   .advisor-actions { display: grid; gap: 4px; padding: 0 7px 7px; }
   .advisor-row.collapsed .advisor-actions { display: none; }
-  .advisor-action { display: grid; gap: 2px; font-size: 11px; line-height: 1.35; }
+  .advisor-action { display: grid; gap: 2px; font-size: 11px; line-height: 1.35; text-align: left;
+    border: 1px solid rgba(255,255,255,.07); border-radius: 8px; background: rgba(255,255,255,.035);
+    padding: 6px; color: inherit; font: inherit; cursor: pointer; }
+  .advisor-action:hover { border-color: rgba(74,222,128,.35); background: rgba(74,222,128,.08); }
   .advisor-action b { color: var(--ink); }
   .advisor-action span { color: var(--ink-dim); }
+  .advisor-action.static { cursor: default; }
   .wave-warning { display: none; border: 1px solid rgba(250,204,21,.32); border-radius: 10px;
     background: rgba(250,204,21,.10); color: #fde68a; padding: 8px 10px; font-size: 12px;
     font-weight: 900; line-height: 1.35; }
@@ -230,6 +239,11 @@
   .hero-growth { display: grid; gap: 3px; padding: 8px 10px; border-radius: 10px;
     background: rgba(74,222,128,.08); border: 1px solid rgba(74,222,128,.22); font-size: 12px; }
   .hero-growth .hg-title { color: var(--accent); font-weight: 900; }
+  .run-review { display: grid; gap: 4px; padding: 8px 10px; border-radius: 10px;
+    background: rgba(125,211,252,.07); border: 1px solid rgba(125,211,252,.22);
+    color: var(--ink-dim); font-size: 12px; text-align: left; }
+  .run-review .rr-title { color: var(--info); font-weight: 900; }
+  .run-review b { color: var(--ink); }
   .share-btn { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-hi);
     padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer;
     text-decoration: none; transition: all .12s; }

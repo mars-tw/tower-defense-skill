@@ -223,6 +223,119 @@ async function run() {
       `缺克制塔時開波警告出現且不阻擋開波（${warningR25.missing.text}）`);
     assert(!warningR25.ok.shown && warningR25.ok.wave === 9 && warningR25.ok.running,
       "已有火系塔時開波克制警告不誤報");
+
+    const advisorModesR29 = await page.evaluate(() => {
+      const savedMeta = localStorage.getItem("td_meta_v1");
+      const savedHeroes = localStorage.getItem("td_heroes_owned_v1");
+      const restore = () => {
+        window.TD.newGame();
+        if (savedMeta === null) localStorage.removeItem("td_meta_v1");
+        else localStorage.setItem("td_meta_v1", savedMeta);
+        if (savedHeroes === null) localStorage.removeItem("td_heroes_owned_v1");
+        else localStorage.setItem("td_heroes_owned_v1", savedHeroes);
+        window.__tdUI();
+      };
+      const st = window.TD.state();
+      st.wave = 6;
+      st.betweenWaves = true;
+      st.running = false;
+      st.over = false;
+      st.gold = 140;
+      st.towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
+      window.__tdUI();
+      const ids = {};
+      for (const mode of ["control", "aoe", "boss"]) {
+        document.querySelector(`#nextWaveCard [data-advisor-mode="${mode}"]`).click();
+        ids[mode] = window.TD.previewNextWave({ advisorMode: mode }).advisor[0].towerId;
+      }
+      const text = document.getElementById("nextWaveCard").innerText;
+      restore();
+      return { ids, text };
+    });
+    assert(new Set(Object.values(advisorModesR29.ids)).size >= 2 && advisorModesR29.text.includes("控場優先") && advisorModesR29.text.includes("範圍清怪") && advisorModesR29.text.includes("Boss 單點"),
+      `策略預設切換會改變顧問建議（${Object.entries(advisorModesR29.ids).map(([k, v]) => `${k}:${v}`).join(" / ")}）`);
+
+    const advisorBuildR29 = await page.evaluate(() => {
+      const savedMeta = localStorage.getItem("td_meta_v1");
+      const savedHeroes = localStorage.getItem("td_heroes_owned_v1");
+      window.__r29Saved = { meta: savedMeta, heroes: savedHeroes };
+      const st = window.TD.state();
+      st.wave = 6;
+      st.betweenWaves = true;
+      st.running = false;
+      st.over = false;
+      st.gold = 100;
+      st.towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
+      window.__tdUI();
+      document.querySelector('#nextWaveCard [data-advisor-mode="control"]').click();
+      document.querySelector('#nextWaveCard [data-advisor-action="0"]').click();
+      const ghost = st.buildGhost;
+      const rect = document.getElementById("game").getBoundingClientRect();
+      return {
+        selected: st.selectedTowerType,
+        confirm: st.advisorBuildConfirm,
+        ghost,
+        clientX: rect.left + ghost.x * (rect.width / 960),
+        clientY: rect.top + ghost.y * (rect.height / 640),
+      };
+    });
+    assert(advisorBuildR29.selected === "frost" && advisorBuildR29.confirm && advisorBuildR29.ghost,
+      `顧問建塔建議一鍵顯示寒冰塔幽靈預覽（${advisorBuildR29.selected} @ ${advisorBuildR29.ghost && advisorBuildR29.ghost.cx},${advisorBuildR29.ghost && advisorBuildR29.ghost.cy}）`);
+    if (vp.w <= 560) await page.touchscreen.tap(advisorBuildR29.clientX, advisorBuildR29.clientY);
+    else await page.mouse.click(advisorBuildR29.clientX, advisorBuildR29.clientY);
+    const advisorBuildConfirmR29 = await page.evaluate(() => {
+      const st = window.TD.state();
+      const result = {
+        frostBuilt: st.towers.some((tw) => tw.type === "frost"),
+        confirm: st.advisorBuildConfirm,
+        towerCount: st.towers.length,
+      };
+      const saved = window.__r29Saved || {};
+      window.TD.newGame();
+      if (saved.meta === null) localStorage.removeItem("td_meta_v1");
+      else if (saved.meta !== undefined) localStorage.setItem("td_meta_v1", saved.meta);
+      if (saved.heroes === null) localStorage.removeItem("td_heroes_owned_v1");
+      else if (saved.heroes !== undefined) localStorage.setItem("td_heroes_owned_v1", saved.heroes);
+      window.__tdUI();
+      return result;
+    });
+    assert(advisorBuildConfirmR29.frostBuilt && advisorBuildConfirmR29.towerCount === 2 && advisorBuildConfirmR29.confirm === false,
+      "顧問幽靈塔再點確認後成功建造，且離開確認狀態");
+
+    const advisorUpgradeR29 = await page.evaluate(() => {
+      const savedMeta = localStorage.getItem("td_meta_v1");
+      const savedHeroes = localStorage.getItem("td_heroes_owned_v1");
+      const restore = () => {
+        window.TD.newGame();
+        if (savedMeta === null) localStorage.removeItem("td_meta_v1");
+        else localStorage.setItem("td_meta_v1", savedMeta);
+        if (savedHeroes === null) localStorage.removeItem("td_heroes_owned_v1");
+        else localStorage.setItem("td_heroes_owned_v1", savedHeroes);
+        window.__tdUI();
+      };
+      const st = window.TD.state();
+      st.wave = 6;
+      st.betweenWaves = true;
+      st.running = false;
+      st.over = false;
+      st.gold = 90;
+      st.towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
+      window.__tdUI();
+      document.querySelector('#nextWaveCard [data-advisor-mode="control"]').click();
+      const actions = [...document.querySelectorAll("#nextWaveCard [data-advisor-action]")];
+      actions[1].click();
+      const text = document.getElementById("selPanel").innerText;
+      const result = {
+        selected: st.selectedTower === st.towers[0],
+        highlighted: st.advisorUpgradeTarget === st.towers[0],
+        panelShown: !document.getElementById("selPanel").classList.contains("hidden"),
+        text,
+      };
+      restore();
+      return result;
+    });
+    assert(advisorUpgradeR29.selected && advisorUpgradeR29.highlighted && advisorUpgradeR29.panelShown && advisorUpgradeR29.text.includes("Lv.1"),
+      `顧問升級建議會選中目標塔並打開升級面板（${advisorUpgradeR29.text.replace(/\n/g, " / ")}）`);
     if (vp.w <= 560) {
       await page.evaluate(() => document.querySelector("#nextWaveCard .enemy-chip-btn").click());
       const enemyInfo = await page.evaluate(() => ({
@@ -823,7 +936,14 @@ async function run() {
         before.heroProgress[firstHeroId] = { xp: 94, level: window.TDRules.heroLongLevelFromXp(94) };
         localStorage.setItem("td_meta_v1", JSON.stringify(before));
       }
-      window.__tdGameOver(10, 1234, { kills: 100, difficulty: window.TD.getDifficulty(), soulEarned: runSoulEarned, heroGrowth });
+      window.__tdGameOver(10, 1234, {
+        kills: 100,
+        difficulty: window.TD.getDifficulty(),
+        soulEarned: runSoulEarned,
+        heroGrowth,
+        leaks: { byWave: { 7: { count: 4, damage: 12, byType: { bat: 4 } } } },
+        towers: [{ type: "arrow", level: 2, cx: 4, cy: 1, x: 216, y: 72 }],
+      });
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const expectedCrystal = beforeCrystal
         + window.ACHIEVEMENTS.wave10.reward
@@ -867,7 +987,7 @@ async function run() {
       `峽谷榜寫入本場紀錄（${stage3Result.canyonWave} 波 / ${stage3Result.canyonScore} 分 / ${stage3Result.canyonKills} 殺 / ${stage3Result.canyonMap}）`);
     assert(stage3Result.plainsLen === 1 && stage3Result.plainsWave === 6 && stage3Result.plainsScore === 777 && stage3Result.plainsMap === "plains",
       `平原榜獨立寫入且不混入峽谷榜（${stage3Result.plainsWave} 波 / ${stage3Result.plainsScore} 分 / ${stage3Result.plainsMap}）`);
-    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名") && stage3Result.metaText.includes(`+${stage3Result.runSoulEarned}`) && stage3Result.metaText.includes("本局英雄成長") && stage3Result.metaText.includes("XP") && stage3Result.metaText.includes("長線") && stage3Result.metaText.includes("羈絆"),
+    assert(stage3Result.wave10 && stage3Result.wave10First && stage3Result.kills100 && stage3Result.metaText.includes("解鎖") && stage3Result.metaText.includes("本場第 1 名") && stage3Result.metaText.includes(`+${stage3Result.runSoulEarned}`) && stage3Result.metaText.includes("本局英雄成長") && stage3Result.metaText.includes("XP") && stage3Result.metaText.includes("長線") && stage3Result.metaText.includes("羈絆") && stage3Result.metaText.includes("本局檢討") && stage3Result.metaText.includes("第 7 波漏 4 隻") && stage3Result.metaText.includes("寒冰塔"),
       "結算畫面顯示本場名次、新解鎖成就、本局魂晶與英雄成長");
     assert(stage3Result.heroProgressCount >= 2 && stage3Result.heroProgressMaxXp > 120,
       `戰後寫入英雄長線 XP（英雄數 ${stage3Result.heroProgressCount}，最高 XP ${stage3Result.heroProgressMaxXp}）`);

@@ -39,6 +39,38 @@
   const HERO_LONG_BONUS_EVERY = 5;
   const HERO_LONG_BONUS_STEP = 0.05;
   const HERO_LONG_BONUS_CAP = 0.15;
+  const ADVISOR_MODES = {
+    control: {
+      id: "control",
+      label: "控場優先",
+      tower: { frost: 6, support: 2, tesla: 1, poison: 1 },
+      build: 1.12,
+      upgrade: 0.94,
+      fast: 4,
+      crowd: 1,
+      boss: -1,
+    },
+    aoe: {
+      id: "aoe",
+      label: "範圍清怪",
+      tower: { cannon: 9, tesla: 11, poison: 4, frost: -6 },
+      build: 1.08,
+      upgrade: 1.02,
+      fast: 0,
+      crowd: 6,
+      boss: 0,
+    },
+    boss: {
+      id: "boss",
+      label: "Boss 單點",
+      tower: { poison: 11, cannon: 9, tesla: 8, support: 3, frost: -8 },
+      build: 0.96,
+      upgrade: 1.22,
+      fast: -1,
+      crowd: 0,
+      boss: 6,
+    },
+  };
 
   function isFiniteNumber(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -680,6 +712,19 @@
     return score;
   }
 
+  function normalizeAdvisorMode(mode) {
+    return hasOwn(ADVISOR_MODES, mode) ? mode : "control";
+  }
+
+  function advisorModeBonus(type, facts, modeId, kind) {
+    const mode = ADVISOR_MODES[normalizeAdvisorMode(modeId)];
+    let bonus = safeNumber(mode.tower[type], 0);
+    if (type === "frost" && facts.fast > 0) bonus += mode.fast;
+    if ((type === "cannon" || type === "tesla" || type === "poison") && (facts.total >= 8 || facts.split > 0)) bonus += mode.crowd;
+    if ((type === "poison" || type === "cannon" || type === "tesla" || type === "support") && (facts.boss > 0 || facts.highHp > 0)) bonus += mode.boss;
+    return bonus * (kind === "upgrade" ? mode.upgrade : mode.build);
+  }
+
   function adviseTowerActions(input) {
     const ctx = input || {};
     const towers = normalizeTowers(ctx.towers);
@@ -688,6 +733,9 @@
     const actions = [];
     const warning = counterWarningForWave(ctx);
     const recs = recommendTowersForWave(ctx);
+    const modeId = normalizeAdvisorMode(ctx.advisorMode || ctx.mode);
+    const mode = ADVISOR_MODES[modeId];
+    const facts = waveFactsFromCounts(countWaveEnemies(ctx));
     const existingTypes = new Set(towers.map((tw) => tw.type));
     for (const rec of recs) {
       const tower = cfg.TOWERS[rec.id];
@@ -696,8 +744,11 @@
       if (!candidate) continue;
       const needBonus = warning && warning.towerId === rec.id ? 10 : 0;
       const varietyBonus = existingTypes.has(rec.id) ? 0 : 2;
+      const modeBonus = advisorModeBonus(rec.id, facts, modeId, "build");
       actions.push({
         kind: "build",
+        mode: modeId,
+        modeLabel: mode.label,
         towerId: rec.id,
         towerName: tower.name,
         emoji: tower.emoji,
@@ -707,7 +758,7 @@
         x: candidate.x,
         y: candidate.y,
         zone: candidate.zone,
-        score: Math.round((rec.score + needBonus + varietyBonus) * 100) / 100,
+        score: Math.round((rec.score + needBonus + varietyBonus + modeBonus) * 100) / 100,
         reason: warning && warning.towerId === rec.id
           ? `補${tower.name}處理下波克制缺口，放在${candidate.zone}覆蓋低火力路段。`
           : `放在${candidate.zone}補覆蓋缺口；${rec.reason}`,
@@ -723,8 +774,12 @@
       const before = towerDpsFor(tw.type, tw.level, ctx.affix);
       const after = towerDpsFor(tw.type, tw.level + 1, ctx.affix);
       const fit = Math.max(1, towerFitScore(tw.type, ctx));
+      const modeBonus = advisorModeBonus(tw.type, facts, modeId, "upgrade");
+      const baseScore = ((after - before) * fit) / Math.max(1, cost);
       actions.push({
         kind: "upgrade",
+        mode: modeId,
+        modeLabel: mode.label,
         towerId: tw.type,
         towerName: tower.name,
         emoji: tower.emoji,
@@ -735,7 +790,7 @@
         zone: isFiniteNumber(tw.x) && isFiniteNumber(tw.y) && path.length >= 2
           ? zoneLabel(weakestCoverageSample([tw], path, ctx.affix).ratio)
           : "現有火力區",
-        score: Math.round((((after - before) * fit) / Math.max(1, cost)) * 1000) / 1000,
+        score: Math.round((baseScore + modeBonus) * 1000) / 1000,
         reason: `升級${tower.name}到 Lv.${tw.level + 1}，本波傷害效率最高。`,
       });
     }
@@ -746,6 +801,8 @@
         const tower = cfg.TOWERS[next.id];
         actions.push({
           kind: "save",
+          mode: modeId,
+          modeLabel: mode.label,
           towerId: next.id,
           towerName: tower.name,
           emoji: tower.emoji,
@@ -761,6 +818,130 @@
     return actions
       .sort((a, b) => b.score - a.score || (a.kind === "build" ? -1 : 1))
       .slice(0, 2);
+  }
+
+  function towerTypeCounts(towers) {
+    const counts = {};
+    for (const tw of normalizeTowers(towers)) counts[tw.type] = (counts[tw.type] || 0) + 1;
+    return counts;
+  }
+
+  function normalizeLeakStats(leaks) {
+    const byWave = {};
+    const raw = leaks && typeof leaks === "object" ? leaks.byWave || leaks : {};
+    if (!raw || typeof raw !== "object") return { total: 0, byWave };
+    let total = 0;
+    for (const [waveKey, entry] of Object.entries(raw)) {
+      const wave = Math.max(0, Math.floor(safeNumber(Number(waveKey), 0)));
+      if (!wave || !entry || typeof entry !== "object") continue;
+      const byType = {};
+      const rawTypes = entry.byType && typeof entry.byType === "object" ? entry.byType : {};
+      let count = Math.max(0, Math.floor(safeNumber(entry.count, 0)));
+      for (const [type, nRaw] of Object.entries(rawTypes)) {
+        if (!isSafeRecordKey(type) || !hasOwn(cfg.ENEMIES, type)) continue;
+        const n = Math.max(0, Math.floor(safeNumber(nRaw, 0)));
+        if (n <= 0) continue;
+        byType[type] = n;
+        if (!count) count += n;
+      }
+      if (count <= 0) continue;
+      const damage = Math.max(0, Math.floor(safeNumber(entry.damage, 0)));
+      byWave[wave] = { wave, count, damage, byType };
+      total += count;
+    }
+    return { total, byWave };
+  }
+
+  function topLeakEntry(leaks) {
+    const entries = Object.values(leaks.byWave || {});
+    return entries.sort((a, b) => b.count - a.count || b.damage - a.damage || a.wave - b.wave)[0] || null;
+  }
+
+  function topLeakEnemy(entry) {
+    const types = Object.entries((entry && entry.byType) || {});
+    const top = types.sort((a, b) => b[1] - a[1])[0];
+    if (!top) return null;
+    const enemy = cfg.ENEMIES[top[0]];
+    return enemy ? { type: top[0], count: top[1], enemy } : null;
+  }
+
+  function inferLeakReason(entry, towers) {
+    const top = topLeakEnemy(entry);
+    const towerCounts = towerTypeCounts(towers);
+    if (!top) return { cause: "coverage", text: "火力覆蓋不足" };
+    const enemy = top.enemy;
+    if (enemy.speed >= 80 && !towerCounts.frost) return { cause: "fast", text: `${enemy.name}未被減速` };
+    if (enemy.ability && enemy.ability.id === "splitBat" && !towerCounts.frost) return { cause: "fast", text: `${enemy.name}分裂後缺少緩速攔截` };
+    if (enemy.shield && !towerCounts.poison) return { cause: "shield", text: `${enemy.name}護盾未被毒塔穿透` };
+    if ((enemy.boss || enemy.hp >= 120) && !towerCounts.poison && !towerCounts.cannon) return { cause: "durable", text: `${enemy.name}血量高，單體火力不足` };
+    const counterElement = Object.entries(cfg.COUNTERS || {}).find((item) => item[1] === enemy.element);
+    if (counterElement) {
+      const hasCounter = Object.values(cfg.TOWERS || {}).some((tower) => tower && tower.element === counterElement[0] && towerCounts[tower.id]);
+      if (!hasCounter && enemy.element !== "physical") {
+        const label = cfg.ELEMENTS && cfg.ELEMENTS[enemy.element] ? cfg.ELEMENTS[enemy.element].label : enemy.element;
+        const counter = cfg.ELEMENTS && cfg.ELEMENTS[counterElement[0]] ? cfg.ELEMENTS[counterElement[0]].label : counterElement[0];
+        return { cause: "counter", text: `${label}系敵人缺少${counter}系克制塔` };
+      }
+    }
+    return { cause: "coverage", text: `${enemy.name}行進路段火力覆蓋不足` };
+  }
+
+  function runLearningAdjustments(reason, towers) {
+    const towerCounts = towerTypeCounts(towers);
+    if (reason.cause === "fast") {
+      return [
+        "下一局第 7 波前補寒冰塔，放在前段或中段低覆蓋路段。",
+        "高速波前優先升級既有寒冰塔或加一座電磁塔補追擊。",
+      ];
+    }
+    if (reason.cause === "shield") {
+      return [
+        "遇盾兵波前補毒霧塔，讓持續傷害穿盾咬本體。",
+        "盾兵多時把毒霧塔放在路徑前段，後段用加農砲收尾。",
+      ];
+    }
+    if (reason.cause === "durable") {
+      return [
+        "Boss 或高血波前升級主力加農砲，避免火力分散。",
+        "補毒霧塔或聖光塔提高長時間輸出效率。",
+      ];
+    }
+    if (reason.cause === "counter") {
+      return [
+        "開波前先看克制警告，缺克制元素時優先補對應塔。",
+        "把克制塔放在中段，讓敵人吃完整射程覆蓋。",
+      ];
+    }
+    return [
+      towerCounts.frost ? "下一局把主力塔往漏怪波段前一段集中，避免火力空窗。" : "下一局先補一座寒冰塔，讓尾段有時間收掉漏怪。",
+      "波間使用塔陣顧問，優先處理覆蓋最低的路段或升級最高效率塔。",
+    ];
+  }
+
+  function analyzeRunReport(input) {
+    const ctx = input || {};
+    const leaks = normalizeLeakStats(ctx.leaks || ctx.leakStats);
+    const towers = Array.isArray(ctx.towers) ? ctx.towers : [];
+    if (!leaks.total) {
+      return {
+        summary: "本局沒有明顯漏怪紀錄，主要瓶頸可能是總火力或女神血量。",
+        adjustments: [
+          "下一局維持前段輸出，波間優先升級最高效率塔。",
+          "第 8 波後補一座控場塔，降低突發高速波風險。",
+        ],
+        totalLeaks: 0,
+        topWave: null,
+      };
+    }
+    const top = topLeakEntry(leaks);
+    const reason = inferLeakReason(top, towers);
+    return {
+      summary: `第 ${top.wave} 波漏 ${top.count} 隻：${reason.text}。`,
+      adjustments: runLearningAdjustments(reason, towers).slice(0, 2),
+      totalLeaks: leaks.total,
+      topWave: top.wave,
+      reason: reason.cause,
+    };
   }
 
   function updateBoard(board, diffId, mapIdOrEntry, entryOrMaxEntries, maybeMaxEntries) {
@@ -895,8 +1076,10 @@
     selectMapAffix,
     affixExpectedBalance,
     recommendTowersForWave,
+    ADVISOR_MODES,
     adviseTowerActions,
     counterWarningForWave,
+    analyzeRunReport,
     protectMetaWrite,
     applyDifficulty,
     generateWaveQueue,

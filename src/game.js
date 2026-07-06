@@ -82,6 +82,7 @@
       mapId: mapDef.id, mapDef, path, affixSeed, affix,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
+      runLeaks: { total: 0, byWave: {} },
       towersBuilt: 0, towerUpgrades: 0, skillCasts: 0, bossKills: 0, clearedWave: 0,
       running: false, over: false, betweenWaves: true,
       selectedTowerType: null,   // 準備建造的塔
@@ -89,6 +90,9 @@
       pendingSkill: null,         // 準備施放的技能
       skillCooldowns: {},         // 技能冷卻計時
       speed: 1,                    // 遊戲速度倍率
+      advisorMode: "control",
+      advisorBuildConfirm: false,
+      advisorUpgradeTarget: null,
     };
     Object.keys(SKILLS).forEach((k) => (state.skillCooldowns[k] = 0));
     state.map = buildMapLayout(); // 亂數地圖佈局
@@ -120,7 +124,9 @@
 
   // 下一波預告（D4）：回傳下一波的敵人數、是否 Boss、主元素傾向。
   // theme 用 config 的共用 waveTheme()——startWave 出怪讀同一個來源，預告才不會是假的
-  function previewNextWave() {
+  function previewNextWave(options) {
+    const opts = options || {};
+    const advisorMode = opts.advisorMode || opts.mode || state.advisorMode || "control";
     const w = state.wave + 1;
     const plan = TDRules.generateWaveQueue(w, getDifficulty(), null, state.affix);
     const counts = {};
@@ -130,10 +136,10 @@
       .slice(0, 4)
       .map(([type, count]) => ({ type, count }));
     const recommendations = TDRules.recommendTowersForWave ? TDRules.recommendTowersForWave(plan) : [];
-    const advisorInput = { queue: plan.queue, towers: state.towers, gold: state.gold, path: state.path, affix: state.affix, width: W, height: H };
+    const advisorInput = { queue: plan.queue, towers: state.towers, gold: state.gold, path: state.path, affix: state.affix, width: W, height: H, advisorMode };
     const advisor = TDRules.adviseTowerActions ? TDRules.adviseTowerActions(advisorInput) : [];
     const counterWarning = TDRules.counterWarningForWave ? TDRules.counterWarningForWave(advisorInput) : null;
-    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes, recommendations, advisor, counterWarning };
+    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes, recommendations, advisor, counterWarning, advisorMode };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -502,6 +508,14 @@
     if (e._leaked || e._dead) return;
     e._leaked = true;
     const dmg = Math.round(e.leak * (e.boss ? 4 : 3) * affixMul("leakDamageMul")); // 漏過對女神造成的傷害
+    state.runLeaks = state.runLeaks || { total: 0, byWave: {} };
+    const waveKey = String(Math.max(1, state.wave || 1));
+    const waveEntry = state.runLeaks.byWave[waveKey] || { count: 0, damage: 0, byType: {} };
+    waveEntry.count += 1;
+    waveEntry.damage += dmg;
+    waveEntry.byType[e.type] = (waveEntry.byType[e.type] || 0) + 1;
+    state.runLeaks.byWave[waveKey] = waveEntry;
+    state.runLeaks.total += 1;
     state.goddess.hp -= dmg;
     state.goddess.hitFlash = 0.4;
     burst(state.goddess.x, state.goddess.y, "#ef4444", 14);
@@ -948,6 +962,8 @@
         kills: state.kills,
         difficulty: getDifficulty(),
         soulEarned: state.runSoulEarned || 0,
+        leaks: state.runLeaks,
+        towers: state.towers.map((tw) => ({ type: tw.type, level: tw.level, cx: tw.cx, cy: tw.cy, x: tw.x, y: tw.y })),
         heroGrowth: state.heroes.map((h) => ({
           id: h.id,
           level: h.level,
@@ -972,6 +988,7 @@
     for (const b of state.bullets) drawBullet(b);
     for (const p of state.particles) drawParticle(p);
     if (state.selectedTower) drawTowerRange(state.selectedTower);
+    drawAdvisorHighlight();
     drawGuardPoints();
     drawComboHud();
     drawBanner();
@@ -1214,6 +1231,20 @@
     ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(tw.x, tw.y, towerStat(tw, "range"), 0, Math.PI * 2); ctx.stroke();
   }
+  function drawAdvisorHighlight() {
+    const tw = state.advisorUpgradeTarget;
+    if (!tw || state.selectedTower !== tw) return;
+    const pulse = 1 + Math.sin(state.clock * 6) * 0.08;
+    ctx.save();
+    ctx.strokeStyle = "#facc15";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#facc15";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(tw.x, tw.y, CELL * 0.58 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   // 圖片快取：載入後做「四角背景色去背」，讓素材的純色方塊背景（紫/白）變透明，
   // 融入草地。處理結果是一個帶 complete/naturalWidth 的 canvas（可直接 drawImage）。
   const imgCache = {};
@@ -1451,6 +1482,27 @@
   }
   // 點擊/觸控的共用處理（座標已換算，RWD 縮放下也正確）
   function handleBuildTap(p, isTouch) {
+    if (state.advisorBuildConfirm) {
+      const preview = buildPreviewAt(p.x, p.y);
+      const ghost = state.buildGhost;
+      const same = preview.ok && ghost && preview.cx === ghost.cx && preview.cy === ghost.cy;
+      if (same) {
+        const built = tryBuildTower(preview.x, preview.y);
+        state.advisorBuildConfirm = false;
+        state.selectedTowerType = null;
+        state.buildGhost = null;
+        canvas.style.cursor = "default";
+        if (typeof window.__tdUI === "function") window.__tdUI();
+        return built;
+      }
+      state.advisorBuildConfirm = false;
+      state.selectedTowerType = null;
+      state.buildGhost = null;
+      canvas.style.cursor = "default";
+      log("已取消顧問建造預覽。");
+      if (typeof window.__tdUI === "function") window.__tdUI();
+      return false;
+    }
     if (!isTouch) { tryBuildTower(p.x, p.y); return; }
     const preview = buildPreviewAt(p.x, p.y);
     if (!preview.ok) {
@@ -1508,6 +1560,64 @@
     if (t) handleTap(canvasPos(t.clientX, t.clientY), true);
   }, { passive: false });
 
+  function previewAdvisorAction(action) {
+    if (!action || state.over) return false;
+    if (action.kind === "build" && TOWERS[action.towerId]) {
+      const rawX = Number.isFinite(action.x) ? action.x : (Number.isFinite(action.cx) ? action.cx * CELL + CELL / 2 : W / 2);
+      const rawY = Number.isFinite(action.y) ? action.y : (Number.isFinite(action.cy) ? action.cy * CELL + CELL / 2 : H / 2);
+      state.selectedTowerType = action.towerId;
+      state.selectedTower = null;
+      state.pendingSkill = null;
+      state.pendingHero = null;
+      state.advisorUpgradeTarget = null;
+      let preview = buildPreviewAt(rawX, rawY);
+      if (!preview.ok) {
+        let best = null;
+        for (let cy = 0; cy < Math.ceil(H / CELL); cy++) {
+          for (let cx = 0; cx < Math.ceil(W / CELL); cx++) {
+            const p = cellCenter(cx, cy);
+            const candidate = buildPreviewAt(p.x, p.y);
+            if (!candidate.ok) continue;
+            const score = Math.hypot(candidate.x - rawX, candidate.y - rawY);
+            if (!best || score < best.score) best = Object.assign({ score }, candidate);
+          }
+        }
+        if (best) preview = best;
+      }
+      if (!preview.ok) {
+        state.selectedTowerType = null;
+        log(preview.reason || "顧問建議暫無合法落點", "bad");
+        return false;
+      }
+      state.advisorBuildConfirm = true;
+      state.buildGhost = { x: preview.x, y: preview.y, cx: preview.cx, cy: preview.cy, advisor: true };
+      state.mouse = { x: preview.x, y: preview.y };
+      canvas.style.cursor = "crosshair";
+      flashText(preview.x, preview.y - 18, "再點一次確認建造", { color: "#fde047", size: 13, big: true });
+      render();
+      if (typeof window.__tdUI === "function") window.__tdUI();
+      return true;
+    }
+    if (action.kind === "upgrade") {
+      const index = Math.max(0, Math.floor(Number(action.towerIndex)));
+      const tw = state.towers[index];
+      if (!tw) return false;
+      state.selectedTower = tw;
+      state.selectedTowerType = null;
+      state.pendingSkill = null;
+      state.pendingHero = null;
+      state.advisorBuildConfirm = false;
+      state.buildGhost = null;
+      state.advisorUpgradeTarget = tw;
+      canvas.style.cursor = "default";
+      flashText(tw.x, tw.y - 24, "建議升級", { color: "#facc15", size: 13, big: true });
+      render();
+      if (typeof window.__tdUI === "function") window.__tdUI();
+      return true;
+    }
+    return false;
+  }
+
   function log(msg, kind) { if (typeof window.__tdLog === "function") window.__tdLog(msg, kind); }
 
   // 初始化 clock
@@ -1527,9 +1637,9 @@
     state: () => state,
     newGame: () => { newGame(); state.clock = 0; render(); },
     startWave,
-    selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; },
-    cancelBuild: () => { state.selectedTowerType = null; state.buildGhost = null; },
-    selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; canvas.style.cursor = "crosshair"; } },
+    selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; },
+    cancelBuild: () => { state.selectedTowerType = null; state.buildGhost = null; state.advisorBuildConfirm = false; },
+    selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "crosshair"; } },
     upgradeSelected: () => { if (state.selectedTower) upgradeTower(state.selectedTower); },
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
@@ -1538,11 +1648,13 @@
     rollHeroWithPity,      // 含保底的抽卡（Stage 1：pity 由 ui.js 的 meta 持久化）
     rollHeroWithPityPreferNew, // 新手第二隻英雄避開重複
     previewNextWave,       // 下一波預告（D4）
+    previewAdvisorAction,
     setDifficulty, getDifficulty,  // 難度模式（鉤子）
     setMap, getMap,
+    setAdvisorMode: (mode) => { state.advisorMode = (TDRules.ADVISOR_MODES && TDRules.ADVISOR_MODES[mode]) ? mode : "control"; },
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
-    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
+    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
     setSpeed: (s) => { state.speed = s; },
     buildPreviewAt: (x, y) => buildPreviewAt(x, y),
     debug: {

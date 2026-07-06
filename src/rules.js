@@ -263,6 +263,26 @@
     return meta;
   }
 
+  function hasInvalidMetaWriteShape(candidate) {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return true;
+    for (const key of META_NUMERIC_KEYS) {
+      if (hasOwn(candidate, key) && !isFiniteNumber(candidate[key])) return true;
+    }
+    const objectKeys = ["bestByDiff", "board", "achievements", "beginnerMissions", "heroProgress"];
+    for (const key of objectKeys) {
+      if (hasOwn(candidate, key) && (!candidate[key] || typeof candidate[key] !== "object" || Array.isArray(candidate[key]))) return true;
+    }
+    return false;
+  }
+
+  function protectMetaWrite(currentRaw, candidateRaw) {
+    const current = migrateMeta(currentRaw);
+    if (hasInvalidMetaWriteShape(candidateRaw)) {
+      return { ok: false, reason: "invalid-meta-write", meta: current };
+    }
+    return { ok: true, reason: "ok", meta: migrateMeta(candidateRaw) };
+  }
+
   function normalizeDifficulty(difficulty) {
     if (typeof difficulty === "string" && hasOwn(cfg.DIFFICULTIES, difficulty)) return cfg.DIFFICULTIES[difficulty];
     if (difficulty && typeof difficulty === "object") return difficulty;
@@ -424,10 +444,9 @@
     return "便宜高攻速，適合補刀與觸發閃避後追擊。";
   }
 
-  function recommendTowersForWave(input) {
-    const counts = countWaveEnemies(input);
+  function waveFactsFromCounts(counts) {
     const facts = { physical: 0, fire: 0, ice: 0, thunder: 0, shield: 0, healer: 0, fast: 0, highHp: 0, boss: 0, split: 0, total: 0 };
-    for (const [type, count] of Object.entries(counts)) {
+    for (const [type, count] of Object.entries(counts || {})) {
       const enemy = cfg.ENEMIES[type];
       if (!enemy) continue;
       const n = Math.max(0, Math.floor(safeNumber(count, 0)));
@@ -440,6 +459,12 @@
       if (enemy.boss) facts.boss += n;
       if (enemy.ability && enemy.ability.id === "splitBat") facts.split += n;
     }
+    return facts;
+  }
+
+  function recommendTowersForWave(input) {
+    const counts = countWaveEnemies(input);
+    const facts = waveFactsFromCounts(counts);
 
     const recommendations = [];
     for (const tower of Object.values(cfg.TOWERS || {})) {
@@ -475,6 +500,267 @@
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
       .slice(0, 3);
+  }
+
+  function normalizeTowers(towers) {
+    const list = Array.isArray(towers) ? towers : [];
+    return list
+      .filter((tw) => tw && hasOwn(cfg.TOWERS, tw.type))
+      .map((tw) => ({
+        type: tw.type,
+        level: Math.max(1, Math.floor(safeNumber(tw.level, 1))),
+        x: safeNumber(tw.x, NaN),
+        y: safeNumber(tw.y, NaN),
+        cx: isFiniteNumber(tw.cx) ? Math.floor(tw.cx) : null,
+        cy: isFiniteNumber(tw.cy) ? Math.floor(tw.cy) : null,
+      }));
+  }
+
+  function towerDpsFor(type, level, affixInput) {
+    const tower = cfg.TOWERS[type];
+    if (!tower || tower.support) return 0;
+    const affix = normalizeAffix(affixInput);
+    const damageMul = affix ? safeNumber(affix.towerDamageMul, 1) : 1;
+    let dps = safeNumber(tower.damage, 0) * Math.pow(cfg.UPGRADE.damageMul || 1.5, Math.max(1, level) - 1) * damageMul * safeNumber(tower.fireRate, 0);
+    if (tower.splash) dps *= 2.2;
+    if (tower.pierce) dps *= 1 + (tower.pierce - 1) * 0.6;
+    if (tower.poisonDps) dps += tower.poisonDps * Math.min(2.2, tower.poisonDuration || 1) * 0.7;
+    return dps;
+  }
+
+  function towerRangeFor(type, level, affixInput) {
+    const tower = cfg.TOWERS[type];
+    if (!tower) return 0;
+    const affix = normalizeAffix(affixInput);
+    const rangeMul = affix ? safeNumber(affix.towerRangeMul, 1) : 1;
+    return safeNumber(tower.range, 0) * Math.pow(cfg.UPGRADE.rangeMul || 1.08, Math.max(1, level) - 1) * rangeMul;
+  }
+
+  function pathTotalLength(path) {
+    if (!Array.isArray(path) || path.length < 2) return 0;
+    let total = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      if (a && b && isFiniteNumber(a.x) && isFiniteNumber(a.y) && isFiniteNumber(b.x) && isFiniteNumber(b.y)) {
+        total += Math.hypot(b.x - a.x, b.y - a.y);
+      }
+    }
+    return total;
+  }
+
+  function pointAtPathRatio(path, ratio) {
+    if (!Array.isArray(path) || !path.length) return { x: 0, y: 0 };
+    if (path.length === 1) return { x: safeNumber(path[0].x, 0), y: safeNumber(path[0].y, 0) };
+    const total = pathTotalLength(path);
+    if (total <= 0) return { x: safeNumber(path[0].x, 0), y: safeNumber(path[0].y, 0) };
+    let target = Math.max(0, Math.min(1, safeNumber(ratio, 0))) * total;
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (target <= len || i === path.length - 2) {
+        const t = len <= 0 ? 0 : target / len;
+        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      }
+      target -= len;
+    }
+    const last = path[path.length - 1];
+    return { x: safeNumber(last.x, 0), y: safeNumber(last.y, 0) };
+  }
+
+  function zoneLabel(ratio) {
+    const r = Math.max(0, Math.min(1, safeNumber(ratio, 0.5)));
+    if (r < 0.34) return "前段";
+    if (r < 0.67) return "中段";
+    return "後段";
+  }
+
+  function coverageSamples(towers, path, affixInput) {
+    const ratios = [0.12, 0.28, 0.44, 0.60, 0.76, 0.90];
+    return ratios.map((ratio) => {
+      const p = pointAtPathRatio(path, ratio);
+      let coverage = 0;
+      for (const tw of towers) {
+        const tower = cfg.TOWERS[tw.type];
+        if (!tower || tower.support || !isFiniteNumber(tw.x) || !isFiniteNumber(tw.y)) continue;
+        const range = towerRangeFor(tw.type, tw.level, affixInput);
+        if (Math.hypot(tw.x - p.x, tw.y - p.y) <= range) coverage += towerDpsFor(tw.type, tw.level, affixInput);
+      }
+      return { ratio, point: p, coverage };
+    });
+  }
+
+  function weakestCoverageSample(towers, path, affixInput) {
+    const samples = coverageSamples(towers, path, affixInput);
+    return samples.sort((a, b) => a.coverage - b.coverage || a.ratio - b.ratio)[0] || { ratio: 0.5, point: pointAtPathRatio(path, 0.5), coverage: 0 };
+  }
+
+  function buildCandidateForTower(type, towers, path, affixInput, options) {
+    const tower = cfg.TOWERS[type];
+    if (!tower || !Array.isArray(path) || path.length < 2) return null;
+    const cell = Math.max(16, Math.floor(safeNumber(cfg.GAME.cellSize, 48)));
+    const width = Math.max(cell, Math.floor(safeNumber(options && options.width, 960)));
+    const height = Math.max(cell, Math.floor(safeNumber(options && options.height, 640)));
+    const range = towerRangeFor(type, 1, affixInput);
+    const weak = weakestCoverageSample(towers, path, affixInput);
+    const occupied = new Set(towers.map((tw) => `${tw.cx},${tw.cy}`));
+    let best = null;
+    for (let cy = 0; cy < Math.ceil(height / cell); cy++) {
+      for (let cx = 0; cx < Math.ceil(width / cell); cx++) {
+        if (occupied.has(`${cx},${cy}`)) continue;
+        const x = cx * cell + cell / 2;
+        const y = cy * cell + cell / 2;
+        if (x < 0 || y < 0 || x >= width || y >= height) continue;
+        const pathDist = distanceToPath(x, y, path);
+        if (pathDist < cell * 0.58 || pathDist > range) continue;
+        const targetDist = Math.hypot(x - weak.point.x, y - weak.point.y);
+        const score = targetDist + Math.abs(pathDist - range * 0.58) * 0.25;
+        if (!best || score < best.score) {
+          best = { cx, cy, x: Math.round(x), y: Math.round(y), zone: zoneLabel(weak.ratio), score, pathDistance: Math.round(pathDist) };
+        }
+      }
+    }
+    return best;
+  }
+
+  function dominantCounterNeed(input) {
+    const counts = countWaveEnemies(input);
+    const byElement = { fire: 0, ice: 0, thunder: 0 };
+    let total = 0;
+    for (const [type, count] of Object.entries(counts)) {
+      const enemy = cfg.ENEMIES[type];
+      const n = Math.max(0, Math.floor(safeNumber(count, 0)));
+      if (!enemy || n <= 0) continue;
+      total += n;
+      if (hasOwn(byElement, enemy.element)) byElement[enemy.element] += n;
+    }
+    const dominant = Object.entries(byElement).sort((a, b) => b[1] - a[1])[0];
+    if (!dominant || dominant[1] <= 0) return null;
+    if (dominant[1] < Math.max(2, total * 0.45)) return null;
+    const enemyElement = dominant[0];
+    const counterElement = Object.entries(cfg.COUNTERS || {}).find((entry) => entry[1] === enemyElement);
+    if (!counterElement) return null;
+    const tower = Object.values(cfg.TOWERS || {}).find((tw) => tw && tw.element === counterElement[0] && !tw.support);
+    if (!tower) return null;
+    return { enemyElement, count: dominant[1], total, counterElement: counterElement[0], towerId: tower.id };
+  }
+
+  function counterWarningForWave(input) {
+    const need = dominantCounterNeed(input);
+    if (!need) return null;
+    const towers = normalizeTowers(input && input.towers);
+    const hasCounter = towers.some((tw) => {
+      const tower = cfg.TOWERS[tw.type];
+      return tower && tower.element === need.counterElement && !tower.support;
+    });
+    if (hasCounter) return null;
+    const enemyLabel = cfg.ELEMENTS && cfg.ELEMENTS[need.enemyElement] ? cfg.ELEMENTS[need.enemyElement].label : need.enemyElement;
+    const counterLabel = cfg.ELEMENTS && cfg.ELEMENTS[need.counterElement] ? cfg.ELEMENTS[need.counterElement].label : need.counterElement;
+    return {
+      element: need.enemyElement,
+      counterElement: need.counterElement,
+      towerId: need.towerId,
+      severity: "warning",
+      message: `下波以${enemyLabel}系為主，你沒有${counterLabel}系塔。`,
+    };
+  }
+
+  function towerFitScore(type, input) {
+    const counts = countWaveEnemies(input);
+    const rec = recommendTowersForWave(input).find((item) => item.id === type);
+    const tower = cfg.TOWERS[type];
+    if (!tower) return 0;
+    let score = rec ? rec.score : 0;
+    for (const [enemyType, count] of Object.entries(counts)) {
+      const enemy = cfg.ENEMIES[enemyType];
+      if (!enemy) continue;
+      const n = Math.max(0, Math.floor(safeNumber(count, 0)));
+      const mul = cfg.elementMultiplier ? cfg.elementMultiplier(tower.element, enemy.element) : 1;
+      score += n * (mul - 1);
+    }
+    return score;
+  }
+
+  function adviseTowerActions(input) {
+    const ctx = input || {};
+    const towers = normalizeTowers(ctx.towers);
+    const path = Array.isArray(ctx.path) ? ctx.path : [];
+    const gold = Math.max(0, Math.floor(safeNumber(ctx.gold, 0)));
+    const actions = [];
+    const warning = counterWarningForWave(ctx);
+    const recs = recommendTowersForWave(ctx);
+    const existingTypes = new Set(towers.map((tw) => tw.type));
+    for (const rec of recs) {
+      const tower = cfg.TOWERS[rec.id];
+      if (!tower || tower.support || gold < tower.cost) continue;
+      const candidate = buildCandidateForTower(rec.id, towers, path, ctx.affix, ctx);
+      if (!candidate) continue;
+      const needBonus = warning && warning.towerId === rec.id ? 10 : 0;
+      const varietyBonus = existingTypes.has(rec.id) ? 0 : 2;
+      actions.push({
+        kind: "build",
+        towerId: rec.id,
+        towerName: tower.name,
+        emoji: tower.emoji,
+        cost: tower.cost,
+        cx: candidate.cx,
+        cy: candidate.cy,
+        x: candidate.x,
+        y: candidate.y,
+        zone: candidate.zone,
+        score: Math.round((rec.score + needBonus + varietyBonus) * 100) / 100,
+        reason: warning && warning.towerId === rec.id
+          ? `補${tower.name}處理下波克制缺口，放在${candidate.zone}覆蓋低火力路段。`
+          : `放在${candidate.zone}補覆蓋缺口；${rec.reason}`,
+      });
+    }
+
+    for (let index = 0; index < towers.length; index++) {
+      const tw = towers[index];
+      const tower = cfg.TOWERS[tw.type];
+      if (!tower || tower.support || tw.level >= cfg.UPGRADE.maxLevel) continue;
+      const cost = Math.round(tower.cost * Math.pow(cfg.UPGRADE.costMul || 1.52, tw.level));
+      if (gold < cost) continue;
+      const before = towerDpsFor(tw.type, tw.level, ctx.affix);
+      const after = towerDpsFor(tw.type, tw.level + 1, ctx.affix);
+      const fit = Math.max(1, towerFitScore(tw.type, ctx));
+      actions.push({
+        kind: "upgrade",
+        towerId: tw.type,
+        towerName: tower.name,
+        emoji: tower.emoji,
+        towerIndex: index,
+        level: tw.level,
+        nextLevel: tw.level + 1,
+        cost,
+        zone: isFiniteNumber(tw.x) && isFiniteNumber(tw.y) && path.length >= 2
+          ? zoneLabel(weakestCoverageSample([tw], path, ctx.affix).ratio)
+          : "現有火力區",
+        score: Math.round((((after - before) * fit) / Math.max(1, cost)) * 1000) / 1000,
+        reason: `升級${tower.name}到 Lv.${tw.level + 1}，本波傷害效率最高。`,
+      });
+    }
+
+    if (!actions.length) {
+      const next = recs.find((rec) => cfg.TOWERS[rec.id]) || null;
+      if (next) {
+        const tower = cfg.TOWERS[next.id];
+        actions.push({
+          kind: "save",
+          towerId: next.id,
+          towerName: tower.name,
+          emoji: tower.emoji,
+          cost: tower.cost,
+          missingGold: Math.max(0, tower.cost - gold),
+          zone: "波間",
+          score: 0,
+          reason: `先存 ${Math.max(0, tower.cost - gold)} 金，下一步補${tower.name}。`,
+        });
+      }
+    }
+
+    return actions
+      .sort((a, b) => b.score - a.score || (a.kind === "build" ? -1 : 1))
+      .slice(0, 2);
   }
 
   function updateBoard(board, diffId, mapIdOrEntry, entryOrMaxEntries, maybeMaxEntries) {
@@ -609,6 +895,9 @@
     selectMapAffix,
     affixExpectedBalance,
     recommendTowersForWave,
+    adviseTowerActions,
+    counterWarningForWave,
+    protectMetaWrite,
     applyDifficulty,
     generateWaveQueue,
     updateBoard,

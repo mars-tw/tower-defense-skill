@@ -131,6 +131,22 @@
   .tower-rec-chip { border: 1px solid rgba(125,211,252,.24); border-radius: 999px; padding: 4px 7px;
     background: rgba(125,211,252,.08); color: var(--ink); font-size: 11px; font-weight: 900; }
   .tower-rec-reason { margin-top: 5px; color: var(--ink-dim); font-size: 10px; line-height: 1.35; }
+  .advisor-row { margin-top: 8px; border: 1px solid rgba(74,222,128,.22); border-radius: 9px;
+    background: rgba(74,222,128,.055); overflow: hidden; }
+  .advisor-head { display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    padding: 6px 7px; color: var(--accent); font-size: 11px; font-weight: 900; }
+  .advisor-tools { display: flex; gap: 4px; }
+  .advisor-tools button { border: 1px solid var(--border-soft); border-radius: 7px; background: var(--surface-1);
+    color: var(--ink-dim); padding: 3px 5px; font: inherit; font-size: 10px; font-weight: 900; cursor: pointer; }
+  .advisor-actions { display: grid; gap: 4px; padding: 0 7px 7px; }
+  .advisor-row.collapsed .advisor-actions { display: none; }
+  .advisor-action { display: grid; gap: 2px; font-size: 11px; line-height: 1.35; }
+  .advisor-action b { color: var(--ink); }
+  .advisor-action span { color: var(--ink-dim); }
+  .wave-warning { display: none; border: 1px solid rgba(250,204,21,.32); border-radius: 10px;
+    background: rgba(250,204,21,.10); color: #fde68a; padding: 8px 10px; font-size: 12px;
+    font-weight: 900; line-height: 1.35; }
+  .wave-warning.show { display: block; }
   .mission-list { display: grid; gap: 5px; margin-top: 7px; }
   .mission-row { display: grid; grid-template-columns: 20px 1fr auto; gap: 6px; align-items: center;
     padding: 6px; border-radius: 8px; background: rgba(255,255,255,.035); }
@@ -146,6 +162,10 @@
     background: linear-gradient(180deg,#c084fc,#7c3aed); color: #fff; border-radius: 14px;
     padding: 10px 16px; font-weight: 900; box-shadow: var(--shadow-pop); z-index: 130;
     animation: missionToast 2s ease forwards; pointer-events: none; text-align: center; }
+  .recovery-toast { position: fixed; left: 50%; top: 184px; transform: translateX(-50%);
+    max-width: min(440px, 92vw); background: linear-gradient(180deg,#7dd3fc,#0284c7); color: #04131d;
+    border-radius: 14px; padding: 10px 16px; font-weight: 900; box-shadow: var(--shadow-pop);
+    z-index: 140; text-align: center; }
   @keyframes missionToast { 0%{opacity:0;transform:translate(-50%,-12px)} 15%,75%{opacity:1;transform:translate(-50%,0)} 100%{opacity:0;transform:translate(-50%,-8px)} }
   #heroRoster { display: flex; flex-direction: column; gap: 6px; }
   .hero-card { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 10px;
@@ -408,6 +428,27 @@
   .wrap { width: 100%; max-width: 1200px; }
 
   @media (min-width: 901px) and (max-height: 940px) {
+    .wave-start { order: 1; }
+    #waveWarning { order: 2; }
+    .wave-speed { order: 3; }
+    .goddess-btn { order: 4; }
+    .board-btn { order: 5; }
+    .shortcut-help { order: 6; }
+    .tower-title { order: 7; }
+    #towerList { order: 8; }
+    .tower-scroll-hint { order: 9; }
+    #nextWaveCard { order: 10; }
+    #affixCard { order: 11; }
+    #enemyInfo { order: 12; }
+    .hero-title { order: 13; }
+    .gacha-btn { order: 14; }
+    .gacha-meta { order: 15; }
+    #beginnerMissions { order: 16; }
+    #heroRoster { order: 17; }
+    #deployedHeroes { order: 18; }
+    .skill-title { order: 19; }
+    #skillList { order: 20; }
+    .sel-panel { order: 21; }
     #towerList { max-height: 150px; overflow-y: auto; padding-right: 2px; }
   }
 
@@ -429,23 +470,24 @@
     #towerList { order: 2; }
     .tower-scroll-hint { order: 3; display: block; }
     .wave-start { order: 4; }
-    .wave-speed { order: 5; }
-    .goddess-btn { order: 6; }
-    .board-btn { order: 7; }
-    #nextWaveCard { order: 8; }
-    #affixCard { order: 9; }
-    #enemyInfo { order: 10; }
-    .hero-title { order: 11; }
-    .gacha-btn { order: 12; }
-    .gacha-meta { order: 13; }
-    #beginnerMissions { order: 14; }
-    #heroRoster { order: 15; }
-    #deployedHeroes { order: 16; }
-    .hero-scroll-hint { order: 17; display: block; }
-    .skill-title { order: 18; }
-    #skillList { order: 19; }
-    .skill-scroll-hint { order: 20; display: block; }
-    .sel-panel { order: 21; }
+    #waveWarning { order: 5; }
+    .wave-speed { order: 6; }
+    .goddess-btn { order: 7; }
+    .board-btn { order: 8; }
+    #nextWaveCard { order: 9; }
+    #affixCard { order: 10; }
+    #enemyInfo { order: 11; }
+    .hero-title { order: 12; }
+    .gacha-btn { order: 13; }
+    .gacha-meta { order: 14; }
+    #beginnerMissions { order: 15; }
+    #heroRoster { order: 16; }
+    #deployedHeroes { order: 17; }
+    .hero-scroll-hint { order: 18; display: block; }
+    .skill-title { order: 19; }
+    #skillList { order: 20; }
+    .skill-scroll-hint { order: 21; display: block; }
+    .sel-panel { order: 22; }
     .panel h3 { margin-top: 4px; }
     .controls { flex-wrap: nowrap; }
   }
@@ -491,6 +533,7 @@
       <div class="controls wave-start">
         <button class="act start" id="startBtn" data-hotkey="⏎">▶ 開始下一波</button>
       </div>
+      <div class="wave-warning" id="waveWarning"></div>
       <div class="controls wave-speed">
         <button class="act speed on" id="speed1" data-s="1">1×</button>
         <button class="act speed" id="speed2" data-hotkey="Tab" data-s="2">2×</button>

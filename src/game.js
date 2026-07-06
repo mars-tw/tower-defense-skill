@@ -130,7 +130,10 @@
       .slice(0, 4)
       .map(([type, count]) => ({ type, count }));
     const recommendations = TDRules.recommendTowersForWave ? TDRules.recommendTowersForWave(plan) : [];
-    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes, recommendations };
+    const advisorInput = { queue: plan.queue, towers: state.towers, gold: state.gold, path: state.path, affix: state.affix, width: W, height: H };
+    const advisor = TDRules.adviseTowerActions ? TDRules.adviseTowerActions(advisorInput) : [];
+    const counterWarning = TDRules.counterWarningForWave ? TDRules.counterWarningForWave(advisorInput) : null;
+    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes, recommendations, advisor, counterWarning };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====

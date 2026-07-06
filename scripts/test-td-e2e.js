@@ -156,6 +156,73 @@ async function run() {
       `下一波情報卡顯示元素、主要敵人與建議塔種（敵人按鈕 ${nextWaveCardInitial.enemyButtons} 個）`);
     assert(nextWaveCardInitial.affixId && nextWaveCardInitial.affixText.includes("本局詞綴") && nextWaveCardInitial.affixText.includes("預期") && nextWaveCardInitial.affixText.includes("塔種影響"),
       `本局詞綴卡顯示效果與期望值（${nextWaveCardInitial.affixText.replace(/\n/g, " / ")}）`);
+    const advisorR25 = await page.evaluate(() => {
+      const savedMeta = localStorage.getItem("td_meta_v1");
+      const savedHeroes = localStorage.getItem("td_heroes_owned_v1");
+      const st = window.TD.state();
+      st.wave = 6; // 下一波第 7 波：雷系/蝙蝠高速壓力
+      st.betweenWaves = true;
+      st.running = false;
+      st.over = false;
+      st.gold = 100;
+      st.towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
+      window.__tdUI();
+      const preview = window.TD.previewNextWave();
+      const text = document.getElementById("nextWaveCard").innerText;
+      const buttons = document.querySelectorAll("#nextWaveCard [data-advisor-toggle], #nextWaveCard [data-advisor-close]").length;
+      window.TD.newGame();
+      if (savedMeta === null) localStorage.removeItem("td_meta_v1");
+      else localStorage.setItem("td_meta_v1", savedMeta);
+      if (savedHeroes === null) localStorage.removeItem("td_heroes_owned_v1");
+      else localStorage.setItem("td_heroes_owned_v1", savedHeroes);
+      window.__tdUI();
+      return { text, buttons, advisor: preview.advisor };
+    });
+    assert(advisorR25.text.includes("塔陣顧問") && advisorR25.text.includes("寒冰塔") &&
+      advisorR25.advisor[0] && advisorR25.advisor[0].kind === "build" && advisorR25.advisor[0].towerId === "frost" && advisorR25.buttons === 2,
+      `塔陣顧問在無冰塔＋高速敵情境建議補寒冰塔（${advisorR25.text.replace(/\n/g, " / ")}）`);
+
+    const warningR25 = await page.evaluate(() => {
+      const savedMeta = localStorage.getItem("td_meta_v1");
+      const savedHeroes = localStorage.getItem("td_heroes_owned_v1");
+      const restore = () => {
+        window.TD.newGame();
+        if (savedMeta === null) localStorage.removeItem("td_meta_v1");
+        else localStorage.setItem("td_meta_v1", savedMeta);
+        if (savedHeroes === null) localStorage.removeItem("td_heroes_owned_v1");
+        else localStorage.setItem("td_heroes_owned_v1", savedHeroes);
+        window.__tdUI();
+      };
+      const st = window.TD.state();
+      st.wave = 8; // 下一波第 9 波：冰系主題
+      st.betweenWaves = true;
+      st.running = false;
+      st.over = false;
+      st.gold = 200;
+      st.towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
+      window.__tdUI();
+      document.getElementById("startBtn").click();
+      const warn = document.getElementById("waveWarning");
+      const missing = { shown: warn.classList.contains("show"), text: warn.innerText, wave: st.wave, running: st.running };
+      window.TD.newGame();
+      const st2 = window.TD.state();
+      st2.wave = 8;
+      st2.betweenWaves = true;
+      st2.running = false;
+      st2.over = false;
+      st2.gold = 200;
+      st2.towers = [{ type: "cannon", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
+      window.__tdUI();
+      document.getElementById("startBtn").click();
+      const ok = { shown: warn.classList.contains("show"), text: warn.innerText, wave: st2.wave, running: st2.running };
+      restore();
+      return { missing, ok };
+    });
+    assert(warningR25.missing.shown && warningR25.missing.text.includes("冰系") && warningR25.missing.text.includes("火系") &&
+      warningR25.missing.wave === 9 && warningR25.missing.running,
+      `缺克制塔時開波警告出現且不阻擋開波（${warningR25.missing.text}）`);
+    assert(!warningR25.ok.shown && warningR25.ok.wave === 9 && warningR25.ok.running,
+      "已有火系塔時開波克制警告不誤報");
     if (vp.w <= 560) {
       await page.evaluate(() => document.querySelector("#nextWaveCard .enemy-chip-btn").click());
       const enemyInfo = await page.evaluate(() => ({
@@ -878,6 +945,19 @@ async function run() {
     }));
     assert(progressEnter.progressShown && progressEnter.pausedAfterEnter === true && progressAfterClose.paused === false && progressEnter.gachaShown === false && progressAfterClose.gachaShown === false,
       "排行榜 overlay 開啟後按 Enter 不重入，關閉後恢復且不會同時開啟抽卡 overlay");
+
+    const resilienceR25 = await page.evaluate(() => {
+      const before = { soulCrystal: 77, games: 4, bestWave: 6, bestByDiff: { normal: 6 } };
+      localStorage.setItem("td_meta_v1", JSON.stringify(before));
+      window.dispatchEvent(new ErrorEvent("error", { message: "R25 synthetic fault" }));
+      const after = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const notice = document.querySelector(".recovery-toast");
+      const text = notice ? notice.textContent : "";
+      if (notice) notice.remove();
+      return { after, text };
+    });
+    assert(resilienceR25.after.soulCrystal === 77 && resilienceR25.after.bestWave === 6 && resilienceR25.text.includes("已保護存檔"),
+      `全域錯誤時安全存檔並顯示恢復提示（${resilienceR25.text}）`);
 
     // 10. RWD：無水平溢出
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

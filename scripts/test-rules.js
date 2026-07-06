@@ -21,6 +21,9 @@ const {
   selectMapAffix,
   affixExpectedBalance,
   recommendTowersForWave,
+  adviseTowerActions,
+  counterWarningForWave,
+  protectMetaWrite,
   evaluateBeginnerMissions,
   generateWaveQueue,
   applyDifficulty,
@@ -188,6 +191,46 @@ console.log("\n== R21：下一波建議塔種純函式 ==");
   assert(shieldWave.includes("poison"), `盾兵與高血敵會推薦毒霧塔（${shieldWave.join(",")}）`);
   assert(bossWave.length <= 3 && bossWave.some((item) => item.id === "tesla") && bossWave.every((item) => item.reason),
     `Boss/火系混波會推薦含理由的前三塔種（${bossWave.map((item) => `${item.id}:${item.reason}`).join(" / ")}）`);
+}
+
+console.log("\n== R25：塔陣顧問、克制警告與存檔保護 ==");
+{
+  const path = cfg.MAPS.plains.path;
+  const fastWave = {
+    queue: [{ type: "bat" }, { type: "bat" }, { type: "goblin" }],
+    towers: [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1 }],
+    gold: 90,
+    path,
+  };
+  const advice = adviseTowerActions(fastWave);
+  assert(advice[0] && advice[0].kind === "build" && advice[0].towerId === "frost" && advice[0].zone,
+    `無冰塔遇高速/雷系波會優先建議補寒冰塔（${advice.map((a) => `${a.kind}:${a.towerId}:${a.zone}`).join(",")}）`);
+  assert(Number.isFinite(advice[0].x) && Number.isFinite(advice[0].y) && advice[0].reason.includes("覆蓋"),
+    "顧問建塔建議包含可落點區域與理由");
+
+  const iceWarning = counterWarningForWave({
+    queue: [{ type: "frostwolf" }, { type: "frostwolf" }, { type: "frostwolf" }, { type: "slime" }],
+    towers: [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1 }],
+  });
+  assert(iceWarning && iceWarning.message.includes("冰系") && iceWarning.message.includes("火系"),
+    `下波主冰且沒有火塔時產生克制警告（${iceWarning && iceWarning.message}）`);
+  const noWarning = counterWarningForWave({
+    queue: [{ type: "frostwolf" }, { type: "frostwolf" }, { type: "frostwolf" }, { type: "slime" }],
+    towers: [{ type: "cannon", level: 1, x: 216, y: 72, cx: 4, cy: 1 }],
+  });
+  assert(noWarning === null, "已有克制塔時不誤報開波警告");
+
+  const current = migrateMeta({
+    soulCrystal: 99,
+    games: 5,
+    board: { normal: { plains: [{ wave: 9, score: 900, kills: 30, at: 1, map: "plains" }] } },
+  });
+  const badWrite = protectMetaWrite(current, { soulCrystal: NaN, games: 0, board: "bad" });
+  assert(badWrite.ok === false && badWrite.meta.soulCrystal === 99 && badWrite.meta.games === 5,
+    "壞 meta 寫入會被拒絕並保留上一份有效資料");
+  const goodWrite = protectMetaWrite(current, Object.assign({}, current, { soulCrystal: 88 }));
+  assert(goodWrite.ok === true && goodWrite.meta.soulCrystal === 88,
+    "合法 meta 寫入可通過保護層");
 }
 
 console.log("\n== waveSoulReward 即時魂晶總量守恆 ==");

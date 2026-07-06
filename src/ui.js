@@ -13,6 +13,10 @@
   let selectedBoardMap = (TD.getMap && TD.getMap().id) || "plains";
   let progressWasPaused = false;
   let heroDetailWasPaused = false;
+  let advisorCollapsed = false;
+  let advisorHidden = false;
+  let warningSerial = 0;
+  let recoveryNoticeShown = false;
   const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6" };
   const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E" };
   const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
@@ -134,6 +138,16 @@
   function syncPauseButton(paused) {
     $("pauseBtn").textContent = paused ? "▶" : "⏸";
     $("pauseBtn").classList.toggle("paused", paused);
+  }
+
+  function showRecoveryNotice(message) {
+    if (recoveryNoticeShown) return;
+    recoveryNoticeShown = true;
+    const box = document.createElement("div");
+    box.className = "recovery-toast";
+    box.textContent = message || "遊戲遇到錯誤，已保護存檔。重新整理即可繼續。";
+    document.body.appendChild(box);
+    pushLog("已啟動錯誤恢復：存檔保護完成。", "bad");
   }
 
   function restartRun() {
@@ -545,6 +559,24 @@
     const affixText = p.affix ? ` · 詞綴 ${p.affix.label}` : "";
     const enemyTypes = (p.enemyTypes || []).filter((item) => ENEMIES[item.type]);
     const recs = (p.recommendations || []).filter((item) => TOWERS[item.id]);
+    const advisor = (p.advisor || []).filter((item) => item && item.kind);
+    const advisorHtml = advisorHidden ? "" : `
+      <div class="advisor-row ${advisorCollapsed ? "collapsed" : ""}">
+        <div class="advisor-head">
+          <span>塔陣顧問</span>
+          <span class="advisor-tools">
+            <button type="button" data-advisor-toggle>${advisorCollapsed ? "展開" : "收合"}</button>
+            <button type="button" data-advisor-close>關閉</button>
+          </span>
+        </div>
+        <div class="advisor-actions">
+          ${advisor.map((item) => {
+            if (item.kind === "build") return `<div class="advisor-action"><b>補 ${item.emoji || ""}${item.towerName}</b><span>${item.zone}（${item.cx},${item.cy}）｜${item.reason}</span></div>`;
+            if (item.kind === "upgrade") return `<div class="advisor-action"><b>升 ${item.emoji || ""}${item.towerName}</b><span>Lv.${item.level}→${item.nextLevel}｜${item.reason}</span></div>`;
+            return `<div class="advisor-action"><b>存錢等 ${item.emoji || ""}${item.towerName}</b><span>${item.reason}</span></div>`;
+          }).join("") || '<div class="advisor-action"><b>維持陣型</b><span>目前沒有明顯補強缺口。</span></div>'}
+        </div>
+      </div>`;
     box.innerHTML = `
       <div class="nw-title">🧭 下一波情報：第 ${p.wave} 波</div>
       <div class="nw-meta">${event} · 主元素 ${theme} · 敵人 ${p.totalCount || p.count} 隻${affixText}</div>
@@ -563,10 +595,15 @@
           }).join("") || '<span class="tower-rec-chip">依現有塔陣補強</span>'}
         </div>
         ${recs[0] ? `<div class="tower-rec-reason">${recs[0].reason}</div>` : ""}
-      </div>`;
+      </div>
+      ${advisorHtml}`;
     box.querySelectorAll(".enemy-chip-btn").forEach((btn) => {
       btn.onclick = () => openEnemyInfo(btn.dataset.enemy);
     });
+    const toggle = box.querySelector("[data-advisor-toggle]");
+    if (toggle) toggle.onclick = () => { advisorCollapsed = !advisorCollapsed; renderNextWaveCard(); };
+    const close = box.querySelector("[data-advisor-close]");
+    if (close) close.onclick = () => { advisorHidden = true; renderNextWaveCard(); };
   }
 
   function renderAffixCard() {
@@ -702,13 +739,21 @@
   // ===== Meta 進度系統（D1：最高紀錄 + 魂晶）=====
   // 讀檔一律交給 rules.js 補齊版本與欄位，避免舊存檔缺欄位時把 meta 打成 NaN。
   const META_KEY = "td_meta_v1";
+  function loadRawMeta() {
+    try { return JSON.parse(localStorage.getItem(META_KEY)); } catch { return null; }
+  }
   function loadMeta() {
-    let raw = null;
-    try { raw = JSON.parse(localStorage.getItem(META_KEY)); } catch {}
-    return RULES.migrateMeta(raw);
+    return RULES.migrateMeta(loadRawMeta());
   }
   function saveMeta(m) {
-    try { localStorage.setItem(META_KEY, JSON.stringify(RULES.migrateMeta(m))); } catch {}
+    try {
+      const result = RULES.protectMetaWrite
+        ? RULES.protectMetaWrite(loadRawMeta(), m)
+        : { ok: true, meta: RULES.migrateMeta(m) };
+      localStorage.setItem(META_KEY, JSON.stringify(result.meta));
+      if (!result.ok) showRecoveryNotice("存檔保護啟動：保留上一份有效資料。");
+      return result.ok;
+    } catch { return false; }
   }
 
   function formatDate(ts) {
@@ -948,7 +993,31 @@
   $("speed2").title = "Tab：切換 1× / 2×";
   $("pauseBtn").title = "Space / P：暫停或繼續";
   $("gachaBtn").title = "H：抽英雄";
-  $("startBtn").onclick = () => { TD.startWave(); refreshUI(); };
+  function hideWaveWarning() {
+    const box = $("waveWarning");
+    if (box) box.classList.remove("show");
+  }
+
+  function showWaveWarning(warning) {
+    const box = $("waveWarning");
+    if (!box || !warning) return;
+    const serial = ++warningSerial;
+    box.textContent = `⚠️ ${warning.message}`;
+    box.classList.add("show");
+    setTimeout(() => {
+      if (serial === warningSerial) box.classList.remove("show");
+    }, 2600);
+  }
+
+  function startWaveWithAdvisor() {
+    const p = TD.previewNextWave ? TD.previewNextWave() : null;
+    if (p && p.counterWarning) showWaveWarning(p.counterWarning);
+    else hideWaveWarning();
+    TD.startWave();
+    refreshUI();
+  }
+
+  $("startBtn").onclick = () => { startWaveWithAdvisor(); };
   $("goddessBtn").onclick = () => { TD.upgradeGoddess(); refreshUI(); };
   $("gachaBtn").onclick = () => { $("gachaBtn").blur(); doGacha(); };
   $("boardBtn").onclick = () => { openProgressOverlay(); };
@@ -1028,6 +1097,16 @@
   window.__tdLog = pushLog;
   window.__tdWaveCleared = onWaveCleared;
   window.__tdGameOver = onGameOver;
+  window.__tdStartWaveWithAdvisor = startWaveWithAdvisor;
+  window.__tdSafeSaveMeta = saveMeta;
+
+  function handleRuntimeFault() {
+    saveMeta(loadMeta());
+    showRecoveryNotice("遊戲遇到錯誤，已保護存檔。重新整理即可繼續。");
+  }
+  window.onerror = () => { handleRuntimeFault(); return false; };
+  window.addEventListener("error", () => { handleRuntimeFault(); });
+  window.addEventListener("unhandledrejection", () => { handleRuntimeFault(); });
 
   // 首次遊玩引導（D3）：只顯示一次，存 localStorage
   // 各難度的最高紀錄（meta 依難度分開存）

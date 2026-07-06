@@ -78,6 +78,7 @@
     highSamples: 0,
     reason: "init",
     lastDowngradeReason: "",
+    history: [],
   };
   function readPerformanceMode() {
     try {
@@ -89,12 +90,37 @@
   function notifyPerformanceChange() {
     if (typeof window.__tdPerformanceChanged === "function") window.__tdPerformanceChanged(getPerformanceStatus());
   }
+  function performanceReasonLabel(reason) {
+    const reasonLabel = {
+      init: "初始化",
+      manual: "手動設定",
+      "auto-low-fps": "FPS 低於 45",
+      "auto-recovered": "FPS 回穩",
+    };
+    return reasonLabel[reason] || reason || "未知";
+  }
+  function recordPerformanceEvent(quality, reason) {
+    const type = quality === "low" ? "降級" : "恢復";
+    let time = "";
+    try { time = new Date().toLocaleTimeString("zh-TW", { hour12: false }); }
+    catch { time = String(Date.now()); }
+    perfState.history.unshift({
+      at: Date.now(),
+      time,
+      type,
+      quality,
+      reason: reason || "manual",
+      reasonLabel: performanceReasonLabel(reason || "manual"),
+    });
+    perfState.history = perfState.history.slice(0, 5);
+  }
   function setPerformanceQuality(quality, reason) {
     const q = quality === "low" ? "low" : "high";
     if (perfState.quality === q && perfState.reason === reason) return;
     perfState.quality = q;
     perfState.reason = reason || "manual";
     if (q === "low") perfState.lastDowngradeReason = reason || "manual";
+    recordPerformanceEvent(q, perfState.reason);
     if (state && reason && reason !== "init") {
       const label = q === "low" ? "低特效" : "高特效";
       log(`效能模式已切換為${label}`);
@@ -145,12 +171,6 @@
     }
   }
   function getPerformanceStatus() {
-    const reasonLabel = {
-      init: "初始化",
-      manual: "手動設定",
-      "auto-low-fps": "FPS 低於 45",
-      "auto-recovered": "FPS 回穩",
-    };
     const low = performanceLow();
     return {
       mode: perfState.mode,
@@ -158,12 +178,13 @@
       quality: perfState.quality,
       fps: Math.round(perfState.fps),
       reason: perfState.reason,
-      reasonLabel: reasonLabel[perfState.reason] || perfState.reason,
+      reasonLabel: performanceReasonLabel(perfState.reason),
       lastDowngradeReason: perfState.lastDowngradeReason,
-      lastDowngradeLabel: perfState.lastDowngradeReason ? (reasonLabel[perfState.lastDowngradeReason] || perfState.lastDowngradeReason) : "無",
+      lastDowngradeLabel: perfState.lastDowngradeReason ? performanceReasonLabel(perfState.lastDowngradeReason) : "無",
       particleScale: low ? 0.45 : 1,
       animationScale: low ? 0.42 : 1,
       poisonFogScale: low ? 0.55 : 1,
+      history: perfState.history.slice(),
     };
   }
   setPerformanceMode(perfState.mode);

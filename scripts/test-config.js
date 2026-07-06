@@ -5,6 +5,7 @@
 
 const path = require("path");
 const fs = require("fs");
+const ROOT = path.join(__dirname, "..");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
 const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, MAPS, MAP_AFFIXES, ACHIEVEMENTS, BEGINNER_MISSIONS } = cfg;
 
@@ -14,18 +15,75 @@ function assert(cond, msg) {
   else { console.error("  ✗ " + msg); failed++; }
 }
 
+function normalizeResourcePath(value) {
+  let v = String(value || "").trim().replace(/\\/g, "/");
+  v = v.replace(/^\.?\//, "");
+  v = v.replace(/[?#].*$/, "");
+  return v;
+}
+
+function parseAppShell(swText) {
+  const match = String(swText || "").match(/const\s+APP_SHELL\s*=\s*\[([\s\S]*?)\];/);
+  if (!match) return [];
+  const entries = [];
+  const re = /["']([^"']+)["']/g;
+  let m;
+  while ((m = re.exec(match[1]))) entries.push(normalizeResourcePath(m[1]));
+  return entries;
+}
+
+function collectLocalIndexResources(indexText) {
+  const resources = new Set(["index.html"]);
+  const attrRe = /\b(?:src|href)=["']([^"']+)["']/g;
+  let m;
+  while ((m = attrRe.exec(String(indexText || "")))) {
+    const raw = m[1];
+    if (!raw || /^(?:https?:|data:|mailto:|javascript:|#|\/\/)/i.test(raw)) continue;
+    const rel = normalizeResourcePath(raw);
+    if (rel) resources.add(rel === "" ? "index.html" : rel);
+  }
+  return resources;
+}
+
+function walkFiles(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fp = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...walkFiles(fp));
+    else out.push(fp);
+  }
+  return out;
+}
+
+function posixRel(fp) {
+  return path.relative(ROOT, fp).replace(/\\/g, "/");
+}
+
+function detectTextQualityIssues(filename, text) {
+  const commonMojibake = new Set([0x5697, 0x8763, 0x619b, 0x646e, 0x761c, 0x929d, 0x981d, 0x875a, 0x7485].map((c) => String.fromCharCode(c)));
+  const issues = [];
+  const source = String(text || "");
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+    if (ch === "\uFFFD") issues.push(`${filename}:U+FFFD@${i}`);
+    else if (commonMojibake.has(ch)) issues.push(`${filename}:mojibake:${ch}@${i}`);
+  }
+  for (const m of source.matchAll(/\?{2,}/g)) issues.push(`${filename}:question-run@${m.index}`);
+  return issues;
+}
+
 console.log("== 結構 ==");
 assert(Object.keys(TOWERS).length >= 6, `砲塔 ≥6 種（${Object.keys(TOWERS).length}）`);
 assert(Object.keys(ENEMIES).length >= 9, `敵人 ≥9 種（${Object.keys(ENEMIES).length}）`);
 assert(Object.keys(SKILLS).length >= 3, `技能 ≥3 種（${Object.keys(SKILLS).length}）`);
 assert(Object.values(ENEMIES).some((e) => e.boss), "至少有一個 Boss");
 
-console.log("== R37：PWA/可近用性資產 ==");
+console.log("== R41：PWA/可近用性資產 ==");
 {
-  const root = path.join(__dirname, "..");
+  const root = ROOT;
   const manifestPath = path.join(root, "manifest.webmanifest");
-  const swPath = path.join(root, "sw.js");
-  const indexPath = path.join(root, "index.html");
+  const swPath = process.env.TD_TEST_SW_PATH || path.join(root, "sw.js");
+  const indexPath = process.env.TD_TEST_INDEX_PATH || path.join(root, "index.html");
   const offlinePath = path.join(root, "offline.html");
   const iconSize = (rel) => {
     const buf = fs.readFileSync(path.join(root, rel));
@@ -38,18 +96,51 @@ console.log("== R37：PWA/可近用性資產 ==");
   const offline = fs.readFileSync(offlinePath, "utf8");
   const icon192 = iconSize("assets/icons/icon-192.png");
   const icon512 = iconSize("assets/icons/icon-512.png");
-  const shellJs = ["src/config.js", "src/heroes.js", "src/rules.js", "src/game.js", "src/ui.js"];
+  const appShell = parseAppShell(sw);
+  const shellSet = new Set(appShell);
+  const localResources = collectLocalIndexResources(index);
+  const manifestIcons = new Set((manifest.icons || []).map((i) => normalizeResourcePath(i.src)));
+  const assetResources = new Set(
+    walkFiles(path.join(root, "assets"))
+      .filter((fp) => /\.png$/i.test(fp))
+      .map(posixRel)
+  );
+  const requiredShell = new Set([
+    "",
+    "index.html",
+    "offline.html",
+    "manifest.webmanifest",
+    "sw.js",
+    ...localResources,
+    ...manifestIcons,
+    ...assetResources,
+  ]);
+  const missingShell = [...requiredShell].filter((rel) => !shellSet.has(rel));
+  const missingFiles = [...shellSet].filter((rel) => rel && !fs.existsSync(path.join(root, rel)));
   assert(manifest.name === "無盡塔防" && manifest.short_name === "無盡塔防", "manifest 使用《無盡塔防》名稱");
   assert((manifest.icons || []).some((i) => i.src === "assets/icons/icon-192.png" && i.sizes === "192x192"), "manifest 指向 192 icon");
   assert((manifest.icons || []).some((i) => i.src === "assets/icons/icon-512.png" && i.sizes === "512x512"), "manifest 指向 512 icon");
   assert(icon192.png && icon192.width === 192 && icon192.height === 192, "192 icon 為有效 PNG");
   assert(icon512.png && icon512.width === 512 && icon512.height === 512, "512 icon 為有效 PNG");
-  assert(sw.includes("CACHE_VERSION") && sw.includes("td-r37-v1") && sw.includes("networkFirst") && sw.includes("cacheFirst"), "sw.js 有 R37 版本與 network-first/cache-first 策略");
+  assert(sw.includes("CACHE_VERSION") && sw.includes("td-r41-v1") && sw.includes("networkFirst") && sw.includes("cacheFirst"), "sw.js 有 R41 版本與 network-first/cache-first 策略");
   assert(sw.includes("offline.html") && fs.existsSync(offlinePath) && offline.includes("離線"), "sw.js 與離線 fallback 頁完整");
-  assert(shellJs.every((rel) => sw.includes(rel)), "sw.js app shell 補齊全部 src JS");
+  assert(appShell.length >= requiredShell.size && missingShell.length === 0, `sw.js APP_SHELL 自動涵蓋 HTML/manifest/assets 本地資源（缺 ${missingShell.slice(0, 3).join(",") || "0"}）`);
+  assert(missingFiles.length === 0, `sw.js APP_SHELL 清單檔案皆存在（缺 ${missingFiles.slice(0, 3).join(",") || "0"}）`);
   assert(sw.includes("assets|enemies") || (sw.includes("heroes") && sw.includes("enemies") && sw.includes("towers")), "sw.js 涵蓋 heroes/enemies/towers 圖像資產");
   assert(index.includes('rel="manifest"') && index.includes("navigator.webdriver") && index.includes("swtest"), "index 連結 manifest、webdriver 跳過 SW 註冊且提供 swtest");
   assert(index.includes("data-text-size") && index.includes(":focus-visible") && index.includes("checkUpdateBtn"), "index 有文字大小、focus-visible 與檢查更新 UI");
+}
+
+console.log("== R41：文案品質守門 ==");
+{
+  const sourceFiles = [
+    process.env.TD_TEST_INDEX_PATH || path.join(ROOT, "index.html"),
+    ...walkFiles(path.join(ROOT, "src")).filter((fp) => /\.js$/i.test(fp)),
+  ];
+  const issues = sourceFiles.flatMap((fp) => detectTextQualityIssues(posixRel(fp), fs.readFileSync(fp, "utf8")));
+  const syntheticRed = detectTextQualityIssues("synthetic", `壞文案?? ${String.fromCharCode(0x5697)}`);
+  assert(syntheticRed.length >= 2, "文案品質守門可偵測連續問號與 mojibake 壞樣本");
+  assert(issues.length === 0, `index.html + src/*.js 無 U+FFFD/連續問號/mojibake（命中 ${issues.slice(0, 3).join(",") || "0"}）`);
 }
 
 console.log("== 砲塔欄位 ==");

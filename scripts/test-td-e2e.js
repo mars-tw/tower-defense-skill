@@ -87,7 +87,7 @@ async function run() {
         manifestType: manifest.type || "",
         name: manifest.json.name,
         iconSizes: (manifest.json.icons || []).map((i) => i.sizes).join(","),
-        swHasVersion: sw.includes("CACHE_VERSION") && sw.includes("td-r37-v1"),
+        swHasVersion: sw.includes("CACHE_VERSION") && sw.includes("td-r41-v1"),
         swHasNetworkFirst: sw.includes("networkFirst"),
         swHasCacheFirst: sw.includes("cacheFirst"),
         swHasAssets: sw.includes("heroes") && sw.includes("enemies") && sw.includes("towers"),
@@ -104,9 +104,9 @@ async function run() {
     assert(pwaR37.hasManifestLink && pwaR37.manifestOk && pwaR37.manifestType.includes("manifest") &&
       pwaR37.name === "無盡塔防" && pwaR37.iconSizes.includes("192x192") && pwaR37.iconSizes.includes("512x512") &&
       pwaR37.swHasVersion && pwaR37.swHasNetworkFirst && pwaR37.swHasCacheFirst && pwaR37.swHasAssets &&
-      pwaR37.swHasOffline && pwaR37.swHasAllJs && pwaR37.pwaVersion === "td-r37-v1" && pwaR37.swtestGate &&
+      pwaR37.swHasOffline && pwaR37.swHasAllJs && pwaR37.pwaVersion === "td-r41-v1" && pwaR37.swtestGate &&
       pwaR37.hasTextSize && pwaR37.settingsRole === "dialog" && pwaR37.webdriver && pwaR37.regCount === 0,
-      `R37 PWA manifest/SW/離線頁/設定可近用性正確，且一般 Playwright webdriver 跳過註冊（regs=${pwaR37.regCount}）`);
+      `R41 PWA manifest/SW/離線頁/設定可近用性正確，且一般 Playwright webdriver 跳過註冊（regs=${pwaR37.regCount}）`);
 
     if (vp.w === 1280) {
       const swContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -126,7 +126,7 @@ async function run() {
         }, null, { timeout: 12000 });
         await swPage.reload({ waitUntil: "networkidle" });
         await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 12000 });
-        await swPage.waitForFunction(async () => (await caches.keys()).some((key) => key.includes("td-r37")), null, { timeout: 12000 });
+        await swPage.waitForFunction(async () => (await caches.keys()).some((key) => key.includes("td-r41")), null, { timeout: 12000 });
         await swContext.setOffline(true);
         await swPage.reload({ waitUntil: "domcontentloaded" });
         await swPage.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 12000 });
@@ -159,7 +159,7 @@ async function run() {
             towerCount: window.TD.state().towers.length,
             target,
             controlled: !!navigator.serviceWorker.controller,
-            cacheKeys: keys.filter((key) => key.includes("td-r37")).length,
+            cacheKeys: keys.filter((key) => key.includes("td-r41")).length,
           };
         });
       } finally {
@@ -173,7 +173,7 @@ async function run() {
         await swContext.close().catch(() => {});
       }
       assert(swOfflineR37 && swOfflineR37.loaded && swOfflineR37.controlled && swOfflineR37.cacheKeys > 0 && swOfflineR37.towerCount >= 1,
-        `R37 真 SW 離線 reload 後仍可載入並建塔（towers=${swOfflineR37 && swOfflineR37.towerCount} target=${swOfflineR37 && JSON.stringify(swOfflineR37.target)} caches=${swOfflineR37 && swOfflineR37.cacheKeys}）`);
+        `R41 真 SW 離線 reload 後仍可載入並建塔（towers=${swOfflineR37 && swOfflineR37.towerCount} target=${swOfflineR37 && JSON.stringify(swOfflineR37.target)} caches=${swOfflineR37 && swOfflineR37.cacheKeys}）`);
     }
 
     const perfR37 = await page.evaluate(async () => {
@@ -202,6 +202,7 @@ async function run() {
       await new Promise((r) => setTimeout(r, 30));
       return {
         lockedLow, autoStart, autoLow, autoHigh, text,
+        history: autoHigh.history || [],
         paused: window.TD.state().paused,
         focusInSettings,
         focusReturned: document.activeElement && document.activeElement.id === "settingsBtn",
@@ -213,6 +214,7 @@ async function run() {
         startAria: document.getElementById("startBtn").getAttribute("aria-label"),
         towerAria: document.querySelector('.tower-btn[data-type="arrow"]').getAttribute("aria-label"),
         skillAria: document.querySelector('.skill-btn[data-skill="meteor"]').getAttribute("aria-label"),
+        warningLive: document.getElementById("waveWarning").getAttribute("aria-live"),
       };
     });
     assert(perfR37.lockedLow.mode === "low" && perfR37.lockedLow.quality === "low" &&
@@ -220,12 +222,13 @@ async function run() {
       perfR37.text.includes("效能模式") && perfR37.text.includes("存檔管家") &&
       perfR37.text.includes("文字大小") && perfR37.text.includes("版本") &&
       perfR37.text.includes("即時 FPS") && perfR37.text.includes("品質檔位") &&
-      perfR37.text.includes("最近降級原因") && perfR37.text.includes("粒子倍率") && perfR37.text.includes("動畫倍率") &&
+      perfR37.text.includes("最近降級原因") && perfR37.text.includes("粒子倍率") && perfR37.text.includes("動畫倍率") && perfR37.text.includes("最近5次") &&
+      perfR37.history.length >= 2 && perfR37.history.length <= 5 && perfR37.history.every((item) => item.time && item.type && item.reasonLabel) &&
       perfR37.bodyLarge && perfR37.largeHudSize > perfR37.initialHudSize && perfR37.textSizeSaved === "large" &&
       perfR37.focusInSettings && perfR37.focusReturned && perfR37.paused === false &&
       perfR37.updateText && (perfR37.updateText.includes("跳過") || perfR37.updateText.includes("未註冊") || perfR37.updateText.includes("尚未")) &&
-      perfR37.startAria && perfR37.towerAria && perfR37.skillAria,
-      `R37 設定含效能診斷/文字大小/更新狀態/焦點與 aria（${perfR37.lockedLow.quality}→${perfR37.autoLow.quality}→${perfR37.autoHigh.quality}，字級 ${perfR37.initialHudSize}→${perfR37.largeHudSize}）`);
+      perfR37.startAria && perfR37.towerAria && perfR37.skillAria && perfR37.warningLive === "polite",
+      `R41 設定含效能診斷/文字大小/更新狀態/焦點與 aria（${perfR37.lockedLow.quality}→${perfR37.autoLow.quality}→${perfR37.autoHigh.quality}，字級 ${perfR37.initialHudSize}→${perfR37.largeHudSize}）`);
 
     const saveManagerR33 = await page.evaluate(() => {
       const before = JSON.parse(localStorage.getItem("td_meta_v1") || "{}");
@@ -564,7 +567,7 @@ async function run() {
         gacha: document.getElementById("gachaBtn").dataset.hotkey,
       }));
       assert(badges.arrow === "1" && badges.cannon === "2" && badges.meteor === "Q" && badges.freeze === "W" &&
-        badges.start === "⏎" && badges.speed2 === "Tab" && badges.pause === "P" && badges.gacha === "H",
+        badges.start === "⏎" && badges.speed2 === "T" && badges.pause === "P" && badges.gacha === "H",
         "快捷鍵徽章標在塔、技能、下一波、加速、暫停與抽英雄按鈕");
 
       await page.keyboard.press("Digit1");
@@ -602,17 +605,43 @@ async function run() {
       await page.evaluate(() => { window.TD.state().skillCooldowns.meteor = 0; window.__tdUI(); });
 
       await page.keyboard.press("Tab");
+      const tabSmoke1 = await page.evaluate(() => {
+        const el = document.activeElement;
+        const cs = getComputedStyle(el);
+        return {
+          id: el && el.id,
+          tag: el && el.tagName,
+          focusVisible: !!(el && el.matches && el.matches(":focus-visible")),
+          outline: cs.outlineStyle,
+        };
+      });
+      await page.keyboard.press("Tab");
+      const tabSmoke2 = await page.evaluate(() => {
+        const el = document.activeElement;
+        const cs = getComputedStyle(el);
+        return {
+          id: el && el.id,
+          focusVisible: !!(el && el.matches && el.matches(":focus-visible")),
+          outline: cs.outlineStyle,
+        };
+      });
+      assert(["startBtn", "speed1", "speed2", "pauseBtn", "goddessBtn", "boardBtn", "settingsBtn", "gachaBtn"].includes(tabSmoke1.id) &&
+        ["startBtn", "speed1", "speed2", "pauseBtn", "goddessBtn", "boardBtn", "settingsBtn", "gachaBtn"].includes(tabSmoke2.id) &&
+        (tabSmoke1.focusVisible || tabSmoke1.outline !== "none") && (tabSmoke2.focusVisible || tabSmoke2.outline !== "none"),
+        `Tab 可抵達主控件且焦點可見（${tabSmoke1.id} → ${tabSmoke2.id}）`);
+
+      await page.keyboard.press("KeyT");
       const speed2Hotkey = await page.evaluate(() => ({
         speed: window.TD.state().speed,
         on: document.getElementById("speed2").classList.contains("on"),
       }));
-      assert(speed2Hotkey.speed === 2 && speed2Hotkey.on, "Tab 切到 2× 速度且不跳焦點");
-      await page.keyboard.press("Tab");
+      assert(speed2Hotkey.speed === 2 && speed2Hotkey.on, "T 切到 2× 速度");
+      await page.keyboard.press("KeyT");
       const speed1Hotkey = await page.evaluate(() => ({
         speed: window.TD.state().speed,
         on: document.getElementById("speed1").classList.contains("on"),
       }));
-      assert(speed1Hotkey.speed === 1 && speed1Hotkey.on, "Tab 再次切回 1× 速度");
+      assert(speed1Hotkey.speed === 1 && speed1Hotkey.on, "T 再次切回 1× 速度");
 
       await page.evaluate(() => {
         window.TD.selectTower("arrow");
@@ -721,9 +750,10 @@ async function run() {
         crystal: meta.soulCrystal,
         firstTower: meta.beginnerMissions && meta.beginnerMissions.firstTower === true,
         text: document.getElementById("beginnerMissions").innerHTML,
+        toastLive: document.querySelector(".mission-toast") && document.querySelector(".mission-toast").getAttribute("aria-live"),
       };
     });
-    assert(missionAfterBuild.firstTower && missionAfterBuild.crystal >= 4,
+    assert(missionAfterBuild.firstTower && missionAfterBuild.crystal >= 4 && missionAfterBuild.toastLive === "polite",
       `建塔後新手任務立即領獎（魂晶 ${missionAfterBuild.crystal}）`);
 
     // Stage 4：毒霧塔 DoT 與聖光塔 buff
@@ -1137,6 +1167,7 @@ async function run() {
       const firstDeathCta = document.getElementById("deathCtaBtn").textContent;
       const firstMetaText = document.getElementById("metaResult").innerText;
       const bondToastText = (document.querySelector(".bond-toast") && document.querySelector(".bond-toast").textContent) || "";
+      const bondToastLive = document.querySelector(".bond-toast") && document.querySelector(".bond-toast").getAttribute("aria-live");
       window.TD.setMap("plains");
       window.TD.newGame();
       window.__tdGameOver(6, 777, { kills: 12, difficulty: window.TD.getDifficulty(), soulEarned: 0, heroGrowth: [] });
@@ -1166,6 +1197,7 @@ async function run() {
         deathCta: firstDeathCta,
         metaText: firstMetaText,
         bondToastText,
+        bondToastLive,
       };
     });
     assert(stage3Result.canyonLen === 1 && stage3Result.canyonWave === 10 && stage3Result.canyonScore === 1234 && stage3Result.canyonKills === 100 && stage3Result.canyonMap === "canyon",
@@ -1176,7 +1208,7 @@ async function run() {
       "結算畫面顯示本場名次、新解鎖成就、本局魂晶與英雄成長");
     assert(stage3Result.heroProgressCount >= 2 && stage3Result.heroProgressMaxXp > 120,
       `戰後寫入英雄長線 XP（英雄數 ${stage3Result.heroProgressCount}，最高 XP ${stage3Result.heroProgressMaxXp}）`);
-    assert(stage3Result.bondToastText.includes("羈絆升級"),
+    assert(stage3Result.bondToastText.includes("羈絆升級") && stage3Result.bondToastLive === "polite",
       `羈絆升級時顯示 toast（${stage3Result.bondToastText}）`);
     assert(stage3Result.crystal === stage3Result.expectedCrystal,
       `死亡不重複清波魂晶，成就正確增加（${stage3Result.beforeCrystal} → ${stage3Result.crystal}）`);
@@ -1258,10 +1290,11 @@ async function run() {
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
       const notice = document.querySelector(".recovery-toast");
       const text = notice ? notice.textContent : "";
+      const live = notice ? notice.getAttribute("aria-live") : "";
       if (notice) notice.remove();
-      return { after, text };
+      return { after, text, live };
     });
-    assert(resilienceR25.after.soulCrystal === 77 && resilienceR25.after.bestWave === 6 && resilienceR25.text.includes("已保護存檔"),
+    assert(resilienceR25.after.soulCrystal === 77 && resilienceR25.after.bestWave === 6 && resilienceR25.text.includes("已保護存檔") && resilienceR25.live === "polite",
       `全域錯誤時安全存檔並顯示恢復提示（${resilienceR25.text}）`);
 
     // 10. RWD：無水平溢出

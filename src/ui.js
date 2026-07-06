@@ -182,6 +182,8 @@
     recoveryNoticeShown = true;
     const box = document.createElement("div");
     box.className = "recovery-toast";
+    box.setAttribute("role", "status");
+    box.setAttribute("aria-live", "polite");
     box.textContent = message || "遊戲遇到錯誤，已保護存檔。重新整理即可繼續。";
     document.body.appendChild(box);
     pushLog("已啟動錯誤恢復：存檔保護完成。", "bad");
@@ -529,6 +531,8 @@
     const total = unlocked.reduce((sum, m) => sum + (m.reward || 0), 0);
     const toast = document.createElement("div");
     toast.className = "mission-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
     toast.textContent = `新手任務完成：+${total}💎`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 1900);
@@ -542,6 +546,8 @@
     const hero = TD.config.HEROES[first.id] || {};
     const toast = document.createElement("div");
     toast.className = "bond-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
     toast.textContent = `羈絆升級：${hero.name || first.id} Lv.${first.newLevel}`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2100);
@@ -983,7 +989,10 @@
       const reason = status.lastDowngradeLabel || status.reasonLabel || status.reason || "無";
       const particle = Math.round(((status.particleScale == null ? 1 : status.particleScale) * 100));
       const animation = Math.round(((status.animationScale == null ? 1 : status.animationScale) * 100));
-      box.textContent = `${status.modeLabel || "自動"}｜品質檔位 ${quality}｜即時 FPS ${status.fps || 60}｜最近降級原因 ${reason}｜粒子倍率 ${particle}%｜動畫倍率 ${animation}%`;
+      const history = (status.history || []).slice(0, 5)
+        .map((item) => `${item.time || ""} ${item.type || ""}:${item.reasonLabel || item.reason || "未知"}`.trim())
+        .join(" / ") || "無";
+      box.textContent = `${status.modeLabel || "自動"}｜品質檔位 ${quality}｜即時 FPS ${status.fps || 60}｜最近降級原因 ${reason}｜粒子倍率 ${particle}%｜動畫倍率 ${animation}%｜最近5次 ${history}`;
     }
   }
 
@@ -1253,7 +1262,7 @@
 
   // ===== 綁定控制 =====
   $("startBtn").title = "Enter：開始下一波";
-  $("speed2").title = "Tab：切換 1× / 2×";
+  $("speed2").title = "T：切換 1× / 2×";
   $("pauseBtn").title = "Space / P：暫停或繼續";
   $("gachaBtn").title = "H：抽英雄";
   function hideWaveWarning() {
@@ -1323,24 +1332,24 @@
   function isShortcutKey(e) {
     const key = (e.key || "").toLowerCase();
     return !!(TOWER_BY_KEY[e.key] || SKILL_BY_KEY[key] ||
-      e.code === "Enter" || e.code === "Tab" || e.code === "Space" ||
-      e.code === "Escape" || key === "p" || key === "h");
+      e.code === "Enter" || e.code === "Space" ||
+      e.code === "Escape" || key === "p" || key === "h" || key === "t");
   }
   document.addEventListener("keydown", (e) => {
     if (isTextEntryTarget(e.target)) return;
     if (isShown("heroDetailOverlay")) {
-      e.preventDefault();
-      if (e.code === "Escape") closeHeroDetail();
+      if (e.code === "Escape") { e.preventDefault(); closeHeroDetail(); }
+      else if (e.code !== "Tab") e.preventDefault();
       return;
     }
     if (isShown("settingsOverlay")) {
-      e.preventDefault();
-      if (e.code === "Escape") closeSettingsOverlay();
+      if (e.code === "Escape") { e.preventDefault(); closeSettingsOverlay(); }
+      else if (e.code !== "Tab") e.preventDefault();
       return;
     }
     if (isShown("progressOverlay")) {
       if (e.code === "Escape") { e.preventDefault(); closeProgressOverlay(); }
-      else { e.preventDefault(); }
+      else if (e.code !== "Tab") { e.preventDefault(); }
       return;
     }
     if (isBlockingOverlayOpen()) {
@@ -1365,7 +1374,7 @@
     } else if (e.code === "Enter") {
       e.preventDefault();
       clickIfReady($("startBtn"));
-    } else if (e.code === "Tab") {
+    } else if (lower === "t") {
       e.preventDefault();
       clickIfReady($(TD.state().speed === 2 ? "speed1" : "speed2"));
     } else if (lower === "h") {

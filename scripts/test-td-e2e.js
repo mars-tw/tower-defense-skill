@@ -16,7 +16,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const MIME = { ".html": "text/html", ".js": "application/javascript", ".json": "application/json", ".png": "image/png", ".css": "text/css" };
+const MIME = { ".html": "text/html", ".js": "application/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".css": "text/css" };
 
 let failed = 0;
 function assert(cond, msg) { if (cond) console.log("  ✓ " + msg); else { console.error("  ✗ " + msg); failed++; } }
@@ -74,6 +74,73 @@ async function run() {
     await page.reload();
     await page.waitForFunction(() => window.TD && window.TD.state);
     await sleep(300);
+    const pwaR33 = await page.evaluate(async () => {
+      const manifest = await fetch("/manifest.webmanifest").then((r) => ({ ok: r.ok, type: r.headers.get("content-type"), json: r.json() }));
+      manifest.json = await manifest.json;
+      const sw = await fetch("/sw.js").then((r) => r.text());
+      const regs = navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations() : [];
+      return {
+        hasManifestLink: !!document.querySelector('link[rel="manifest"]'),
+        manifestOk: manifest.ok,
+        manifestType: manifest.type || "",
+        name: manifest.json.name,
+        iconSizes: (manifest.json.icons || []).map((i) => i.sizes).join(","),
+        swHasVersion: sw.includes("CACHE_VERSION"),
+        swHasNetworkFirst: sw.includes("networkFirst"),
+        swHasCacheFirst: sw.includes("cacheFirst"),
+        swHasAssets: sw.includes("heroes") && sw.includes("enemies") && sw.includes("towers"),
+        webdriver: navigator.webdriver === true,
+        regCount: regs.length,
+      };
+    });
+    assert(pwaR33.hasManifestLink && pwaR33.manifestOk && pwaR33.manifestType.includes("manifest") &&
+      pwaR33.name === "無盡塔防" && pwaR33.iconSizes.includes("192x192") && pwaR33.iconSizes.includes("512x512") &&
+      pwaR33.swHasVersion && pwaR33.swHasNetworkFirst && pwaR33.swHasCacheFirst && pwaR33.swHasAssets &&
+      pwaR33.webdriver && pwaR33.regCount === 0,
+      `R33 PWA manifest/SW 正確，且 Playwright webdriver 跳過註冊（regs=${pwaR33.regCount}）`);
+
+    const perfR33 = await page.evaluate(() => {
+      document.getElementById("settingsBtn").click();
+      document.querySelector('[data-perf-mode="low"]').click();
+      const lockedLow = window.TD.getPerformanceStatus();
+      document.querySelector('[data-perf-mode="auto"]').click();
+      const autoStart = window.TD.getPerformanceStatus();
+      const autoLow = window.TD.debug.forcePerformanceSample(38);
+      window.TD.debug.forcePerformanceSample(60);
+      window.TD.debug.forcePerformanceSample(60);
+      const autoHigh = window.TD.debug.forcePerformanceSample(60);
+      const text = document.getElementById("settingsOverlay").innerText;
+      document.getElementById("settingsClose").click();
+      return { lockedLow, autoStart, autoLow, autoHigh, text, paused: window.TD.state().paused };
+    });
+    assert(perfR33.lockedLow.mode === "low" && perfR33.lockedLow.quality === "low" &&
+      perfR33.autoStart.mode === "auto" && perfR33.autoLow.quality === "low" && perfR33.autoHigh.quality === "high" &&
+      perfR33.text.includes("效能模式") && perfR33.text.includes("存檔管家") && perfR33.paused === false,
+      `R33 自適應效能可鎖低/自動降級/回穩恢復（${perfR33.lockedLow.quality}→${perfR33.autoLow.quality}→${perfR33.autoHigh.quality}）`);
+
+    const saveManagerR33 = await page.evaluate(() => {
+      const before = JSON.parse(localStorage.getItem("td_meta_v1") || "{}");
+      const seed = Object.assign({}, before, { soulCrystal: 33, bestWave: 4, bestByDiff: { normal: 4 } });
+      localStorage.setItem("td_meta_v1", JSON.stringify(seed));
+      const code = window.__tdSaveManager.export();
+      const decoded = window.__tdSaveManager.decode(code);
+      const bad = window.__tdSaveManager.import(window.__tdSaveManager.encode({ kind: "td-save-v1", meta: { soulCrystal: "bad" } }), { skipReload: true });
+      const afterBad = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const next = Object.assign({}, decoded.rawMeta, { soulCrystal: 88, bestWave: 8, bestByDiff: { normal: 8 } });
+      const goodCode = window.__tdSaveManager.encode({ kind: "td-save-v1", meta: next, heroes: ["archer", "cleric", "__bad"] });
+      const good = window.__tdSaveManager.import(goodCode, { skipReload: true });
+      const afterGood = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const backup = JSON.parse(localStorage.getItem(window.__tdSaveManager.backupKey) || "{}");
+      const heroes = JSON.parse(localStorage.getItem("td_heroes_owned_v1") || "[]");
+      const area = document.getElementById("saveCode").value;
+      if (before && Object.keys(before).length) localStorage.setItem("td_meta_v1", JSON.stringify(before));
+      return { codeLen: code.length, decodedCrystal: decoded.rawMeta.soulCrystal, badOk: bad.ok, afterBadCrystal: afterBad.soulCrystal, goodOk: good.ok, afterGoodCrystal: afterGood.soulCrystal, backupCrystal: backup.meta && backup.meta.soulCrystal, heroes, areaLen: area.length };
+    });
+    assert(saveManagerR33.codeLen > 40 && saveManagerR33.areaLen > 40 && saveManagerR33.decodedCrystal === 33 &&
+      saveManagerR33.badOk === false && saveManagerR33.afterBadCrystal === 33 &&
+      saveManagerR33.goodOk === true && saveManagerR33.afterGoodCrystal === 88 && saveManagerR33.backupCrystal === 33 &&
+      saveManagerR33.heroes.includes("archer") && saveManagerR33.heroes.includes("cleric") && !saveManagerR33.heroes.includes("__bad"),
+      "R33 存檔管家可匯出 Base64、拒絕壞資料、成功匯入前自動備份並清洗英雄清單");
     const quickIntro = await page.evaluate(() => ({
       tutorialShown: document.getElementById("tutorial").classList.contains("show"),
       quickText: document.getElementById("tutorialQuick").textContent,

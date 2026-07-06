@@ -65,6 +65,93 @@
     } catch { reducedFlashCache = false; }
     return reducedFlashCache;
   }
+
+  const PERF_MODE_KEY = "td_perf_mode";
+  const PERF_MODES = { auto: "自動", high: "鎖高", low: "鎖低" };
+  const perfState = {
+    mode: readPerformanceMode(),
+    quality: "high",
+    fps: 60,
+    sampleStart: 0,
+    sampleFrames: 0,
+    lowSamples: 0,
+    highSamples: 0,
+    reason: "init",
+  };
+  function readPerformanceMode() {
+    try {
+      const saved = localStorage.getItem(PERF_MODE_KEY);
+      return PERF_MODES[saved] ? saved : "auto";
+    } catch { return "auto"; }
+  }
+  function performanceLow() { return perfState.quality === "low"; }
+  function notifyPerformanceChange() {
+    if (typeof window.__tdPerformanceChanged === "function") window.__tdPerformanceChanged(getPerformanceStatus());
+  }
+  function setPerformanceQuality(quality, reason) {
+    const q = quality === "low" ? "low" : "high";
+    if (perfState.quality === q && perfState.reason === reason) return;
+    perfState.quality = q;
+    perfState.reason = reason || "manual";
+    if (state && reason && reason !== "init") {
+      const label = q === "low" ? "低特效" : "高特效";
+      log(`效能模式已切換為${label}`);
+    }
+    notifyPerformanceChange();
+  }
+  function setPerformanceMode(mode) {
+    const next = PERF_MODES[mode] ? mode : "auto";
+    perfState.mode = next;
+    perfState.lowSamples = 0;
+    perfState.highSamples = 0;
+    try { localStorage.setItem(PERF_MODE_KEY, next); } catch {}
+    if (next === "high") setPerformanceQuality("high", "manual");
+    else if (next === "low") setPerformanceQuality("low", "manual");
+    else notifyPerformanceChange();
+    return getPerformanceStatus();
+  }
+  function handlePerformanceSample(fps) {
+    const value = Math.max(1, Math.min(240, Number(fps) || 60));
+    perfState.fps = value;
+    if (perfState.mode !== "auto") return;
+    if (value < 45) {
+      perfState.lowSamples++;
+      perfState.highSamples = 0;
+      if (perfState.lowSamples >= 1) setPerformanceQuality("low", "auto-low-fps");
+    } else if (value >= 54) {
+      perfState.highSamples++;
+      perfState.lowSamples = 0;
+      if (perfState.highSamples >= 3) setPerformanceQuality("high", "auto-recovered");
+    } else {
+      perfState.lowSamples = 0;
+      perfState.highSamples = 0;
+    }
+  }
+  function updatePerformanceMonitor(t) {
+    if (!t) return;
+    if (!perfState.sampleStart) {
+      perfState.sampleStart = t;
+      perfState.sampleFrames = 0;
+      return;
+    }
+    perfState.sampleFrames++;
+    const elapsed = t - perfState.sampleStart;
+    if (elapsed >= 1000) {
+      handlePerformanceSample((perfState.sampleFrames * 1000) / elapsed);
+      perfState.sampleStart = t;
+      perfState.sampleFrames = 0;
+    }
+  }
+  function getPerformanceStatus() {
+    return {
+      mode: perfState.mode,
+      modeLabel: PERF_MODES[perfState.mode] || PERF_MODES.auto,
+      quality: perfState.quality,
+      fps: Math.round(perfState.fps),
+      reason: perfState.reason,
+    };
+  }
+  setPerformanceMode(perfState.mode);
   function newGame() {
     loopToken++; // 作廢任何正在跑的舊迴圈
     const mapDef = getMap();
@@ -80,6 +167,7 @@
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       mapId: mapDef.id, mapDef, path, affixSeed, affix,
+      performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
       runLeaks: { total: 0, byWave: {} },
@@ -345,6 +433,7 @@
     lastT = 0; // 重置時間基準，避免第一幀 dt 異常
     function loop(t) {
       if (myToken !== loopToken || !state.running || state.over) return; // 不是當前迴圈或已結束
+      updatePerformanceMonitor(t);
       if (!t) t = 0;
       if (!lastT) lastT = t; // 第一幀對齊
       let dt = (t - lastT) / 1000;
@@ -922,7 +1011,8 @@
   // ===== 粒子 =====
   // 粒子爆裂（V2：初速差異化 + 重力 + 大小隨機，更有打擊感）
   function burst(x, y, color, n) {
-    for (let i = 0; i < n; i++) {
+    const count = performanceLow() ? Math.max(1, Math.round((n || 1) * 0.45)) : n;
+    for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2, sp = 50 + Math.random() * 160;
       state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
         life: 0.35 + Math.random() * 0.35, color, r: 1.5 + Math.random() * 2 });
@@ -930,7 +1020,8 @@
   }
   // 擴張環特效（技能命中、Boss 死亡等）
   function ring(x, y, color, maxR) {
-    state.particles.push({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: maxR || 60, r0: 6 });
+    if (performanceLow() && state.particles.length > 24) return;
+    state.particles.push({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: (maxR || 60) * (performanceLow() ? 0.78 : 1), r0: 6 });
   }
   // 螢幕震動（Boss 擊殺、清場技等強回饋）— 對 canvas 加 CSS 震動 class
   function screenShake() {
@@ -1338,14 +1429,15 @@
     const phase = (e.walkDist || 0) * (e.boss ? 0.14 : 0.24) + seed;
     const idlePhase = state.clock * (e.boss ? 2.0 : 3.2) + seed;
     const lift01 = moving ? (Math.sin(phase) + 1) * 0.5 : (e.boss ? 0.35 + Math.sin(idlePhase) * 0.12 : 0.22);
-    const bobAmp = e.boss ? 3.2 : 4.4;
-    const bob = moving ? -lift01 * bobAmp : Math.sin(idlePhase) * (e.boss ? 1.8 : 0.7);
+    const animScale = performanceLow() ? 0.42 : 1;
+    const bobAmp = (e.boss ? 3.2 : 4.4) * animScale;
+    const bob = moving ? -lift01 * bobAmp : Math.sin(idlePhase) * (e.boss ? 1.8 : 0.7) * animScale;
     const waddle = moving
-      ? Math.sin(phase + Math.PI / 2) * (e.boss ? 0.038 : 0.08)
-      : Math.sin(idlePhase) * (e.boss ? 0.048 : 0.022);
-    const breath = e.boss ? Math.sin(idlePhase) * 0.045 : 0;
-    let scaleX = moving ? 1.07 - 0.11 * lift01 : 1;
-    let scaleY = moving ? 0.94 + 0.14 * lift01 : 1 + (e.boss ? breath : Math.sin(idlePhase) * 0.012);
+      ? Math.sin(phase + Math.PI / 2) * (e.boss ? 0.038 : 0.08) * animScale
+      : Math.sin(idlePhase) * (e.boss ? 0.048 : 0.022) * animScale;
+    const breath = e.boss ? Math.sin(idlePhase) * 0.045 * animScale : 0;
+    let scaleX = moving ? 1 + (0.07 - 0.11 * lift01) * animScale : 1;
+    let scaleY = moving ? 1 + (-0.06 + 0.14 * lift01) * animScale : 1 + (e.boss ? breath : Math.sin(idlePhase) * 0.012 * animScale);
     if (e.boss) {
       scaleX *= 1 + breath * 0.45;
       scaleY *= 1 + breath * 0.75;
@@ -1391,8 +1483,11 @@
     if (e.frozenUntil > state.clock) { ctx.fillStyle = "rgba(56,189,248,.4)"; ctx.beginPath(); ctx.arc(drawX, drawY, size / 2, 0, Math.PI * 2); ctx.fill(); }
     else if (e.slowUntil > state.clock) { ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(drawX, drawY, size / 2, 0, Math.PI * 2); ctx.stroke(); }
     if (e.poisonStacks && e.poisonStacks.length) {
-      ctx.strokeStyle = "#22c55e"; ctx.lineWidth = 2;
+      ctx.save();
+      ctx.globalAlpha = performanceLow() ? 0.55 : 1;
+      ctx.strokeStyle = "#22c55e"; ctx.lineWidth = performanceLow() ? 1 : 2;
       ctx.beginPath(); ctx.arc(drawX, drawY, size * 0.62, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
     }
   }
   // 共用圓角漸層血條（V3 場景深度）
@@ -1627,8 +1722,11 @@
   // 閒置渲染迴圈：主迴圈只在波次進行中跑（startLoop/state.running），
   // 第一波開始前的建塔準備階段與 gameOver 後畫面完全不會重繪——
   // 放了塔看不到、滑鼠 hover 的建塔預覽也不會動。這個迴圈只在主迴圈沒跑時輕量補渲染。
-  (function idleLoop() {
-    if (!state.running) render();
+  (function idleLoop(t) {
+    if (!state.running) {
+      updatePerformanceMonitor(t);
+      render();
+    }
     requestAnimationFrame(idleLoop);
   })();
 
@@ -1652,6 +1750,8 @@
     setDifficulty, getDifficulty,  // 難度模式（鉤子）
     setMap, getMap,
     setAdvisorMode: (mode) => { state.advisorMode = (TDRules.ADVISOR_MODES && TDRules.ADVISOR_MODES[mode]) ? mode : "control"; },
+    setPerformanceMode,
+    getPerformanceStatus,
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
     cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
@@ -1665,6 +1765,7 @@
       },
       step: (dt) => { update(dt || 0.016); render(); },
       fireTower: (tw, target) => fire(tw, target),
+      forcePerformanceSample: (fps) => { handlePerformanceSample(fps); return getPerformanceStatus(); },
     },
     config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, MAP_AFFIXES, ACHIEVEMENTS },
   };

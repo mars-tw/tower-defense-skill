@@ -13,6 +13,7 @@
   let selectedBoardMap = (TD.getMap && TD.getMap().id) || "plains";
   let progressWasPaused = false;
   let heroDetailWasPaused = false;
+  let settingsWasPaused = false;
   let advisorCollapsed = false;
   let advisorHidden = false;
   let advisorMode = "control";
@@ -113,7 +114,7 @@
   }
 
   function isBlockingOverlayOpen() {
-    return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
+    return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
   }
 
   function isTextEntryTarget(target) {
@@ -779,6 +780,135 @@
     } catch { return false; }
   }
 
+  const SAVE_BACKUP_KEY = "td_meta_backup_v1";
+  const SAVE_KIND = "td-save-v1";
+  const META_IMPORT_KEYS = ["version", "soulCrystal", "bestWave", "bestByDiff", "board", "achievements", "beginnerMissions", "heroProgress", "games", "totalKills", "gachaCount"];
+
+  function encodeTextBase64(text) {
+    const bytes = new TextEncoder().encode(String(text || ""));
+    let binary = "";
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    return btoa(binary);
+  }
+
+  function decodeTextBase64(code) {
+    const binary = atob(String(code || "").trim());
+    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+
+  function buildSaveBundle() {
+    return {
+      kind: SAVE_KIND,
+      exportedAt: Date.now(),
+      meta: loadMeta(),
+      heroes: [...ownedHeroes],
+    };
+  }
+
+  function encodeSaveBundle(bundle) {
+    return encodeTextBase64(JSON.stringify(bundle || buildSaveBundle()));
+  }
+
+  function decodeSaveCode(code) {
+    const payload = JSON.parse(decodeTextBase64(code));
+    const rawMeta = payload && payload.kind === SAVE_KIND ? payload.meta : payload;
+    const heroes = payload && payload.kind === SAVE_KIND ? payload.heroes : null;
+    return { payload, rawMeta, heroes };
+  }
+
+  function importableMetaShape(rawMeta) {
+    if (!rawMeta || typeof rawMeta !== "object" || Array.isArray(rawMeta)) return false;
+    return META_IMPORT_KEYS.some((key) => hasOwn(rawMeta, key));
+  }
+
+  function setSaveStatus(text, ok) {
+    const box = $("saveStatus");
+    if (!box) return;
+    box.textContent = text || "";
+    box.style.color = ok ? "#86efac" : "#fca5a5";
+  }
+
+  function exportSaveCode() {
+    const code = encodeSaveBundle();
+    const area = $("saveCode");
+    if (area) area.value = code;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code)
+        .then(() => setSaveStatus("已匯出並複製 Base64 存檔碼。", true))
+        .catch(() => setSaveStatus("已匯出，請手動複製存檔碼。", true));
+    } else {
+      setSaveStatus("已匯出，請手動複製存檔碼。", true);
+    }
+    return code;
+  }
+
+  function importSaveCode(code, options) {
+    const opts = options || {};
+    try {
+      const parsed = decodeSaveCode(code);
+      if (!importableMetaShape(parsed.rawMeta)) {
+        setSaveStatus("匯入失敗：不是有效的無盡塔防存檔。", false);
+        return { ok: false, reason: "invalid-shape" };
+      }
+      const result = RULES.protectMetaWrite
+        ? RULES.protectMetaWrite(loadRawMeta(), parsed.rawMeta)
+        : { ok: true, meta: RULES.migrateMeta(parsed.rawMeta) };
+      if (!result.ok) {
+        setSaveStatus("匯入失敗：存檔資料含壞值，已拒絕覆蓋。", false);
+        return { ok: false, reason: result.reason || "invalid-meta" };
+      }
+      const currentHeroesRaw = localStorage.getItem(HERO_SAVE);
+      let currentHeroes = [];
+      try { currentHeroes = currentHeroesRaw ? JSON.parse(currentHeroesRaw) : []; } catch { currentHeroes = []; }
+      const backup = { at: Date.now(), meta: loadRawMeta(), heroes: currentHeroes };
+      localStorage.setItem(SAVE_BACKUP_KEY, JSON.stringify(backup));
+      localStorage.setItem(META_KEY, JSON.stringify(result.meta));
+      if (Array.isArray(parsed.heroes)) {
+        const validHeroes = parsed.heroes.filter((id) => hasOwn(TD.config.HEROES, id));
+        ownedHeroes = new Set(validHeroes);
+        saveOwned();
+      }
+      setSaveStatus("匯入成功，已自動備份原存檔。", true);
+      if (!opts.skipReload) setTimeout(() => location.reload(), 120);
+      else { renderRoster(); renderPerformanceSettings(); }
+      return { ok: true, meta: result.meta };
+    } catch (err) {
+      setSaveStatus("匯入失敗：Base64 或 JSON 格式錯誤。", false);
+      return { ok: false, reason: "decode-failed" };
+    }
+  }
+
+  function renderPerformanceSettings() {
+    const status = TD.getPerformanceStatus ? TD.getPerformanceStatus() : { mode: "auto", quality: "high", fps: 60 };
+    document.querySelectorAll("[data-perf-mode]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.perfMode === status.mode);
+    });
+    const box = $("perfStatus");
+    if (box) {
+      const quality = status.quality === "low" ? "低特效" : "高特效";
+      box.textContent = `${status.modeLabel || "自動"}｜目前 ${quality}｜FPS ${status.fps || 60}`;
+    }
+  }
+
+  function openSettingsOverlay() {
+    if ($("settingsOverlay").classList.contains("show")) return;
+    settingsWasPaused = !!TD.state().paused;
+    TD.setPaused(true);
+    syncPauseButton(true);
+    renderPerformanceSettings();
+    setSaveStatus("", true);
+    $("settingsOverlay").classList.add("show");
+  }
+
+  function closeSettingsOverlay() {
+    $("settingsOverlay").classList.remove("show");
+    if (!settingsWasPaused && !TD.state().over) {
+      TD.setPaused(false);
+      syncPauseButton(false);
+    }
+  }
+
   function formatDate(ts) {
     try { return new Date(ts).toLocaleDateString("zh-TW"); }
     catch { return "未知日期"; }
@@ -1051,11 +1181,21 @@
   $("goddessBtn").onclick = () => { TD.upgradeGoddess(); refreshUI(); };
   $("gachaBtn").onclick = () => { $("gachaBtn").blur(); doGacha(); };
   $("boardBtn").onclick = () => { openProgressOverlay(); };
+  $("settingsBtn").onclick = () => { openSettingsOverlay(); };
   $("progressClose").onclick = () => { closeProgressOverlay(); };
+  $("settingsClose").onclick = () => { closeSettingsOverlay(); };
   $("heroDetailClose").onclick = () => { closeHeroDetail(); };
   $("restartBtn").onclick = restartRun;
   $("upgBtn").onclick = () => { TD.upgradeSelected(); refreshUI(); };
   $("sellBtn").onclick = () => { TD.sellSelected(); refreshUI(); };
+  $("exportSaveBtn").onclick = () => { exportSaveCode(); };
+  $("importSaveBtn").onclick = () => { importSaveCode(($("saveCode") && $("saveCode").value) || ""); };
+  document.querySelectorAll("[data-perf-mode]").forEach((btn) => {
+    btn.onclick = () => {
+      if (TD.setPerformanceMode) TD.setPerformanceMode(btn.dataset.perfMode);
+      renderPerformanceSettings();
+    };
+  });
   document.querySelectorAll(".speed").forEach((b) => {
     b.onclick = () => {
       TD.setSpeed(Number(b.dataset.s));
@@ -1084,6 +1224,11 @@
     if (isShown("heroDetailOverlay")) {
       e.preventDefault();
       if (e.code === "Escape") closeHeroDetail();
+      return;
+    }
+    if (isShown("settingsOverlay")) {
+      e.preventDefault();
+      if (e.code === "Escape") closeSettingsOverlay();
       return;
     }
     if (isShown("progressOverlay")) {
@@ -1129,6 +1274,14 @@
   window.__tdGameOver = onGameOver;
   window.__tdStartWaveWithAdvisor = startWaveWithAdvisor;
   window.__tdSafeSaveMeta = saveMeta;
+  window.__tdPerformanceChanged = renderPerformanceSettings;
+  window.__tdSaveManager = {
+    export: exportSaveCode,
+    import: importSaveCode,
+    encode: encodeSaveBundle,
+    decode: decodeSaveCode,
+    backupKey: SAVE_BACKUP_KEY,
+  };
 
   function handleRuntimeFault() {
     saveMeta(loadMeta());

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "td-r41-v1";
+const CACHE_VERSION = "td-r44-v1";
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 

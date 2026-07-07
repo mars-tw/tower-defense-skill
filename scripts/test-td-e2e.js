@@ -74,7 +74,7 @@ async function run() {
     await page.reload();
     await page.waitForFunction(() => window.TD && window.TD.state);
     await sleep(300);
-    const pwaR37 = await page.evaluate(async () => {
+    const pwaR44 = await page.evaluate(async () => {
       const manifest = await fetch("/manifest.webmanifest").then((r) => ({ ok: r.ok, type: r.headers.get("content-type"), json: r.json() }));
       manifest.json = await manifest.json;
       const sw = await fetch("/sw.js").then((r) => r.text());
@@ -87,31 +87,41 @@ async function run() {
         manifestType: manifest.type || "",
         name: manifest.json.name,
         iconSizes: (manifest.json.icons || []).map((i) => i.sizes).join(","),
-        swHasVersion: sw.includes("CACHE_VERSION") && sw.includes("td-r41-v1"),
+        swHasVersion: sw.includes("CACHE_VERSION") && sw.includes("td-r44-v1"),
         swHasNetworkFirst: sw.includes("networkFirst"),
         swHasCacheFirst: sw.includes("cacheFirst"),
+        swHasSkipWaiting: sw.includes("self.skipWaiting()"),
+        swHasClaim: sw.includes("self.clients.claim()"),
+        swDeletesOldCaches: sw.includes("caches.delete") && sw.includes("key.startsWith(\"td-\")"),
         swHasAssets: sw.includes("heroes") && sw.includes("enemies") && sw.includes("towers"),
         swHasOffline: sw.includes("offline.html") && offline.ok && offline.text.includes("離線"),
         swHasAllJs: shellJs.every((rel) => sw.includes(rel)),
         pwaVersion: window.__tdPwa && window.__tdPwa.version,
+        autoReloadWindowMs: window.__tdPwa && window.__tdPwa.autoReloadWindowMs,
+        autoReloadSessionKey: window.__tdPwa && window.__tdPwa.autoReloadSessionKey,
         swtestGate: document.documentElement.innerHTML.includes("swtest"),
+        autoReloadGuard: document.documentElement.innerHTML.includes("controllerchange") &&
+          document.documentElement.innerHTML.includes("AUTO_RELOAD_WINDOW_MS") &&
+          document.documentElement.innerHTML.includes("sessionStorage"),
         hasTextSize: !!document.querySelector('[data-text-size="large"]'),
         settingsRole: document.getElementById("settingsOverlay").getAttribute("role"),
         webdriver: navigator.webdriver === true,
         regCount: regs.length,
       };
     });
-    assert(pwaR37.hasManifestLink && pwaR37.manifestOk && pwaR37.manifestType.includes("manifest") &&
-      pwaR37.name === "無盡塔防" && pwaR37.iconSizes.includes("192x192") && pwaR37.iconSizes.includes("512x512") &&
-      pwaR37.swHasVersion && pwaR37.swHasNetworkFirst && pwaR37.swHasCacheFirst && pwaR37.swHasAssets &&
-      pwaR37.swHasOffline && pwaR37.swHasAllJs && pwaR37.pwaVersion === "td-r41-v1" && pwaR37.swtestGate &&
-      pwaR37.hasTextSize && pwaR37.settingsRole === "dialog" && pwaR37.webdriver && pwaR37.regCount === 0,
-      `R41 PWA manifest/SW/離線頁/設定可近用性正確，且一般 Playwright webdriver 跳過註冊（regs=${pwaR37.regCount}）`);
+    assert(pwaR44.hasManifestLink && pwaR44.manifestOk && pwaR44.manifestType.includes("manifest") &&
+      pwaR44.name === "無盡塔防" && pwaR44.iconSizes.includes("192x192") && pwaR44.iconSizes.includes("512x512") &&
+      pwaR44.swHasVersion && pwaR44.swHasNetworkFirst && pwaR44.swHasCacheFirst && pwaR44.swHasAssets &&
+      pwaR44.swHasSkipWaiting && pwaR44.swHasClaim && pwaR44.swDeletesOldCaches &&
+      pwaR44.swHasOffline && pwaR44.swHasAllJs && pwaR44.pwaVersion === "td-r44-v1" &&
+      pwaR44.autoReloadWindowMs === 15000 && pwaR44.autoReloadSessionKey && pwaR44.autoReloadGuard && pwaR44.swtestGate &&
+      pwaR44.hasTextSize && pwaR44.settingsRole === "dialog" && pwaR44.webdriver && pwaR44.regCount === 0,
+      `R44 PWA manifest/SW/無感更新守衛/離線頁/設定可近用性正確，且一般 Playwright webdriver 跳過註冊（regs=${pwaR44.regCount}）`);
 
     if (vp.w === 1280) {
       const swContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
       const swPage = await swContext.newPage();
-      let swOfflineR37 = null;
+      let swOfflineR44 = null;
       try {
         await swPage.goto(base + "?swtest=1", { waitUntil: "domcontentloaded" });
         await swPage.evaluate(() => {
@@ -126,11 +136,11 @@ async function run() {
         }, null, { timeout: 12000 });
         await swPage.reload({ waitUntil: "networkidle" });
         await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 12000 });
-        await swPage.waitForFunction(async () => (await caches.keys()).some((key) => key.includes("td-r41")), null, { timeout: 12000 });
+        await swPage.waitForFunction(async () => (await caches.keys()).some((key) => key.includes("td-r44")), null, { timeout: 12000 });
         await swContext.setOffline(true);
         await swPage.reload({ waitUntil: "domcontentloaded" });
         await swPage.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 12000 });
-        swOfflineR37 = await swPage.evaluate(async () => {
+        swOfflineR44 = await swPage.evaluate(async () => {
           ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay", "progressOverlay"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.classList.remove("show");
@@ -159,7 +169,9 @@ async function run() {
             towerCount: window.TD.state().towers.length,
             target,
             controlled: !!navigator.serviceWorker.controller,
-            cacheKeys: keys.filter((key) => key.includes("td-r41")).length,
+            cacheKeys: keys.filter((key) => key.includes("td-r44")).length,
+            autoReloadWindowMs: window.__tdPwa && window.__tdPwa.autoReloadWindowMs,
+            autoReloadSessionKey: window.__tdPwa && window.__tdPwa.autoReloadSessionKey,
           };
         });
       } finally {
@@ -172,8 +184,9 @@ async function run() {
         }).catch(() => {});
         await swContext.close().catch(() => {});
       }
-      assert(swOfflineR37 && swOfflineR37.loaded && swOfflineR37.controlled && swOfflineR37.cacheKeys > 0 && swOfflineR37.towerCount >= 1,
-        `R41 真 SW 離線 reload 後仍可載入並建塔（towers=${swOfflineR37 && swOfflineR37.towerCount} target=${swOfflineR37 && JSON.stringify(swOfflineR37.target)} caches=${swOfflineR37 && swOfflineR37.cacheKeys}）`);
+      assert(swOfflineR44 && swOfflineR44.loaded && swOfflineR44.controlled && swOfflineR44.cacheKeys > 0 &&
+        swOfflineR44.autoReloadWindowMs === 15000 && swOfflineR44.autoReloadSessionKey && swOfflineR44.towerCount >= 1,
+        `R44 真 SW 離線 reload 後仍可載入並建塔（towers=${swOfflineR44 && swOfflineR44.towerCount} target=${swOfflineR44 && JSON.stringify(swOfflineR44.target)} caches=${swOfflineR44 && swOfflineR44.cacheKeys}）`);
     }
 
     const perfR37 = await page.evaluate(async () => {
@@ -1088,7 +1101,13 @@ async function run() {
       // waveTheme(9)=ice：把 wave 設 8，下一波就是 9
       st.wave = 8;
       const preview = window.TD.previewNextWave();
-      window.TD.startWave();
+      const originalRandom = Math.random;
+      Math.random = () => 0.1;
+      try {
+        window.TD.startWave();
+      } finally {
+        Math.random = originalRandom;
+      }
       const q = st.spawnQueue.map((s) => s.type);
       const themeEls = q.filter((t) => (window.ENEMIES[t] || {}).element === preview.theme).length;
       return { theme: preview.theme, queueLen: q.length, themeCount: themeEls, types: [...new Set(q)] };

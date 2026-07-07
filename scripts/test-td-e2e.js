@@ -16,6 +16,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
+// R45：從 sw.js 動態讀版本，版本 bump 不再需要改 E2E
+const SW_VERSION = (fs.readFileSync(path.join(ROOT, "sw.js"), "utf8")
+  .match(/const\s+CACHE_VERSION\s*=\s*["']([^"']+)["']/) || [])[1] || "";
 const MIME = { ".html": "text/html", ".js": "application/javascript", ".json": "application/json", ".webmanifest": "application/manifest+json", ".png": "image/png", ".css": "text/css" };
 
 let failed = 0;
@@ -74,7 +77,7 @@ async function run() {
     await page.reload();
     await page.waitForFunction(() => window.TD && window.TD.state);
     await sleep(300);
-    const pwaR44 = await page.evaluate(async () => {
+    const pwaR44 = await page.evaluate(async (swVersion) => {
       const manifest = await fetch("/manifest.webmanifest").then((r) => ({ ok: r.ok, type: r.headers.get("content-type"), json: r.json() }));
       manifest.json = await manifest.json;
       const sw = await fetch("/sw.js").then((r) => r.text());
@@ -87,7 +90,7 @@ async function run() {
         manifestType: manifest.type || "",
         name: manifest.json.name,
         iconSizes: (manifest.json.icons || []).map((i) => i.sizes).join(","),
-        swHasVersion: sw.includes("CACHE_VERSION") && sw.includes("td-r44-v1"),
+        swHasVersion: sw.includes("CACHE_VERSION") && sw.includes(swVersion),
         swHasNetworkFirst: sw.includes("networkFirst"),
         swHasCacheFirst: sw.includes("cacheFirst"),
         swHasSkipWaiting: sw.includes("self.skipWaiting()"),
@@ -108,15 +111,15 @@ async function run() {
         webdriver: navigator.webdriver === true,
         regCount: regs.length,
       };
-    });
+    }, SW_VERSION);
     assert(pwaR44.hasManifestLink && pwaR44.manifestOk && pwaR44.manifestType.includes("manifest") &&
       pwaR44.name === "無盡塔防" && pwaR44.iconSizes.includes("192x192") && pwaR44.iconSizes.includes("512x512") &&
       pwaR44.swHasVersion && pwaR44.swHasNetworkFirst && pwaR44.swHasCacheFirst && pwaR44.swHasAssets &&
       pwaR44.swHasSkipWaiting && pwaR44.swHasClaim && pwaR44.swDeletesOldCaches &&
-      pwaR44.swHasOffline && pwaR44.swHasAllJs && pwaR44.pwaVersion === "td-r44-v1" &&
+      pwaR44.swHasOffline && pwaR44.swHasAllJs && pwaR44.pwaVersion === SW_VERSION &&
       pwaR44.autoReloadWindowMs === 15000 && pwaR44.autoReloadSessionKey && pwaR44.autoReloadGuard && pwaR44.swtestGate &&
       pwaR44.hasTextSize && pwaR44.settingsRole === "dialog" && pwaR44.webdriver && pwaR44.regCount === 0,
-      `R44 PWA manifest/SW/無感更新守衛/離線頁/設定可近用性正確，且一般 Playwright webdriver 跳過註冊（regs=${pwaR44.regCount}）`);
+      `PWA manifest/SW（${SW_VERSION}）/無感更新守衛/離線頁/設定可近用性正確，且一般 Playwright webdriver 跳過註冊（regs=${pwaR44.regCount}）`);
 
     if (vp.w === 1280) {
       const swContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -136,11 +139,11 @@ async function run() {
         }, null, { timeout: 12000 });
         await swPage.reload({ waitUntil: "networkidle" });
         await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 12000 });
-        await swPage.waitForFunction(async () => (await caches.keys()).some((key) => key.includes("td-r44")), null, { timeout: 12000 });
+        await swPage.waitForFunction(async (v) => (await caches.keys()).some((key) => key.includes(v)), SW_VERSION, { timeout: 12000 });
         await swContext.setOffline(true);
         await swPage.reload({ waitUntil: "domcontentloaded" });
         await swPage.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 12000 });
-        swOfflineR44 = await swPage.evaluate(async () => {
+        swOfflineR44 = await swPage.evaluate(async (swVersion) => {
           ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay", "progressOverlay"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.classList.remove("show");
@@ -169,11 +172,11 @@ async function run() {
             towerCount: window.TD.state().towers.length,
             target,
             controlled: !!navigator.serviceWorker.controller,
-            cacheKeys: keys.filter((key) => key.includes("td-r44")).length,
+            cacheKeys: keys.filter((key) => key.includes(swVersion)).length,
             autoReloadWindowMs: window.__tdPwa && window.__tdPwa.autoReloadWindowMs,
             autoReloadSessionKey: window.__tdPwa && window.__tdPwa.autoReloadSessionKey,
           };
-        });
+        }, SW_VERSION);
       } finally {
         await swContext.setOffline(false).catch(() => {});
         await swPage.evaluate(async () => {
@@ -186,7 +189,7 @@ async function run() {
       }
       assert(swOfflineR44 && swOfflineR44.loaded && swOfflineR44.controlled && swOfflineR44.cacheKeys > 0 &&
         swOfflineR44.autoReloadWindowMs === 15000 && swOfflineR44.autoReloadSessionKey && swOfflineR44.towerCount >= 1,
-        `R44 真 SW 離線 reload 後仍可載入並建塔（towers=${swOfflineR44 && swOfflineR44.towerCount} target=${swOfflineR44 && JSON.stringify(swOfflineR44.target)} caches=${swOfflineR44 && swOfflineR44.cacheKeys}）`);
+        `真 SW（${SW_VERSION}）離線 reload 後仍可載入並建塔（towers=${swOfflineR44 && swOfflineR44.towerCount} target=${swOfflineR44 && JSON.stringify(swOfflineR44.target)} caches=${swOfflineR44 && swOfflineR44.cacheKeys}）`);
     }
 
     const perfR37 = await page.evaluate(async () => {
@@ -1323,6 +1326,81 @@ async function run() {
     // 11. 全程無 console error / pageerror
     assert(errors.length === 0, "無 console 錯誤 / pageerror" + (errors.length ? "：" + errors.slice(0, 3).join(" | ") : ""));
 
+    await page.close();
+  }
+
+  // R45：桌機矮視窗 1366×700 — 主要按鈕與設定內「檢查更新」皆可達可點
+  {
+    console.log("\n== 視窗 桌機矮視窗 1366x700（R45）==");
+    const page = await browser.newPage({ viewport: { width: 1366, height: 700 } });
+    const shortErrors = [];
+    page.on("pageerror", (e) => shortErrors.push("pageerror: " + e.message));
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.waitForSelector("#startBtn", { timeout: 15000 });
+    const tutorialShown = await page.evaluate(() => document.getElementById("tutorial").classList.contains("show"));
+    if (tutorialShown) {
+      const quickRect = await page.evaluate(() => {
+        const r = document.getElementById("tutorialQuick").getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      });
+      assert(quickRect.top >= 0 && quickRect.bottom <= 700,
+        `1366×700 新手教學「快速開始」於視口內（top ${Math.round(quickRect.top)}, bottom ${Math.round(quickRect.bottom)}）`);
+      await page.click("#tutorialQuick");
+      await sleep(250);
+    }
+    const reachable = await page.evaluate(() => {
+      const ids = ["startBtn", "pauseBtn", "goddessBtn", "boardBtn", "settingsBtn"];
+      const misses = [];
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) { misses.push(id + ":missing"); continue; }
+        const r = el.getBoundingClientRect();
+        const inViewport = r.width > 0 && r.height > 0 && r.top >= 0 && r.left >= 0 &&
+          r.bottom <= window.innerHeight && r.right <= window.innerWidth;
+        if (!inViewport) misses.push(`${id}:top${Math.round(r.top)},bottom${Math.round(r.bottom)}`);
+      }
+      const panel = document.querySelector(".panel");
+      const panelStyle = panel ? getComputedStyle(panel) : null;
+      const panelScrollable = !!panelStyle && panelStyle.overflowY === "auto" &&
+        panel.getBoundingClientRect().height <= window.innerHeight;
+      const gacha = document.getElementById("gachaBtn");
+      let gachaReachable = false;
+      let gachaDebug = "";
+      if (gacha) {
+        gacha.scrollIntoView({ block: "center" });
+        const gr = gacha.getBoundingClientRect();
+        const hit = document.elementFromPoint(gr.left + gr.width / 2, gr.top + gr.height / 2);
+        gachaReachable = gr.top >= -2 && gr.bottom <= window.innerHeight + 2 &&
+          !!hit && (hit === gacha || gacha.contains(hit));
+        gachaDebug = `top${Math.round(gr.top)},bottom${Math.round(gr.bottom)},hit=${hit ? (hit.id || hit.className || hit.tagName) : "null"}`;
+      }
+      return { misses, panelScrollable, gachaReachable, gachaDebug,
+        overflowX: document.documentElement.scrollWidth - window.innerWidth };
+    });
+    assert(reachable.misses.length === 0, `1366×700 核心按鈕皆於視口內（異常 ${reachable.misses.join(",") || "0"}）`);
+    assert(reachable.panelScrollable, "1366×700 側欄自身限高且可捲動（不再靠整頁捲動）");
+    assert(reachable.gachaReachable, `1366×700 抽英雄鈕可捲達且可點（${reachable.gachaDebug || "缺"}）`);
+    assert(reachable.overflowX <= 2, `1366×700 無水平溢出（${reachable.overflowX}）`);
+    await page.click("#settingsBtn");
+    await sleep(250);
+    const updateBtn = await page.evaluate(() => {
+      const btn = document.getElementById("checkUpdateBtn");
+      if (!btn) return { exists: false };
+      btn.scrollIntoView({ block: "nearest" });
+      const r = btn.getBoundingClientRect();
+      return {
+        exists: true,
+        visible: r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight,
+        text: btn.textContent.trim(),
+      };
+    });
+    assert(updateBtn.exists && updateBtn.visible && updateBtn.text.includes("檢查更新"),
+      `1366×700 設定內「檢查更新」鈕可達可見（${updateBtn.text || "缺"}）`);
+    await page.click("#checkUpdateBtn");
+    await sleep(300);
+    const pwaStatus = await page.evaluate(() => window.__tdPwa && window.__tdPwa.status);
+    assert(typeof pwaStatus === "string" && pwaStatus.length > 0, `1366×700 檢查更新可點且回報狀態（${pwaStatus}）`);
+    assert(shortErrors.length === 0, "1366×700 無 pageerror" + (shortErrors.length ? "：" + shortErrors.slice(0, 2).join(" | ") : ""));
     await page.close();
   }
   } finally {

@@ -122,7 +122,7 @@ console.log("== R41：PWA/可近用性資產 ==");
   assert((manifest.icons || []).some((i) => i.src === "assets/icons/icon-512.png" && i.sizes === "512x512"), "manifest 指向 512 icon");
   assert(icon192.png && icon192.width === 192 && icon192.height === 192, "192 icon 為有效 PNG");
   assert(icon512.png && icon512.width === 512 && icon512.height === 512, "512 icon 為有效 PNG");
-  assert(sw.includes("CACHE_VERSION") && sw.includes("td-r44-v1") && sw.includes("networkFirst") && sw.includes("cacheFirst"), "sw.js 有 R44 版本與 network-first/cache-first 策略");
+  assert(sw.includes("CACHE_VERSION") && sw.includes("networkFirst") && sw.includes("cacheFirst"), "sw.js 有版本化快取與 network-first/cache-first 策略");
   assert(sw.includes("self.skipWaiting()") && sw.includes("self.clients.claim()") && sw.includes("caches.delete"), "sw.js 安裝即接管並清除舊快取");
   assert(sw.includes("offline.html") && fs.existsSync(offlinePath) && offline.includes("離線"), "sw.js 與離線 fallback 頁完整");
   assert(appShell.length >= requiredShell.size && missingShell.length === 0, `sw.js APP_SHELL 自動涵蓋 HTML/manifest/assets 本地資源（缺 ${missingShell.slice(0, 3).join(",") || "0"}）`);
@@ -131,6 +131,33 @@ console.log("== R41：PWA/可近用性資產 ==");
   assert(index.includes('rel="manifest"') && index.includes("navigator.webdriver") && index.includes("swtest"), "index 連結 manifest、webdriver 跳過 SW 註冊且提供 swtest");
   assert(index.includes("controllerchange") && index.includes("AUTO_RELOAD_WINDOW_MS") && index.includes("sessionStorage"), "index 具備 SW controllerchange 自動更新守衛");
   assert(index.includes("data-text-size") && index.includes(":focus-visible") && index.includes("checkUpdateBtn"), "index 有文字大小、focus-visible 與檢查更新 UI");
+
+  // R45：URL 版本化守門 — 根治「新 HTML 配舊 JS」版本錯配
+  const swVersion = (sw.match(/const\s+CACHE_VERSION\s*=\s*["']([^"']+)["']/) || [])[1] || "";
+  const pwaVersion = (index.match(/const\s+PWA_VERSION\s*=\s*["']([^"']+)["']/) || [])[1] || "";
+  assert(/^td-r\d+-v\d+$/.test(swVersion), `sw.js CACHE_VERSION 格式正確（${swVersion || "缺"}）`);
+  assert(swVersion === pwaVersion, `index PWA_VERSION 與 sw CACHE_VERSION 一致（${pwaVersion || "缺"} / ${swVersion || "缺"}）`);
+  const versionedRefs = [];
+  const refRe = /\b(?:src|href)=["']([^"']+)["']/g;
+  let refM;
+  while ((refM = refRe.exec(index))) {
+    const raw = refM[1];
+    if (!raw || /^(?:https?:|data:|mailto:|javascript:|#|\/\/)/i.test(raw)) continue;
+    if (/\.(?:js|webmanifest)(?:\?|$)/.test(raw)) versionedRefs.push(raw);
+  }
+  const badRefs = versionedRefs.filter((raw) => !raw.endsWith(`?v=${swVersion}`));
+  assert(versionedRefs.length >= 6 && badRefs.length === 0,
+    `index 本地 JS/manifest 皆帶 ?v=${swVersion}（共 ${versionedRefs.length}，異常 ${badRefs.slice(0, 3).join(",") || "0"}）`);
+  const rawShellBody = (sw.match(/const\s+APP_SHELL\s*=\s*\[([\s\S]*?)\];/) || ["", ""])[1];
+  const rawShellEntries = [...rawShellBody.matchAll(/["']([^"']+)["']/g)].map((m2) => m2[1]);
+  const shellJs = rawShellEntries.filter((e) => /\.js(?:\?|$)/.test(e) && !/\/sw\.js$/.test(e));
+  const badShellJs = shellJs.filter((e) => !e.endsWith(`?v=${swVersion}`));
+  assert(shellJs.length >= 5 && badShellJs.length === 0,
+    `sw.js APP_SHELL 的 JS 皆帶 ?v=${swVersion}（共 ${shellJs.length}，異常 ${badShellJs.slice(0, 3).join(",") || "0"}）`);
+  const bootGuardAt = index.indexOf("getRegistration");
+  const firstExternalJsAt = index.indexOf('src="src/config.js');
+  assert(bootGuardAt !== -1 && firstExternalJsAt !== -1 && bootGuardAt < firstExternalJsAt,
+    "index 具備早期 SW boot guard（外部 JS 載入前先 registration.update()）");
 }
 
 console.log("== R41：文案品質守門 ==");

@@ -5,7 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>無盡塔防 · Endless Tower Defense</title>
 <meta name="theme-color" content="#16241b" />
-<link rel="manifest" href="manifest.webmanifest" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r45-v1" />
+<script>
+  /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
+     搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
+  (() => {
+    "use strict";
+    if (!("serviceWorker" in navigator)) return;
+    const swTest = new URLSearchParams(location.search).get("swtest") === "1";
+    if (navigator.webdriver && !swTest) return;
+    navigator.serviceWorker.getRegistration()
+      .then((reg) => { if (reg) return reg.update(); })
+      .catch(() => {});
+  })();
+</script>
 <style>
   /* ===== 設計系統：surface 色階 + 統一陰影/描邊（V1 視覺優化）===== */
   :root {
@@ -516,6 +529,9 @@
     #skillList { order: 20; }
     .sel-panel { order: 21; }
     #towerList { max-height: 150px; overflow-y: auto; padding-right: 2px; }
+    /* R45：矮視窗桌機側欄自身限高捲動，抽英雄等下半部按鈕不再被推出視窗外 */
+    .panel { position: sticky; top: 8px; max-height: calc(100dvh - 16px);
+      overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
   }
 
   /* 平板/手機（窄於 900px）：側欄移到 canvas 下方、橫向排列 */
@@ -780,18 +796,18 @@
     </div>
   </div>
 
-  <script src="src/config.js"></script>
-  <script src="src/heroes.js"></script>
-  <script src="src/rules.js"></script>
-  <script src="src/game.js"></script>
-  <script src="src/ui.js"></script>
+  <script src="src/config.js?v=td-r45-v1"></script>
+  <script src="src/heroes.js?v=td-r45-v1"></script>
+  <script src="src/rules.js?v=td-r45-v1"></script>
+  <script src="src/game.js?v=td-r45-v1"></script>
+  <script src="src/ui.js?v=td-r45-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r44-v1";
+      const PWA_VERSION = "td-r45-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
-      const AUTO_RELOAD_SESSION_KEY = "td_pwa_r44_auto_reload";
+      const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";
       const swTest = new URLSearchParams(location.search).get("swtest") === "1";
       window.__tdPwa = {
         version: PWA_VERSION,

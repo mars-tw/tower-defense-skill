@@ -53,6 +53,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: 跑塔防 Stage 1 E2E（魂晶經濟/首抽免費/保底/暫停/主題波/建塔重繪/RWD）
         run: node scripts/test-td-e2e.js
+      - name: RWD 9 視口矩陣守門（零違規/頁捲歸零/無水平溢出）
+        run: node scripts/test-rwd-matrix.js
 
   deploy:
     name: 部署 GitHub Pages

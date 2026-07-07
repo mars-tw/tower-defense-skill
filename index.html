@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>無盡塔防 · Endless Tower Defense</title>
 <meta name="theme-color" content="#16241b" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r45-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r46-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -42,13 +42,13 @@
   body {
     font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
     background: radial-gradient(ellipse at 50% 0%, #16242c, var(--surface-0));
-    color: var(--ink); min-height: 100vh; display: flex; flex-direction: column;
+    color: var(--ink); height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column;
     align-items: center; user-select: none; padding: 8px; gap: 8px;
   }
   h1 { font-size: 22px; letter-spacing: 2px; font-weight: 900; color: var(--accent);
     text-shadow: 0 0 18px rgba(74,222,128,.45), 0 2px 4px rgba(0,0,0,.6); }
 
-  .wrap { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .wrap { display: flex; gap: 10px; align-items: flex-start; justify-content: center; }
 
   /* HUD */
   .hud { display: flex; gap: 16px; align-items: center; padding: 10px 18px;
@@ -500,12 +500,22 @@
   .series-footer a:hover { color: var(--gold); }
   .scroll-hint { display: none; font-size: 11px; color: var(--ink-meta); padding-left: 2px; }
 
-  /* ===== RWD 響應式 ===== */
-  /* canvas 維持 3:2 比例自適應，最大不超過容器 */
-  canvas { width: 100%; max-width: 960px; height: auto; aspect-ratio: 3 / 2; touch-action: none; }
-  .wrap { width: 100%; max-width: 1200px; }
+  /* ===== RWD 響應式（R46 app-shell：頁面不捲、區域內捲）===== */
+  /* canvas 維持 3:2 比例，同時受寬與高上限約束自適應縮放 */
+  canvas { width: auto; height: auto; max-width: 100%; max-height: 100%;
+    aspect-ratio: 3 / 2; touch-action: none; flex: 0 0 auto; }
+  .wrap { width: 100%; max-width: 1200px; flex: 1 1 auto; min-height: 0; }
+  .panel { min-height: 0; }
+  .hud-core { display: contents; }
+  /* 教學/難度/地圖卡片：自身限高內捲，小視口不出界 */
+  .tutorial-card, .diff-card, .map-card { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; }
 
-  @media (min-width: 901px) and (max-height: 940px) {
+  /* 桌機（>=901px）：側欄固定寬、自身限高內捲；canvas 依剩餘寬高縮放，不折行 */
+  @media (min-width: 901px) {
+    .wrap { flex-wrap: nowrap; }
+    canvas { max-width: min(960px, calc(100vw - 246px)); }
+    .panel { flex: 0 0 216px; width: 216px; max-height: 100%;
+      overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
     .wave-start { order: 1; }
     #waveWarning { order: 2; }
     .wave-speed { order: 3; }
@@ -528,21 +538,25 @@
     .skill-title { order: 19; }
     #skillList { order: 20; }
     .sel-panel { order: 21; }
+  }
+  @media (min-width: 901px) and (max-height: 940px) {
+    /* 矮視窗桌機：建塔清單巢狀捲動，首屏保留更多控制鈕 */
     #towerList { max-height: 150px; overflow-y: auto; padding-right: 2px; }
-    /* R45：矮視窗桌機側欄自身限高捲動，抽英雄等下半部按鈕不再被推出視窗外 */
-    .panel { position: sticky; top: 8px; max-height: calc(100dvh - 16px);
-      overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
   }
 
-  /* 平板/手機（窄於 900px）：側欄移到 canvas 下方、橫向排列 */
+  /* 平板/手機（窄於 900px）：app-shell —— canvas 置頂自適應，面板收進內捲容器 */
   @media (max-width: 900px) {
-    body { padding: 4px; gap: 6px; }
+    body { padding: 6px; gap: 6px; }
     h1 { font-size: 16px; }
-    .wrap { flex-direction: column; align-items: stretch; }
-    .panel { width: 100%; }
-    /* 建塔/技能/英雄列改橫向可滑動 */
+    .wrap { flex-direction: column; align-items: stretch; gap: 6px; }
+    canvas { align-self: center; max-height: 46vh; max-height: 46dvh; }
+    .panel { width: 100%; flex: 1 1 auto; overflow-y: auto;
+      overscroll-behavior: contain; padding-right: 2px; }
+    #log { min-height: 0; font-size: 11px; padding: 2px; }
+    .series-footer { padding: 0 8px 2px; font-size: 11px; }
+    /* 建塔/技能/英雄列改橫向可滑動（垂直明確不捲，垂直捲動交給 .panel）*/
     #towerList, #skillList, #heroRoster, #deployedHeroes {
-      display: flex; flex-direction: row; gap: 6px; overflow-x: auto;
+      display: flex; flex-direction: row; gap: 6px; overflow-x: auto; overflow-y: hidden;
       -webkit-overflow-scrolling: touch; padding-bottom: 4px;
     }
     #towerList .tower-btn, #skillList .skill-btn, #heroRoster .hero-card, #deployedHeroes .deployed-hero-slot {
@@ -551,28 +565,44 @@
     .tower-title { order: 1; }
     #towerList { order: 2; }
     .tower-scroll-hint { order: 3; display: block; }
-    .wave-start { order: 4; }
-    #waveWarning { order: 5; }
-    .wave-speed { order: 6; }
-    .goddess-btn { order: 7; }
-    .board-btn { order: 8; }
-    .settings-btn { order: 9; }
-    #nextWaveCard { order: 10; }
-    #affixCard { order: 10; }
-    #enemyInfo { order: 11; }
-    .hero-title { order: 12; }
-    .gacha-btn { order: 13; }
-    .gacha-meta { order: 14; }
-    #beginnerMissions { order: 15; }
-    #heroRoster { order: 16; }
-    #deployedHeroes { order: 17; }
-    .hero-scroll-hint { order: 18; display: block; }
-    .skill-title { order: 19; }
-    #skillList { order: 20; }
-    .skill-scroll-hint { order: 21; display: block; }
-    .sel-panel { order: 22; }
+    #waveWarning { order: 4; }
+    .goddess-btn { order: 5; }
+    .board-btn { order: 6; }
+    #nextWaveCard { order: 7; }
+    #affixCard { order: 8; }
+    #enemyInfo { order: 9; }
+    .hero-title { order: 10; }
+    .gacha-btn { order: 11; }
+    .gacha-meta { order: 12; }
+    #beginnerMissions { order: 13; }
+    #heroRoster { order: 14; }
+    #deployedHeroes { order: 15; }
+    .hero-scroll-hint { order: 16; display: block; }
+    .skill-title { order: 17; }
+    #skillList { order: 18; }
+    .skill-scroll-hint { order: 19; display: block; }
+    .sel-panel { order: 20; }
     .panel h3 { margin-top: 4px; }
     .controls { flex-wrap: nowrap; }
+    /* HUD 核心（開始/速度/暫停/設定）sticky 常駐面板底部 */
+    .hud-core { order: 90; position: sticky; bottom: 0; z-index: 6;
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch;
+      margin-top: 2px; padding: 6px 0 2px;
+      background: linear-gradient(180deg, rgba(12,22,32,.9), #0c1620 45%);
+      border-top: 1px solid var(--border-soft); }
+    .hud-core .wave-start { flex: 1 1 150px; }
+    .hud-core .wave-speed { flex: 0 1 auto; }
+    .hud-core .settings-btn { width: auto; flex: 0 0 auto; }
+  }
+
+  /* 橫向手機（矮視口）：canvas 靠左、面板右側內捲 */
+  @media (max-width: 900px) and (max-height: 520px) {
+    h1 { font-size: 12px; }
+    .hud { padding: 4px 10px; gap: 10px; }
+    .hud .stat { font-size: 12px; }
+    .wrap { flex-direction: row; align-items: flex-start; }
+    canvas { align-self: flex-start; max-height: 100%; max-width: min(62vw, calc(100vw - 208px)); }
+    .panel { width: auto; flex: 1 1 auto; min-width: 0; max-height: 100%; }
   }
 
   /* 手機（窄於 560px）：再縮小字級、HUD 緊湊 */
@@ -613,18 +643,20 @@
     <canvas id="game" width="960" height="640"></canvas>
 
     <div class="panel">
-      <div class="controls wave-start">
-        <button class="act start" id="startBtn" data-hotkey="⏎" aria-label="開始下一波">▶ 開始下一波</button>
+      <div class="hud-core">
+        <div class="controls wave-start">
+          <button class="act start" id="startBtn" data-hotkey="⏎" aria-label="開始下一波">▶ 開始下一波</button>
+        </div>
+        <div class="controls wave-speed">
+          <button class="act speed on" id="speed1" data-s="1" aria-label="切換一倍速度">1×</button>
+          <button class="act speed" id="speed2" data-hotkey="T" data-s="2" aria-label="切換二倍速度">2×</button>
+          <button class="act pause" id="pauseBtn" data-hotkey="P" aria-label="暫停或恢復">⏸</button>
+        </div>
+        <button class="act settings-btn" id="settingsBtn" aria-label="開啟設定">⚙️ 設定</button>
       </div>
       <div class="wave-warning" id="waveWarning" role="status" aria-live="polite"></div>
-      <div class="controls wave-speed">
-        <button class="act speed on" id="speed1" data-s="1" aria-label="切換一倍速度">1×</button>
-        <button class="act speed" id="speed2" data-hotkey="T" data-s="2" aria-label="切換二倍速度">2×</button>
-        <button class="act pause" id="pauseBtn" data-hotkey="P" aria-label="暫停或恢復">⏸</button>
-      </div>
       <button class="act goddess-btn" id="goddessBtn" aria-label="升級女神">👸 升級女神</button>
       <button class="act board-btn" id="boardBtn" aria-label="開啟排行榜與成就">🏆 排行榜/成就</button>
-      <button class="act settings-btn" id="settingsBtn" aria-label="開啟設定">⚙️ 設定</button>
       <div class="next-wave-card" id="nextWaveCard"></div>
       <div class="affix-card" id="affixCard"></div>
       <div class="enemy-info hidden" id="enemyInfo"></div>
@@ -796,15 +828,15 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r45-v1"></script>
-  <script src="src/heroes.js?v=td-r45-v1"></script>
-  <script src="src/rules.js?v=td-r45-v1"></script>
-  <script src="src/game.js?v=td-r45-v1"></script>
-  <script src="src/ui.js?v=td-r45-v1"></script>
+  <script src="src/config.js?v=td-r46-v1"></script>
+  <script src="src/heroes.js?v=td-r46-v1"></script>
+  <script src="src/rules.js?v=td-r46-v1"></script>
+  <script src="src/game.js?v=td-r46-v1"></script>
+  <script src="src/ui.js?v=td-r46-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r45-v1";
+      const PWA_VERSION = "td-r46-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

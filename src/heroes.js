@@ -62,6 +62,18 @@ const HEROES = {
   nezha:   { id: "nezha",   name: "哪吒",   emoji: "🪷", rarity: "epic", element: "fire", role: "ranged",
              hp: 145, atk: 20, speed: 105, range: 100, atkRate: 1.3, color: "#f97316",
              desc: "火尖槍迅捷穿梭，機動點燃戰線。", sprite: "assets/heroes/nezha.png", splash: 20 },
+  leizhenzi:{ id: "leizhenzi", name: "雷震子", emoji: "🪽", rarity: "rare", element: "thunder", role: "ranged",
+             hp: 125, atk: 17, speed: 85, range: 115, atkRate: 1.25, color: "#c084fc",
+             desc: "振翼引雷，雷弓可穿透多名敵人。", sprite: "assets/heroes/leizhenzi.png", pierce: 2 },
+  niumowang:{ id: "niumowang", name: "牛魔王", emoji: "🐂", rarity: "epic", element: "fire", role: "melee",
+             hp: 320, atk: 24, speed: 55, range: 46, atkRate: 1.0, color: "#ef4444",
+             desc: "赤焰巨斧掃開前線，近戰範圍重擊。", sprite: "assets/heroes/niumowang.png", splash: 30 },
+  baisuzhen:{ id: "baisuzhen", name: "白素貞", emoji: "🐍", rarity: "epic", element: "ice", role: "ranged",
+             hp: 150, atk: 22, speed: 60, range: 115, atkRate: 1.05, color: "#67e8f9",
+             desc: "青白寒陣凝霜，遠距攻擊並緩速群敵。", sprite: "assets/heroes/baisuzhen.png", slow: 0.5, splash: 25 },
+  erlangshen:{ id: "erlangshen", name: "二郎神", emoji: "👁️", rarity: "legendary", element: "thunder", role: "melee",
+             hp: 300, atk: 34, speed: 80, range: 52, atkRate: 1.3, color: "#a855f7",
+             desc: "天眼破邪，三尖兩刃刀連斬穿透敵陣。", sprite: "assets/heroes/erlangshen.png", pierce: 2 },
 };
 
 // 英雄升級曲線：每級數值成長

@@ -40,6 +40,12 @@ const TOWERS = {
   support:{ id: "support",name: "聖光塔", emoji: "✨", element: "physical",
             range: 150, damage: 0, fireRate: 0, cost: 110, support: true, buff: 0.20, buffPerLevel: 0.04, color: "#fde047",
             desc: "不攻擊，強化範圍內其他塔的傷害。" },
+  sniper: { id: "sniper", name: "狙擊塔", emoji: "🎯", element: "physical",
+            range: 140, damage: 58, fireRate: 0.55, cost: 145, color: "#94a3b8",
+            desc: "長管弩炮鎖定遠距離目標，單發傷害極高。" },
+  arcane: { id: "arcane", name: "奧術塔", emoji: "🔮", element: "physical",
+            range: 130, damage: 15, fireRate: 1.4, cost: 105, vuln: { mult: 1.2, duration: 3 }, color: "#a855f7",
+            desc: "秘紋水晶標記敵人，使後續攻擊造成更多傷害。" },
 };
 // 升級：每級提升傷害與射程，造價遞增。Lv.10 給後期金錢出口，costMul 讓 7~10 級明顯昂貴但仍可追求。
 const UPGRADE = { damageMul: 1.5, rangeMul: 1.08, costMul: 1.52, maxLevel: 10 };
@@ -70,6 +76,15 @@ const ENEMIES = {
   medic:     { id: "medic",     name: "醫官",     emoji: "💚", element: "physical", hp: 70, speed: 32, reward: 20, leak: 1,
                healRadius: 80, healAmount: 14, healInterval: 2, color: "#4ade80",
                counterHint: "優先電磁塔穿透或加農砲範圍擊殺，避免拖長治療。" },
+  frostwraith: { id: "frostwraith", name: "冰魄妖", emoji: "👻", element: "ice", hp: 68, shield: 42, speed: 42, reward: 20, leak: 2, color: "#67e8f9",
+                 ability: { id: "shieldRegen", label: "冰甲再生", desc: "脫離攻擊後冰甲會快速回復。", delay: 2.5, perSec: 20 },
+                 counterHint: "雷系穿盾與持續壓制能阻止冰甲再生。" },
+  emberbat: { id: "emberbat", name: "焰蝠", emoji: "🦇", element: "fire", hp: 30, speed: 92, reward: 9, leak: 1, color: "#fb923c",
+              ability: { id: "splitBat", childHpMul: 0.45, childRewardMul: 0.35, label: "餘燼分裂", desc: "死亡後分裂出一隻小蝙蝠。" },
+              counterHint: "冰霜減速能攔住高速焰蝠分裂潮。" },
+  thunderronin: { id: "thunderronin", name: "雷刃武士", emoji: "⚔️", element: "thunder", hp: 115, speed: 52, reward: 22, leak: 2, color: "#fde047",
+                  ability: { id: "bloodrage", threshold: 0.4, speedMul: 1.3, label: "雷怒", desc: "生命低於 40% 時移動速度提高。" },
+                  counterHint: "冰霜塔先手控速可壓住雷怒衝刺。" },
   boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 500, speed: 28, reward: 150, leak: 8, color: "#dc2626", boss: true,
             counterHint: "電磁塔克制火，毒霧塔持續傷害，聖光塔支援主力塔。" },
 };
@@ -80,6 +95,8 @@ const SKILLS = {
   meteor:  { id: "meteor",  name: "隕石術", emoji: "☄️", element: "fire",    cooldown: 18, damage: 120, radius: 80, color: "#f97316", desc: "對範圍內敵人造成大量火焰傷害。" },
   freeze:  { id: "freeze",  name: "冰封術", emoji: "🧊", element: "ice",     cooldown: 22, damage: 20, radius: 999, freezeDur: 3, color: "#38bdf8", desc: "凍結全場敵人 3 秒。" },
   thunder: { id: "thunder", name: "雷暴術", emoji: "🌩️", element: "thunder", cooldown: 15, damage: 60, radius: 999, color: "#facc15", desc: "對全場敵人造成雷電傷害。" },
+  judgment:{ id: "judgment", name: "神聖裁決", emoji: "⚖️", element: "physical", cooldown: 20, damage: 45, radius: 120,
+             vuln: { mult: 1.25, duration: 4 }, color: "#fde047", desc: "聖光審判範圍敵人並施加易傷。" },
 };
 
 // ===== 守護女神（被保護的核心）=====
@@ -148,6 +165,13 @@ const MAP_AFFIXES = {
     enemyHpMul: 0.92, leakDamageMul: 1.25, waveGoldMul: 1.00, killGoldMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
     expectedGoldDelta: 0.00, expectedPowerDelta: -0.08,
   },
+  bloodmoon: {
+    id: "bloodmoon", label: "血月", emoji: "🌙",
+    desc: "敵人生命 +10%，擊殺金 +18%。",
+    towerImpact: "塔需要更穩定的集火與補刀節奏，擊殺金可支撐中期升級。",
+    enemyHpMul: 1.10, killGoldMul: 1.18, waveGoldMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
+    expectedGoldDelta: 0.10, expectedPowerDelta: 0.10,
+  },
 };
 
 // ===== 地圖 =====
@@ -170,6 +194,15 @@ const MAPS = {
       { x: 70, y: 220 }, { x: 70, y: 380 }, { x: 320, y: 380 },
       { x: 320, y: 150 }, { x: 520, y: 150 }, { x: 520, y: 500 },
       { x: 760, y: 500 }, { x: 760, y: 280 }, { x: 900, y: 280 }, { x: 900, y: 556 },
+    ],
+  },
+  lava: {
+    id: "lava", label: "熔岩峽道", emoji: "🌋", goldMul: 0.95,
+    desc: "熔岩裂谷路線曲折，金流略低但有足夠迴旋空間。",
+    path: [
+      { x: 0, y: 140 }, { x: 280, y: 140 }, { x: 280, y: 300 },
+      { x: 120, y: 300 }, { x: 120, y: 480 }, { x: 500, y: 480 },
+      { x: 500, y: 220 }, { x: 720, y: 220 }, { x: 720, y: 556 }, { x: 900, y: 556 },
     ],
   },
 };
@@ -241,14 +274,20 @@ const ACHIEVEMENTS = {
             check: (meta, ctx = {}) => (ctx.wave || 0) >= 20 },
   wave30: { id: "wave30", label: "無盡守護者", desc: "單場撐到第 30 波", reward: 50,
             check: (meta, ctx = {}) => (ctx.wave || 0) >= 30 },
+  wave40: { id: "wave40", label: "四十波守望", desc: "單場推進到第 40 波", reward: 75,
+            check: (meta, ctx = {}) => (ctx.wave || 0) >= 40 },
   kills100: { id: "kills100", label: "百人斬", desc: "累計擊殺 100 名敵人", reward: 15,
               check: (meta) => (meta.totalKills || 0) >= 100 },
   kills1000: { id: "kills1000", label: "千敵破陣", desc: "累計擊殺 1000 名敵人", reward: 50,
                check: (meta) => (meta.totalKills || 0) >= 1000 },
+  kills5000: { id: "kills5000", label: "萬軍斬將", desc: "累計擊殺 5000 名敵人", reward: 100,
+               check: (meta) => (meta.totalKills || 0) >= 5000 },
   games10: { id: "games10", label: "十戰磨練", desc: "累計完成 10 局", reward: 20,
              check: (meta) => (meta.games || 0) >= 10 },
   games50: { id: "games50", label: "百折不撓", desc: "累計完成 50 局", reward: 50,
              check: (meta) => (meta.games || 0) >= 50 },
+  games100: { id: "games100", label: "百戰老將", desc: "累計遊玩 100 場", reward: 80,
+              check: (meta) => (meta.games || 0) >= 100 },
   heroesAll: { id: "heroesAll", label: "英雄集結", desc: "收集全部英雄", reward: 40,
                check: (meta, ctx = {}) => (ctx.ownedHeroCount || 0) >= (ctx.totalHeroCount || 1) },
 };

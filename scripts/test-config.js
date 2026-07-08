@@ -187,6 +187,19 @@ assert(TOWERS.frost.cost === 70 && TOWERS.frost.fireRate === 1.45 && TOWERS.fros
   "寒冰塔 Stage 5 定位：70 金、1.45 攻速、維持 50% 減速");
 assert(TOWERS.support.cost === 110 && TOWERS.support.buff === 0.20 && TOWERS.support.buffPerLevel === 0.04,
   "聖光塔 Stage 5 定位：110 金、20% 基礎增傷、每級 +4%");
+assert(TOWERS.sniper && TOWERS.sniper.element === "physical" && TOWERS.sniper.range === 140 &&
+  TOWERS.sniper.damage === 58 && TOWERS.sniper.fireRate === 0.55 && TOWERS.sniper.cost === 145,
+  "狙擊塔 R47 數值正確");
+assert(TOWERS.arcane && TOWERS.arcane.element === "physical" && TOWERS.arcane.range === 130 &&
+  TOWERS.arcane.damage === 15 && TOWERS.arcane.fireRate === 1.4 && TOWERS.arcane.cost === 105 &&
+  TOWERS.arcane.vuln && TOWERS.arcane.vuln.mult === 1.2 && TOWERS.arcane.vuln.duration === 3,
+  "奧術塔 R47 數值與易傷欄位正確");
+
+console.log("== 技能欄位 ==");
+assert(SKILLS.judgment && SKILLS.judgment.element === "physical" && SKILLS.judgment.cooldown === 20 &&
+  SKILLS.judgment.damage === 45 && SKILLS.judgment.radius === 120 &&
+  SKILLS.judgment.vuln && SKILLS.judgment.vuln.mult === 1.25 && SKILLS.judgment.vuln.duration === 4,
+  "神聖裁決 R47 傷害、範圍與易傷欄位正確");
 
 console.log("== 敵人欄位 ==");
 let badE = 0;
@@ -206,6 +219,18 @@ assert(ENEMIES.orc.ability && ENEMIES.orc.ability.id === "bloodrage" && ENEMIES.
   "獸人具備殘血狂暴加速配置");
 assert(ENEMIES.bat.ability && ENEMIES.bat.ability.id === "splitBat" && ENEMIES.bat.ability.childHpMul > 0,
   "蝙蝠具備死亡分裂配置");
+assert(ENEMIES.frostwraith && ENEMIES.frostwraith.element === "ice" && ENEMIES.frostwraith.hp === 68 &&
+  ENEMIES.frostwraith.shield === 42 && ENEMIES.frostwraith.ability &&
+  ENEMIES.frostwraith.ability.id === "shieldRegen" && ENEMIES.frostwraith.ability.delay === 2.5 &&
+  ENEMIES.frostwraith.ability.perSec === 20,
+  "冰魄妖 R47 冰甲再生配置正確");
+assert(ENEMIES.emberbat && ENEMIES.emberbat.element === "fire" && ENEMIES.emberbat.speed === 92 &&
+  ENEMIES.emberbat.ability && ENEMIES.emberbat.ability.id === "splitBat",
+  "焰蝠 R47 高速分裂配置正確");
+assert(ENEMIES.thunderronin && ENEMIES.thunderronin.element === "thunder" && ENEMIES.thunderronin.hp === 115 &&
+  ENEMIES.thunderronin.ability && ENEMIES.thunderronin.ability.id === "bloodrage" &&
+  ENEMIES.thunderronin.ability.threshold === 0.4 && ENEMIES.thunderronin.ability.speedMul === 1.3,
+  "雷刃武士 R47 雷怒配置正確");
 
 console.log("== Stage 4：地圖資料 ==");
 let badMap = 0;
@@ -217,6 +242,9 @@ assert(Object.keys(MAPS || {}).length >= 2, `至少 2 張地圖（實際 ${Objec
 assert(badMap === 0, `地圖欄位完整且 path 合法（異常 ${badMap}）`);
 assert(MAPS.plains && MAPS.canyon && MAPS.canyon.path.length > MAPS.plains.path.length && MAPS.canyon.goldMul < MAPS.plains.goldMul,
   "迂迴峽谷路徑較曲折且資源較少");
+assert(MAPS.lava && MAPS.lava.id === "lava" && MAPS.lava.label === "熔岩峽道" &&
+  MAPS.lava.goldMul === 0.95 && MAPS.lava.path.length === 10,
+  "熔岩峽道 R47 地圖配置正確");
 for (const pollutedKey of ["__proto__", "toString", "constructor"]) {
   cfg.setMap("canyon");
   cfg.setMap(pollutedKey);
@@ -235,7 +263,11 @@ console.log("== R17：地圖詞綴配置 ==");
     if (!(a.waveGoldMul > 0) || !(a.killGoldMul > 0)) badAffix++;
     if (!Number.isFinite(a.expectedGoldDelta) || !Number.isFinite(a.expectedPowerDelta)) badAffix++;
   }
-  assert(affixes.length >= 4 && affixes.length <= 6, `地圖詞綴 4~6 種（目前 ${affixes.length}）`);
+  assert(affixes.length === 6, `地圖詞綴達上限 6 種（目前 ${affixes.length}）`);
+  assert(MAP_AFFIXES.bloodmoon && MAP_AFFIXES.bloodmoon.enemyHpMul === 1.10 &&
+    MAP_AFFIXES.bloodmoon.killGoldMul === 1.18 && MAP_AFFIXES.bloodmoon.expectedGoldDelta === 0.10 &&
+    MAP_AFFIXES.bloodmoon.expectedPowerDelta === 0.10 && MAP_AFFIXES.bloodmoon.towerImpact.includes("塔"),
+    "血月 R47 詞綴配置正確且 towerImpact 含塔字");
   assert(badAffix === 0, `地圖詞綴欄位完整且倍率為正（缺陷 ${badAffix}）`);
   assert(affixes.every((a) => a.towerImpact.includes("塔") || a.towerImpact.includes("控場") || a.towerImpact.includes("升級")),
     "每個詞綴都有對塔種影響摘要");
@@ -333,6 +365,12 @@ for (const a of Object.values(ACHIEVEMENTS || {})) {
 }
 assert(Object.keys(ACHIEVEMENTS || {}).length >= 8, `成就至少 8 個（實際 ${Object.keys(ACHIEVEMENTS || {}).length}）`);
 assert(badAch === 0, `成就欄位完整且 reward 合法（異常 ${badAch}）`);
+assert(ACHIEVEMENTS.wave40 && ACHIEVEMENTS.wave40.reward === 75 && ACHIEVEMENTS.wave40.check({}, { wave: 40 }),
+  "wave40 成就配置正確");
+assert(ACHIEVEMENTS.kills5000 && ACHIEVEMENTS.kills5000.reward === 100 && ACHIEVEMENTS.kills5000.check({ totalKills: 5000 }),
+  "kills5000 成就配置正確");
+assert(ACHIEVEMENTS.games100 && ACHIEVEMENTS.games100.reward === 80 && ACHIEVEMENTS.games100.check({ games: 100 }),
+  "games100 成就配置正確");
 
 console.log("== R7：首 10 波任務線 ==");
 let badMission = 0;

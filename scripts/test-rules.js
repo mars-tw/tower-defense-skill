@@ -330,7 +330,12 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   for (let w = 3; w <= 50; w++) {
     generateWaveQueue(w, cfg.DIFFICULTIES.normal, makeRng(w * 17)).queue.forEach((spec) => seen.add(spec.type));
   }
-  assert(seen.has("shieldman") && seen.has("medic"), `固定 rng 掃描可產出新敵人（${[...seen].join(",")}）`);
+  assert(seen.has("shieldman") && seen.has("medic") && seen.has("emberbat") && seen.has("frostwraith") && seen.has("thunderronin"),
+    `固定 rng 掃描可產出新敵人（${[...seen].join(",")}）`);
+
+  const wave3Emberbat = generateWaveQueue(3, cfg.DIFFICULTIES.normal, sequenceRng([0.75]));
+  assert(wave3Emberbat.queue.some((spec) => spec.type === "emberbat"),
+    "焰蝠不限波次，可由預設池選出");
 
   const wave4Physical = generateWaveQueue(4, cfg.DIFFICULTIES.normal, sequenceRng([0.1, 0.99]));
   assert(!wave4Physical.queue.some((spec) => spec.type === "shieldman" || spec.type === "medic"),
@@ -341,6 +346,18 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   const wave7Medic = generateWaveQueue(7, cfg.DIFFICULTIES.normal, sequenceRng([0.9, 0.92]));
   assert(wave7Medic.queue.some((spec) => spec.type === "medic"),
     "第 7 波起醫官可進預設池");
+  const wave5NoFrostwraith = generateWaveQueue(5, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.88]));
+  assert(!wave5NoFrostwraith.queue.some((spec) => spec.type === "frostwraith"),
+    "第 5 波前不會選出冰魄妖");
+  const wave6Frostwraith = generateWaveQueue(6, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.88]));
+  assert(wave6Frostwraith.queue.some((spec) => spec.type === "frostwraith"),
+    "第 6 波起冰魄妖可進預設池");
+  const wave7NoRonin = generateWaveQueue(7, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.96]));
+  assert(!wave7NoRonin.queue.some((spec) => spec.type === "thunderronin"),
+    "第 8 波前不會選出雷刃武士");
+  const wave9Ronin = generateWaveQueue(9, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.96]));
+  assert(wave9Ronin.queue.some((spec) => spec.type === "thunderronin"),
+    "第 8 波後雷刃武士可進預設池");
 }
 
 console.log("\n== 建塔格距離路徑判定 ==");

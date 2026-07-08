@@ -363,6 +363,13 @@
     }, overrides || {});
   }
 
+  function markVulnerable(e, mult, duration) {
+    if (!e || e._dead || !(mult > 1) || !(duration > 0)) return;
+    e.vulnMult = Math.max(e.vulnMult || 1, mult);
+    e.vulnUntil = Math.max(e.vulnUntil || 0, state.clock + duration);
+    ring(e.x, e.y, "#a855f7", 34);
+  }
+
   function applyDamage(e, amount, opts) {
     if (!e || e._dead || e._leaked) return 0;
     opts = opts || {};
@@ -382,8 +389,10 @@
       const shieldHit = Math.min(e.shield, dmg);
       e.shield -= shieldHit;
       dmg -= shieldHit;
+      if (shieldHit > 0) e._lastHitAt = state.clock;
     }
     if (dmg > 0) {
+      if (!opts.noVuln && e.vulnUntil > state.clock && (e.vulnMult || 1) > 1) dmg *= e.vulnMult;
       e.hp -= dmg;
       if (!opts.noHitFlash && !reducedFlashEnabled()) {
         e.hitFlash = Math.max(e.hitFlash || 0, 0.14);
@@ -433,6 +442,14 @@
   function updateEnemyAbilities(dt) {
     for (const e of state.enemies) {
       if (e._dead) continue;
+      if (e.ability && e.ability.id === "shieldRegen" && e.maxShield > 0 && e.shield < e.maxShield) {
+        const delay = e.ability.delay || 0;
+        const perSec = e.ability.perSec || 0;
+        const lastHit = e._lastHitAt == null ? -Infinity : e._lastHitAt;
+        if (perSec > 0 && state.clock - lastHit >= delay) {
+          e.shield = Math.min(e.maxShield, e.shield + perSec * dt);
+        }
+      }
       if (e.ability && e.ability.id === "bloodrage" && !e._enraged && e.hp > 0 && e.maxHp > 0 && e.hp / e.maxHp <= (e.ability.threshold || 0.4)) {
         e._enraged = true;
         e.speed *= e.ability.speedMul || 1.35;
@@ -885,7 +902,7 @@
     return best;
   }
   // 塔/元素對應的投射物圖
-  const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning", poison: "arrow" };
+  const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning", poison: "arrow", sniper: "arrow", arcane: "lightning" };
   const PROJECTILE_BY_ELEMENT = { physical: "arrow", fire: "fireball", ice: "iceshard", thunder: "lightning" };
 
   function fire(tw, target) {
@@ -895,6 +912,7 @@
       damage: effectiveTowerDamage(tw), element: def.element,
       splash: def.splash || 0, slow: def.slow || 0, pierce: def.pierce || 0, type: tw.type,
       poison: def.poisonDps ? { dps: def.poisonDps, duration: def.poisonDuration, maxStacks: def.poisonMaxStacks } : null,
+      vuln: def.vuln || null,
       projectile: PROJECTILE_BY_TOWER[tw.type] || PROJECTILE_BY_ELEMENT[def.element],
     });
   }
@@ -930,6 +948,7 @@
     if (e._dodgedLastHit) return;
     damageNumber(e.x, e.y, dealt || dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
     if (b.poison) applyPoison(e, b.poison);
+    if (b.vuln) markVulnerable(e, b.vuln.mult, b.vuln.duration);
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
     if (e.hp <= 0) { killEnemy(e); if (b._heroOwner && state.heroes.includes(b._heroOwner)) grantXp(b._heroOwner, e); }
   }
@@ -946,6 +965,7 @@
         const mult = elementMultiplier(sk.element, e.element);
         applyDamage(e, sk.damage * mult);
         if (sk.freezeDur) e.frozenUntil = state.clock + sk.freezeDur;
+        if (sk.vuln) markVulnerable(e, sk.vuln.mult, sk.vuln.duration);
         if (e.hp <= 0) killEnemy(e);
       }
     }
@@ -1518,6 +1538,13 @@
     // 冰凍/減速標記
     if (e.frozenUntil > state.clock) { ctx.fillStyle = "rgba(56,189,248,.4)"; ctx.beginPath(); ctx.arc(drawX, drawY, size / 2, 0, Math.PI * 2); ctx.fill(); }
     else if (e.slowUntil > state.clock) { ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(drawX, drawY, size / 2, 0, Math.PI * 2); ctx.stroke(); }
+    if (e.vulnUntil > state.clock) {
+      ctx.save();
+      ctx.globalAlpha = performanceLow() ? 0.55 : 0.9;
+      ctx.strokeStyle = "#c084fc"; ctx.lineWidth = performanceLow() ? 1 : 2;
+      ctx.beginPath(); ctx.arc(drawX, drawY, size * 0.7, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     if (e.poisonStacks && e.poisonStacks.length) {
       ctx.save();
       ctx.globalAlpha = performanceLow() ? 0.55 : 1;

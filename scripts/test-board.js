@@ -56,10 +56,10 @@ console.log("== updateBoard 排序、截斷、名次、不 mutate ==");
 
 console.log("\n== evaluateAchievements 觸發、獎勵、一次性、不 mutate ==");
 {
-  const meta = migrateMeta({ soulCrystal: 5, totalKills: 1000, games: 50 });
+  const meta = migrateMeta({ soulCrystal: 5, totalKills: 5000, games: 100 });
   const before = clone(meta);
   const result = evaluateAchievements(meta, {
-    wave: 30,
+    wave: 40,
     ownedHeroCount: Object.keys(heroes.HEROES).length,
     totalHeroCount: Object.keys(heroes.HEROES).length,
   });
@@ -72,7 +72,7 @@ console.log("\n== evaluateAchievements 觸發、獎勵、一次性、不 mutate 
   assert(JSON.stringify(meta) === JSON.stringify(before), "evaluateAchievements 不改動原 meta");
 
   const second = evaluateAchievements(result.meta, {
-    wave: 30,
+    wave: 40,
     ownedHeroCount: Object.keys(heroes.HEROES).length,
     totalHeroCount: Object.keys(heroes.HEROES).length,
   });

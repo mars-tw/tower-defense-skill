@@ -385,20 +385,29 @@
   }
 
   function pickDefaultEnemy(wave, roll) {
-    if (wave < 3) return roll < 0.7 ? "slime" : "goblin";
-    if (roll < 0.30) return "slime";
-    if (roll < 0.48) return "goblin";
-    if (roll < 0.62) return "bat";
-    if (roll < 0.72) return "frostwolf";
-    if (roll < 0.81) return "imp";
-    if (wave >= 5 && roll < 0.90) return "shieldman";
-    if (wave >= 7 && roll < 0.95) return "medic";
+    if (wave < 3) {
+      if (roll < 0.62) return "slime";
+      if (roll < 0.86) return "goblin";
+      return "emberbat";
+    }
+    if (roll < 0.24) return "slime";
+    if (roll < 0.40) return "goblin";
+    if (roll < 0.52) return "bat";
+    if (roll < 0.62) return "frostwolf";
+    if (roll < 0.70) return "imp";
+    if (roll < 0.78) return "emberbat";
+    if (roll < 0.86) return wave >= 5 ? "shieldman" : "imp";
+    if (roll < 0.91) return wave >= 6 ? "frostwraith" : "frostwolf";
+    if (roll < 0.95) return wave >= 7 ? "medic" : "bat";
+    if (roll < 0.98) return wave >= 8 ? "thunderronin" : "frostwolf";
     return "orc";
   }
 
   function enemyAvailableInWave(type, wave) {
     if (type === "shieldman") return wave >= 5;
+    if (type === "frostwraith") return wave >= 6;
     if (type === "medic") return wave >= 7;
+    if (type === "thunderronin") return wave >= 8;
     return true;
   }
 

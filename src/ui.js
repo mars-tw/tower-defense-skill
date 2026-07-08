@@ -19,8 +19,8 @@
   let advisorMode = "control";
   let warningSerial = 0;
   let recoveryNoticeShown = false;
-  const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6" };
-  const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E" };
+  const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6", sniper: "7", arcane: "8" };
+  const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E", judgment: "R" };
   const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
   const SKILL_BY_KEY = Object.fromEntries(Object.entries(SKILL_HOTKEYS).map(([id, key]) => [key.toLowerCase(), id]));
   const TEXT_SIZE_KEY = "td_text_size";

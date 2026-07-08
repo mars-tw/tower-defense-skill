@@ -29,18 +29,23 @@ assert(HERO_LEVEL.maxLevel === 10, "英雄等級上限維持 Lv.10");
 console.log("\n== 1b. 英雄池擴充與新英雄資料 ==");
 {
   const byRarity = (rarity) => Object.values(HEROES).filter((h) => h.rarity === rarity).map((h) => h.id);
-  assert(Object.keys(HEROES).length === 10, `英雄總數為 10 位（${Object.keys(HEROES).length}）`);
-  assert(JSON.stringify(byRarity("legendary").sort()) === JSON.stringify(["daji", "guanyu", "valkyrie", "wukong"].sort()),
-    `傳說池為 4 位（${byRarity("legendary").join(",")}）`);
-  assert(JSON.stringify(byRarity("epic").sort()) === JSON.stringify(["mage", "nezha"].sort()),
-    `史詩池包含大法師與哪吒（${byRarity("epic").join(",")}）`);
-  assert(byRarity("rare").length === 2 && byRarity("common").length === 2, "稀有與普通池維持各 2 位");
+  assert(Object.keys(HEROES).length === 14, `英雄總數為 14 位（${Object.keys(HEROES).length}）`);
+  assert(JSON.stringify(byRarity("legendary").sort()) === JSON.stringify(["daji", "erlangshen", "guanyu", "valkyrie", "wukong"].sort()),
+    `傳說池為 5 位（${byRarity("legendary").join(",")}）`);
+  assert(JSON.stringify(byRarity("epic").sort()) === JSON.stringify(["baisuzhen", "mage", "nezha", "niumowang"].sort()),
+    `史詩池包含大法師、哪吒、牛魔王與白素貞（${byRarity("epic").join(",")}）`);
+  assert(byRarity("rare").length === 3 && byRarity("rare").includes("leizhenzi") && byRarity("common").length === 2,
+    "稀有池增至 3 位且普通池維持 2 位");
 
   const newHeroes = {
     daji: { rarity: "legendary", element: "fire", role: "ranged" },
     guanyu: { rarity: "legendary", element: "physical", role: "melee" },
     wukong: { rarity: "legendary", element: "thunder", role: "melee" },
     nezha: { rarity: "epic", element: "fire", role: "ranged" },
+    leizhenzi: { rarity: "rare", element: "thunder", role: "ranged" },
+    niumowang: { rarity: "epic", element: "fire", role: "melee" },
+    baisuzhen: { rarity: "epic", element: "ice", role: "ranged" },
+    erlangshen: { rarity: "legendary", element: "thunder", role: "melee" },
   };
   for (const [id, expected] of Object.entries(newHeroes)) {
     const h = HEROES[id];
@@ -112,12 +117,12 @@ console.log("\n== 3. rollHeroWithPity：保底與歸零 ==");
   const rNat = rollHeroWithPity(10, () => legendRoll);
   assert(rNat.hero.rarity === "legendary" && rNat.pity === 0, "自然抽中傳說時 pity 也歸零");
 
-  const forcedLegendaryIds = new Set([0.01, 0.26, 0.51, 0.76].map((poolRoll) => {
+  const forcedLegendaryIds = new Set([0.01, 0.21, 0.41, 0.61, 0.81].map((poolRoll) => {
     const r = rollHeroWithPity(GACHA.pityLegendary - 1, sequenceRng([0.01, 0.01, poolRoll]));
     return r.hero.id;
   }));
-  assert(forcedLegendaryIds.size === 4 && [...forcedLegendaryIds].every((id) => HEROES[id].rarity === "legendary"),
-    `保底傳說會從 4 位傳說池挑選（${[...forcedLegendaryIds].join(",")}）`);
+  assert(forcedLegendaryIds.size === 5 && [...forcedLegendaryIds].every((id) => HEROES[id].rarity === "legendary"),
+    `保底傳說會從 5 位傳說池挑選（${[...forcedLegendaryIds].join(",")}）`);
 }
 
 console.log("\n== 4. rollHeroWithPityPreferNew：第二隻英雄避開重複 ==");

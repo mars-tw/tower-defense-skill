@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>無盡塔防 · Endless Tower Defense</title>
 <meta name="theme-color" content="#16241b" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r47-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r48-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -124,6 +124,12 @@
   .gacha-btn:disabled { filter: grayscale(.5) brightness(.7); cursor: not-allowed; }
   .gacha-meta { font-size: 11px; color: var(--ink-dim); text-align: center; margin-top: -4px; }
   .board-btn { background: linear-gradient(180deg,#facc15,#f59e0b); color: #241707; width: 100%; }
+  .codex-btn { position: relative; background: linear-gradient(180deg,#c084fc,#7c3aed); color: #fff; width: 100%; }
+  .codex-btn.has-new::after {
+    content: "NEW!"; position: absolute; right: 8px; top: -7px; border-radius: 999px;
+    background: #ef4444; color: #fff; border: 1px solid rgba(255,255,255,.55);
+    padding: 2px 6px; font-size: 9px; font-weight: 900; box-shadow: var(--shadow-pop);
+  }
   .settings-btn { background: var(--surface-2); color: var(--ink); width: 100%; border: 1px solid var(--border-hi); }
   .next-wave-card, .mission-panel, .enemy-info, .affix-card {
     background: rgba(255,255,255,.045); border: 1px solid var(--border-soft); border-radius: 11px;
@@ -131,6 +137,11 @@
   }
   .next-wave-card .nw-title, .mission-panel .mission-title, .enemy-info .enemy-title, .affix-card .affix-title { font-weight: 900; color: var(--gold); margin-bottom: 5px; }
   .next-wave-card .nw-meta, .mission-progress, .affix-card .affix-desc, .affix-card .affix-balance, .affix-card .affix-impact { color: var(--ink-dim); font-size: 11px; }
+  .event-badge { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--event-color, #facc15) 70%, transparent);
+    background: color-mix(in srgb, var(--event-color, #facc15) 18%, transparent);
+    color: var(--event-color, #facc15); padding: 2px 7px; font-size: 10px; font-weight: 900; white-space: nowrap; }
+  .event-badge.boss { --event-color: #f87171; }
   .affix-card.hidden { display: none; }
   .affix-card { border-color: rgba(250,204,21,.28); background: rgba(250,204,21,.055); }
   .affix-card .affix-balance { margin-top: 4px; color: #c4b5fd; font-weight: 800; }
@@ -337,6 +348,11 @@
   .hd-progress { height: 10px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
   .hd-progress span { display: block; height: 100%; background: linear-gradient(90deg,#facc15,#4ade80); }
   .hd-node { margin-top: 8px; color: #fde68a; font-weight: 900; }
+  .hd-lore { display: grid; gap: 5px; margin-top: 8px; border: 1px solid rgba(192,132,252,.24);
+    border-radius: 10px; background: rgba(192,132,252,.07); padding: 10px; font-size: 12px; line-height: 1.5; }
+  .hd-lore b { color: #e9d5ff; }
+  .hd-lore span { color: var(--ink); }
+  .hd-lore em { color: #fde68a; font-style: normal; font-weight: 900; }
   .hd-run { margin-top: 8px; }
   .hd-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
   .hd-actions button { border: none; border-radius: 12px; padding: 10px 16px; min-width: 110px;
@@ -388,6 +404,57 @@
   .achievement-reward { color: var(--gold); font-weight: 900; font-size: 12px; white-space: nowrap; }
   .unlock-list { display: grid; gap: 4px; color: var(--gold); font-size: 13px; }
   .rank-line { font-size: 15px; font-weight: 900; color: var(--info); }
+
+  /* ===== 神魔誌 ===== */
+  .codex-overlay { position: fixed; inset: 0; background: rgba(6,10,8,.93); display: none;
+    align-items: center; justify-content: center; z-index: 106; padding: 14px; }
+  .codex-overlay.show { display: flex; }
+  .codex-card { width: min(920px, 96vw); max-height: min(740px, 92vh); overflow: hidden;
+    background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
+    border: 1px solid var(--border-hi); border-radius: 18px; box-shadow: var(--shadow-pop);
+    display: flex; flex-direction: column; }
+  .codex-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 16px 18px; border-bottom: 1px solid var(--border-soft); }
+  .codex-head h2 { font-size: 22px; color: #e9d5ff; }
+  .codex-close { width: 42px; height: 42px; border: 1px solid var(--border-hi); border-radius: 12px;
+    background: var(--surface-2); color: var(--ink); font-size: 20px; font-weight: 900; cursor: pointer; }
+  .codex-tabs { display: flex; gap: 7px; padding: 12px 14px 0; flex-wrap: wrap; }
+  .codex-tab { border: 1px solid var(--border-soft); background: var(--surface-1); color: var(--ink);
+    border-radius: 10px; padding: 8px 12px; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .codex-tab.active { background: #c084fc; color: #16051f; border-color: #c084fc; }
+  .codex-content { padding: 14px; overflow: auto; display: grid; gap: 10px; }
+  .codex-world { display: grid; gap: 10px; font-size: 14px; line-height: 1.7; color: var(--ink); }
+  .codex-world h3 { color: var(--gold); font-size: 18px; }
+  .oracle-card { display: grid; gap: 4px; border: 1px solid rgba(250,204,21,.24); border-radius: 12px;
+    background: rgba(250,204,21,.07); padding: 11px; }
+  .oracle-card b { color: var(--gold); }
+  .oracle-card span { color: #fde68a; font-weight: 800; }
+  .codex-list, .codex-hero-grid { display: grid; gap: 9px; }
+  .codex-entry, .codex-hero { border: 1px solid var(--border-soft); border-radius: 12px;
+    background: rgba(255,255,255,.04); padding: 11px; display: grid; gap: 8px; }
+  .codex-entry.locked, .codex-hero.locked { opacity: .55; filter: grayscale(.35); }
+  .codex-entry-head, .codex-hero-head { display: flex; align-items: center; gap: 10px; }
+  .codex-mark { width: 32px; text-align: center; font-size: 20px; color: #c084fc; }
+  .codex-entry h3, .codex-hero h3 { color: var(--ink); font-size: 15px; margin: 0; }
+  .codex-entry p, .codex-hero p { color: var(--ink-dim); font-size: 12px; line-height: 1.55; }
+  .codex-entry blockquote { border-left: 3px solid #c084fc; padding-left: 9px; color: #e9d5ff;
+    font-size: 13px; line-height: 1.55; font-weight: 900; }
+  .new-dot, .codex-stage em { margin-left: auto; color: #fff; background: #ef4444; border-radius: 999px;
+    padding: 2px 6px; font-size: 9px; font-style: normal; font-weight: 900; white-space: nowrap; }
+  .codex-locked, .codex-next { color: #fde68a; font-weight: 900; }
+  .codex-avatar { width: 42px; height: 42px; flex: 0 0 42px; display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; background: rgba(255,255,255,.05); color: #c084fc; font-size: 20px; }
+  .codex-avatar img { max-width: 40px; max-height: 40px; object-fit: contain; }
+  .codex-current { display: grid; gap: 4px; border: 1px solid rgba(192,132,252,.24); border-radius: 10px;
+    background: rgba(192,132,252,.07); padding: 9px; font-size: 12px; line-height: 1.55; }
+  .codex-current b { color: #e9d5ff; }
+  .codex-current span { color: var(--ink); }
+  .codex-stage-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .codex-stage { display: grid; gap: 4px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px;
+    background: rgba(255,255,255,.035); padding: 8px; font-size: 11px; line-height: 1.45; }
+  .codex-stage.locked { opacity: .58; }
+  .codex-stage b { color: var(--gold); display: flex; align-items: center; gap: 5px; }
+  .codex-stage span { color: var(--ink-dim); }
 
   .settings-overlay { position: fixed; inset: 0; background: rgba(6,10,8,.93); display: none;
     align-items: center; justify-content: center; z-index: 108; padding: 14px; }
@@ -521,23 +588,24 @@
     .wave-speed { order: 3; }
     .goddess-btn { order: 4; }
     .board-btn { order: 5; }
-    .settings-btn { order: 6; }
-    .shortcut-help { order: 7; }
-    .tower-title { order: 7; }
-    #towerList { order: 8; }
-    .tower-scroll-hint { order: 9; }
-    #nextWaveCard { order: 10; }
-    #affixCard { order: 11; }
-    #enemyInfo { order: 12; }
-    .hero-title { order: 13; }
-    .gacha-btn { order: 14; }
-    .gacha-meta { order: 15; }
-    #beginnerMissions { order: 16; }
-    #heroRoster { order: 17; }
-    #deployedHeroes { order: 18; }
-    .skill-title { order: 19; }
-    #skillList { order: 20; }
-    .sel-panel { order: 21; }
+    .codex-btn { order: 6; }
+    .settings-btn { order: 7; }
+    .shortcut-help { order: 8; }
+    .tower-title { order: 8; }
+    #towerList { order: 9; }
+    .tower-scroll-hint { order: 10; }
+    #nextWaveCard { order: 11; }
+    #affixCard { order: 12; }
+    #enemyInfo { order: 13; }
+    .hero-title { order: 14; }
+    .gacha-btn { order: 15; }
+    .gacha-meta { order: 16; }
+    #beginnerMissions { order: 17; }
+    #heroRoster { order: 18; }
+    #deployedHeroes { order: 19; }
+    .skill-title { order: 20; }
+    #skillList { order: 21; }
+    .sel-panel { order: 22; }
   }
   @media (min-width: 901px) and (max-height: 940px) {
     /* 矮視窗桌機：建塔清單巢狀捲動，首屏保留更多控制鈕 */
@@ -568,20 +636,21 @@
     #waveWarning { order: 4; }
     .goddess-btn { order: 5; }
     .board-btn { order: 6; }
-    #nextWaveCard { order: 7; }
-    #affixCard { order: 8; }
-    #enemyInfo { order: 9; }
-    .hero-title { order: 10; }
-    .gacha-btn { order: 11; }
-    .gacha-meta { order: 12; }
-    #beginnerMissions { order: 13; }
-    #heroRoster { order: 14; }
-    #deployedHeroes { order: 15; }
-    .hero-scroll-hint { order: 16; display: block; }
-    .skill-title { order: 17; }
-    #skillList { order: 18; }
-    .skill-scroll-hint { order: 19; display: block; }
-    .sel-panel { order: 20; }
+    .codex-btn { order: 7; }
+    #nextWaveCard { order: 8; }
+    #affixCard { order: 9; }
+    #enemyInfo { order: 10; }
+    .hero-title { order: 11; }
+    .gacha-btn { order: 12; }
+    .gacha-meta { order: 13; }
+    #beginnerMissions { order: 14; }
+    #heroRoster { order: 15; }
+    #deployedHeroes { order: 16; }
+    .hero-scroll-hint { order: 17; display: block; }
+    .skill-title { order: 18; }
+    #skillList { order: 19; }
+    .skill-scroll-hint { order: 20; display: block; }
+    .sel-panel { order: 21; }
     .panel h3 { margin-top: 4px; }
     .controls { flex-wrap: nowrap; }
     /* HUD 核心（開始/速度/暫停/設定）sticky 常駐面板底部 */
@@ -625,6 +694,8 @@
     .hd-grid { grid-template-columns: 1fr; }
     .hero-detail-card { padding: 16px; }
     .hd-title { font-size: 18px; }
+    .codex-stage-list { grid-template-columns: 1fr; }
+    .codex-head h2 { font-size: 18px; }
   }
 </style>
 </head>
@@ -657,10 +728,11 @@
       <div class="wave-warning" id="waveWarning" role="status" aria-live="polite"></div>
       <button class="act goddess-btn" id="goddessBtn" aria-label="升級女神">👸 升級女神</button>
       <button class="act board-btn" id="boardBtn" aria-label="開啟排行榜與成就">🏆 排行榜/成就</button>
+      <button class="act codex-btn" id="codexBtn" aria-label="開啟神魔誌">📜 神魔誌</button>
       <div class="next-wave-card" id="nextWaveCard"></div>
       <div class="affix-card" id="affixCard"></div>
       <div class="enemy-info hidden" id="enemyInfo"></div>
-      <div class="shortcut-help">快捷鍵：1-6 建塔 · Q/W/E 技能 · Enter 下一波 · T 加速 · H 抽英雄</div>
+      <div class="shortcut-help">快捷鍵：1-8 建塔 · Q/W/E/R/A 技能 · Enter 下一波 · T 加速 · H 抽英雄</div>
 
       <h3 class="tower-title">🗼 建造砲塔</h3>
       <div id="towerList"></div>
@@ -798,6 +870,18 @@
     </div>
   </div>
 
+  <!-- 神魔誌 -->
+  <div class="codex-overlay" id="codexOverlay" role="dialog" aria-modal="true" aria-label="神魔誌">
+    <div class="codex-card">
+      <div class="codex-head">
+        <h2>📜 神魔誌</h2>
+        <button class="codex-close" id="codexClose" aria-label="關閉">×</button>
+      </div>
+      <div class="codex-tabs" id="codexTabs"></div>
+      <div class="codex-content" id="codexContent"></div>
+    </div>
+  </div>
+
   <!-- 首次遊玩引導（D3）-->
   <div class="tutorial-overlay" id="tutorial" role="dialog" aria-modal="true" aria-label="新手教學">
     <div class="tutorial-card">
@@ -828,15 +912,16 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r47-v1"></script>
-  <script src="src/heroes.js?v=td-r47-v1"></script>
-  <script src="src/rules.js?v=td-r47-v1"></script>
-  <script src="src/game.js?v=td-r47-v1"></script>
-  <script src="src/ui.js?v=td-r47-v1"></script>
+  <script src="src/config.js?v=td-r48-v1"></script>
+  <script src="src/heroes.js?v=td-r48-v1"></script>
+  <script src="src/rules.js?v=td-r48-v1"></script>
+  <script src="src/lore.js?v=td-r48-v1"></script>
+  <script src="src/game.js?v=td-r48-v1"></script>
+  <script src="src/ui.js?v=td-r48-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r47-v1";
+      const PWA_VERSION = "td-r48-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

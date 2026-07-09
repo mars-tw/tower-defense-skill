@@ -56,12 +56,13 @@ console.log("== updateBoard 排序、截斷、名次、不 mutate ==");
 
 console.log("\n== evaluateAchievements 觸發、獎勵、一次性、不 mutate ==");
 {
-  const meta = migrateMeta({ soulCrystal: 5, totalKills: 5000, games: 100 });
+  const meta = migrateMeta({ soulCrystal: 5, totalKills: 5000, games: 100, heroProgress: { daji: { xp: 336 } } });
   const before = clone(meta);
   const result = evaluateAchievements(meta, {
     wave: 40,
     ownedHeroCount: Object.keys(heroes.HEROES).length,
     totalHeroCount: Object.keys(heroes.HEROES).length,
+    chronicleComplete: true,
   });
   const ids = result.unlocked.map((a) => a.id).sort();
   const expected = Object.keys(cfg.ACHIEVEMENTS).sort();
@@ -75,6 +76,7 @@ console.log("\n== evaluateAchievements 觸發、獎勵、一次性、不 mutate 
     wave: 40,
     ownedHeroCount: Object.keys(heroes.HEROES).length,
     totalHeroCount: Object.keys(heroes.HEROES).length,
+    chronicleComplete: true,
   });
   assert(second.unlocked.length === 0, "已解鎖成就不重複發獎");
   assert(second.meta.soulCrystal === result.meta.soulCrystal, "重跑 evaluateAchievements 不重複增加魂晶");

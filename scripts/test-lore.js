@@ -1,0 +1,93 @@
+/* =========================================================================
+ * test-lore.js — 《神魔誌》純資料與解鎖規則測試
+ * ========================================================================= */
+
+const path = require("path");
+const fs = require("fs");
+const lore = require(path.join(__dirname, "..", "src", "lore.js"));
+const heroes = require(path.join(__dirname, "..", "src", "heroes.js"));
+
+const {
+  WORLD_LORE,
+  CAMPAIGN_CHAPTERS,
+  HERO_LEGENDS,
+  ORACLE_WHISPERS,
+  legendStageFor,
+  campaignUnlockState,
+  evaluateCampaignUnlocks,
+  oracleWhisper,
+} = lore;
+
+let failed = 0;
+function assert(cond, msg) {
+  if (cond) console.log("  ✓ " + msg);
+  else { console.error("  ✗ " + msg); failed++; }
+}
+
+console.log("== 純函式邊界 ==");
+{
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "lore.js"), "utf8");
+  assert(!source.includes("Math.random"), "lore.js 內沒有 Math.random");
+  assert(!source.includes("Date.now"), "lore.js 內沒有 Date.now");
+  assert(!/\bdocument\b/.test(source), "lore.js 內沒有 DOM document");
+  assert(!/\blocalStorage\b/.test(source), "lore.js 內沒有 localStorage");
+}
+
+console.log("\n== 世界觀與神諭 ==");
+assert(WORLD_LORE && WORLD_LORE.title === "神魔誌·序" && WORLD_LORE.body.length >= 3, "世界觀序章完整");
+assert(WORLD_LORE.body.join("").includes("天樞崩裂") && WORLD_LORE.body.join("").includes("魂晶"),
+  "世界觀包含天樞崩裂與魂晶召喚核心設定");
+assert(ORACLE_WHISPERS.length >= 10, `神諭短語至少 10 句（${ORACLE_WHISPERS.length}）`);
+assert(oracleWhisper(0) === ORACLE_WHISPERS[0] && oracleWhisper(ORACLE_WHISPERS.length) === ORACLE_WHISPERS[0],
+  "oracleWhisper 依 index 輪替");
+assert(oracleWhisper(-1) === ORACLE_WHISPERS[ORACLE_WHISPERS.length - 1], "oracleWhisper 支援負 index 正規化");
+
+console.log("\n== 戰役編年解鎖 ==");
+{
+  assert(CAMPAIGN_CHAPTERS.length >= 6 && CAMPAIGN_CHAPTERS.length <= 7,
+    `戰役章節 6~7 章（${CAMPAIGN_CHAPTERS.length}）`);
+  const waveValues = CAMPAIGN_CHAPTERS
+    .filter((c) => c.unlock.type === "wave")
+    .map((c) => c.unlock.value);
+  const monotonic = waveValues.every((v, i) => i === 0 || v >= waveValues[i - 1]);
+  assert(monotonic, `wave 門檻單調遞增（${waveValues.join(",")}）`);
+  assert(CAMPAIGN_CHAPTERS[0].unlock.type === "start" && CAMPAIGN_CHAPTERS[0].oracle.includes("醒來吧"),
+    "第一章為 start 解鎖且含指定神諭");
+  const start = campaignUnlockState({ bestWave: 0, bossKills: 0, clearedWave: 0 });
+  assert(start["awakening-altar"] && !start["first-rift"], "新局只解鎖序章");
+  const wave5 = campaignUnlockState({ bestWave: 5, bossKills: 0, clearedWave: 0 });
+  assert(wave5["first-rift"] && wave5["demon-gate"] && !wave5["first-boss"], "第 5 波解鎖到魔門但未解鎖 Boss 章");
+  const boss = campaignUnlockState({ bestWave: 5, bossKills: 1, clearedWave: 0 });
+  assert(boss["first-boss"], "首殺 Boss 解鎖王影章");
+  const unseen = evaluateCampaignUnlocks(["awakening-altar"], { bestWave: 5, bossKills: 1, clearedWave: 0 });
+  assert(JSON.stringify(unseen) === JSON.stringify(["first-rift", "demon-gate", "first-boss"]),
+    `evaluateCampaignUnlocks 只回傳新解鎖 id（${unseen.join(",")}）`);
+}
+
+console.log("\n== 英雄列傳 ==");
+{
+  const heroIds = Object.keys(heroes.HEROES).sort();
+  const legendIds = Object.keys(HERO_LEGENDS).sort();
+  assert(JSON.stringify(heroIds) === JSON.stringify(legendIds), "每位英雄都有列傳");
+  const knownDetailed = new Set(["daji", "guanyu", "wukong", "erlangshen", "nezha", "niumowang", "baisuzhen", "leizhenzi", "zhongkui"]);
+  for (const id of heroIds) {
+    const legend = HERO_LEGENDS[id];
+    const bonds = legend.stages.map((s) => s.bond);
+    assert(JSON.stringify(bonds) === JSON.stringify([1, 5, 10, 15]), `${id} 列傳 bond 節點為 1/5/10/15`);
+    for (const stage of legend.stages) {
+      const minLen = knownDetailed.has(id) ? 40 : 20;
+      assert(stage.title && stage.text && stage.text.length >= minLen,
+        `${id} ${stage.title} 文本長度達標（${stage.text.length} >= ${minLen}）`);
+    }
+  }
+  assert(legendStageFor("daji", 0) === null, "bond 0 未解鎖列傳");
+  assert(legendStageFor("daji", 4).title.startsWith("序"), "bond 4 回傳序");
+  assert(legendStageFor("daji", 5).title.startsWith("承"), "bond 5 回傳承");
+  assert(legendStageFor("daji", 14).title.startsWith("轉"), "bond 14 回傳轉");
+  assert(legendStageFor("daji", 15).title.startsWith("合"), "bond 15 回傳合");
+  assert(legendStageFor("missing", 15) === null, "未知英雄回傳 null");
+}
+
+console.log("");
+if (failed === 0) { console.log("✅ 神魔誌測試全部通過"); process.exit(0); }
+else { console.error(`❌ ${failed} 項失敗`); process.exit(1); }

@@ -397,17 +397,20 @@
     if (roll < 0.70) return "imp";
     if (roll < 0.78) return "emberbat";
     if (roll < 0.86) return wave >= 5 ? "shieldman" : "imp";
-    if (roll < 0.91) return wave >= 6 ? "frostwraith" : "frostwolf";
-    if (roll < 0.95) return wave >= 7 ? "medic" : "bat";
-    if (roll < 0.98) return wave >= 8 ? "thunderronin" : "frostwolf";
+    if (roll < 0.90) return wave >= 7 ? "lavagolem" : (wave >= 6 ? "frostwraith" : "frostwolf");
+    if (roll < 0.94) return wave >= 7 ? "medic" : "bat";
+    if (roll < 0.97) return wave >= 9 ? "abysshound" : (wave >= 8 ? "thunderronin" : "frostwolf");
+    if (roll < 0.99) return wave >= 8 ? "thunderronin" : "orc";
     return "orc";
   }
 
   function enemyAvailableInWave(type, wave) {
     if (type === "shieldman") return wave >= 5;
     if (type === "frostwraith") return wave >= 6;
+    if (type === "lavagolem") return wave >= 7;
     if (type === "medic") return wave >= 7;
     if (type === "thunderronin") return wave >= 8;
+    if (type === "abysshound") return wave >= 9;
     return true;
   }
 
@@ -442,7 +445,10 @@
       queue.push({ type, hpScale: eventHpScale, event, affix: affix ? affix.id : null });
     }
 
-    if (isBoss) queue.push({ type: "boss", hpScale: hpScale * (cfg.GAME.bossHpMul || 1.0) * affixHpMul, affix: affix ? affix.id : null });
+    if (isBoss) {
+      const bossType = (Math.floor(w / bossEvery) % 2 === 0) ? "yaksha" : "boss";
+      queue.push({ type: bossType, hpScale: hpScale * (cfg.GAME.bossHpMul || 1.0) * affixHpMul, affix: affix ? affix.id : null });
+    }
     return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale: hpScale * affixHpMul, affix, queue };
   }
 

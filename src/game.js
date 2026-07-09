@@ -965,6 +965,7 @@
         const mult = elementMultiplier(sk.element, e.element);
         applyDamage(e, sk.damage * mult);
         if (sk.freezeDur) e.frozenUntil = state.clock + sk.freezeDur;
+        if (sk.rootDur) e.frozenUntil = state.clock + sk.rootDur;
         if (sk.vuln) markVulnerable(e, sk.vuln.mult, sk.vuln.duration);
         if (e.hp <= 0) killEnemy(e);
       }
@@ -1830,6 +1831,6 @@
       fireTower: (tw, target) => fire(tw, target),
       forcePerformanceSample: (fps) => { handlePerformanceSample(fps); return getPerformanceStatus(); },
     },
-    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, MAP_AFFIXES, ACHIEVEMENTS },
+    config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, MAP_AFFIXES, EVENT_WAVES, ACHIEVEMENTS, BEGINNER_MISSIONS },
   };
 })();

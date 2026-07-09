@@ -29,11 +29,11 @@ assert(HERO_LEVEL.maxLevel === 10, "英雄等級上限維持 Lv.10");
 console.log("\n== 1b. 英雄池擴充與新英雄資料 ==");
 {
   const byRarity = (rarity) => Object.values(HEROES).filter((h) => h.rarity === rarity).map((h) => h.id);
-  assert(Object.keys(HEROES).length === 14, `英雄總數為 14 位（${Object.keys(HEROES).length}）`);
+  assert(Object.keys(HEROES).length === 15, `英雄總數為 15 位（${Object.keys(HEROES).length}）`);
   assert(JSON.stringify(byRarity("legendary").sort()) === JSON.stringify(["daji", "erlangshen", "guanyu", "valkyrie", "wukong"].sort()),
     `傳說池為 5 位（${byRarity("legendary").join(",")}）`);
-  assert(JSON.stringify(byRarity("epic").sort()) === JSON.stringify(["baisuzhen", "mage", "nezha", "niumowang"].sort()),
-    `史詩池包含大法師、哪吒、牛魔王與白素貞（${byRarity("epic").join(",")}）`);
+  assert(JSON.stringify(byRarity("epic").sort()) === JSON.stringify(["baisuzhen", "mage", "nezha", "niumowang", "zhongkui"].sort()),
+    `史詩池包含大法師、哪吒、牛魔王、白素貞與鍾馗（${byRarity("epic").join(",")}）`);
   assert(byRarity("rare").length === 3 && byRarity("rare").includes("leizhenzi") && byRarity("common").length === 2,
     "稀有池增至 3 位且普通池維持 2 位");
 
@@ -46,6 +46,7 @@ console.log("\n== 1b. 英雄池擴充與新英雄資料 ==");
     niumowang: { rarity: "epic", element: "fire", role: "melee" },
     baisuzhen: { rarity: "epic", element: "ice", role: "ranged" },
     erlangshen: { rarity: "legendary", element: "thunder", role: "melee" },
+    zhongkui: { rarity: "epic", element: "physical", role: "ranged" },
   };
   for (const [id, expected] of Object.entries(newHeroes)) {
     const h = HEROES[id];
@@ -65,6 +66,8 @@ console.log("\n== 1b. 英雄池擴充與新英雄資料 ==");
     "孫悟空高速連打但單下較低，未嚴格取代女武神");
   assert(HEROES.nezha.speed > HEROES.mage.speed && HEROES.nezha.range < HEROES.mage.range && HEROES.nezha.atk < HEROES.mage.atk,
     "哪吒機動高但爆發與射程低於大法師，未嚴格取代");
+  assert(HEROES.zhongkui.splash > 0 && HEROES.zhongkui.atk < HEROES.daji.atk && HEROES.zhongkui.range <= HEROES.mage.range,
+    "鍾馗有濺射判官定位，但輸出不取代傳說妲己與大法師");
 }
 
 console.log("\n== 2. rollHero：rng 可注入、回傳合法英雄 ==");

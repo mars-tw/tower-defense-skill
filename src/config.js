@@ -79,12 +79,20 @@ const ENEMIES = {
   frostwraith: { id: "frostwraith", name: "冰魄妖", emoji: "👻", element: "ice", hp: 68, shield: 42, speed: 42, reward: 20, leak: 2, color: "#67e8f9",
                  ability: { id: "shieldRegen", label: "冰甲再生", desc: "脫離攻擊後冰甲會快速回復。", delay: 2.5, perSec: 20 },
                  counterHint: "雷系穿盾與持續壓制能阻止冰甲再生。" },
+  lavagolem: { id: "lavagolem", name: "熔岩魔像", emoji: "🪨", element: "fire", hp: 120, shield: 65, speed: 30, reward: 25, leak: 3, color: "#f97316",
+               ability: { id: "shieldRegen", label: "熔甲再生", desc: "脫離攻擊後熔岩護甲會回復。", delay: 2.8, perSec: 18 },
+               counterHint: "電磁塔克制火系並持續壓盾，毒霧塔可咬本體。" },
   emberbat: { id: "emberbat", name: "焰蝠", emoji: "🦇", element: "fire", hp: 30, speed: 92, reward: 9, leak: 1, color: "#fb923c",
               ability: { id: "splitBat", childHpMul: 0.45, childRewardMul: 0.35, label: "餘燼分裂", desc: "死亡後分裂出一隻小蝙蝠。" },
               counterHint: "冰霜減速能攔住高速焰蝠分裂潮。" },
   thunderronin: { id: "thunderronin", name: "雷刃武士", emoji: "⚔️", element: "thunder", hp: 115, speed: 52, reward: 22, leak: 2, color: "#fde047",
                   ability: { id: "bloodrage", threshold: 0.4, speedMul: 1.3, label: "雷怒", desc: "生命低於 40% 時移動速度提高。" },
                   counterHint: "冰霜塔先手控速可壓住雷怒衝刺。" },
+  abysshound: { id: "abysshound", name: "深淵獵犬", emoji: "🐺", element: "thunder", hp: 50, speed: 104, reward: 14, leak: 1, color: "#8b5cf6",
+                ability: { id: "bloodrage", threshold: 0.45, speedMul: 1.25, label: "裂界疾奔", desc: "生命低於 45% 時速度提高。" },
+                counterHint: "寒冰塔克制雷系並降速，路尾補弓箭塔收頭。" },
+  yaksha: { id: "yaksha", name: "夜叉王", emoji: "👿", element: "thunder", hp: 270, speed: 26, reward: 132, leak: 8, color: "#a855f7", boss: true,
+            counterHint: "寒冰塔克制雷系並拖慢，毒霧塔與聖光支援可磨高血量。" },
   boss:   { id: "boss",   name: "魔王",   emoji: "😈", element: "fire",     hp: 500, speed: 28, reward: 150, leak: 8, color: "#dc2626", boss: true,
             counterHint: "電磁塔克制火，毒霧塔持續傷害，聖光塔支援主力塔。" },
 };
@@ -97,6 +105,8 @@ const SKILLS = {
   thunder: { id: "thunder", name: "雷暴術", emoji: "🌩️", element: "thunder", cooldown: 15, damage: 60, radius: 999, color: "#facc15", desc: "對全場敵人造成雷電傷害。" },
   judgment:{ id: "judgment", name: "神聖裁決", emoji: "⚖️", element: "physical", cooldown: 20, damage: 45, radius: 120,
              vuln: { mult: 1.25, duration: 4 }, color: "#fde047", desc: "聖光審判範圍敵人並施加易傷。" },
+  sealarray:{ id: "sealarray", name: "封魔陣", emoji: "🔯", element: "physical", cooldown: 24, damage: 35, radius: 130, rootDur: 2.4,
+              color: "#c084fc", desc: "在指定範圍張開封魔陣，造成傷害並定身敵人 2.4 秒。" },
 };
 
 // ===== 守護女神（被保護的核心）=====
@@ -158,12 +168,12 @@ const MAP_AFFIXES = {
     towerDamageMul: 1.08, enemySpeedMul: 1.08, waveGoldMul: 1.00, killGoldMul: 1.00, enemyHpMul: 1.00, towerRangeMul: 1.00,
     expectedGoldDelta: 0.00, expectedPowerDelta: 0.00,
   },
-  brittle: {
-    id: "brittle", label: "脆弱前線", emoji: "🛡️",
-    desc: "敵人生命 -8%，漏怪傷害 +25%。",
-    towerImpact: "前期更好清但漏怪更痛；路尾補寒冰塔與電磁塔攔截。",
-    enemyHpMul: 0.92, leakDamageMul: 1.25, waveGoldMul: 1.00, killGoldMul: 1.00, enemySpeedMul: 1.00, towerRangeMul: 1.00, towerDamageMul: 1.00,
-    expectedGoldDelta: 0.00, expectedPowerDelta: -0.08,
+  demontide: {
+    id: "demontide", label: "魔潮", emoji: "🌀",
+    desc: "敵人生命 +5%、速度 +5%，塔傷害 +2%，清波金 +4%，擊殺金 +10%。",
+    towerImpact: "妖潮壓力上升；塔傷害略增但仍需控場塔拖住高速單位。",
+    enemyHpMul: 1.05, enemySpeedMul: 1.05, towerDamageMul: 1.02, towerRangeMul: 1.00, waveGoldMul: 1.04, killGoldMul: 1.10,
+    expectedGoldDelta: 0.08, expectedPowerDelta: 0.10,
   },
   bloodmoon: {
     id: "bloodmoon", label: "血月", emoji: "🌙",
@@ -237,6 +247,8 @@ const EVENT_WAVES = {
              desc: "大量快速小怪", speedMul: 1.3, hpMul: 0.6, countMul: 2.0, goldMul: 1.1, forceType: "bat" },
   treasure:{ id: "treasure",label: "寶藏波", emoji: "💰", color: "#facc15",
              desc: "擊殺獲得大量金錢", speedMul: 1.0, hpMul: 0.8, countMul: 0.8, goldMul: 3.0 },
+  rift:    { id: "rift",    label: "裂界波", emoji: "🌀", color: "#c084fc",
+             desc: "裂界妖魔混入戰線", speedMul: 1.05, hpMul: 1.18, countMul: 1.0, goldMul: 1.35 },
 };
 // 決定某波是否為事件波（避開 Boss 波、第 5 波後才有）。
 // 條件用 wave % 3 === 2，不能用 % 3 === 0：無盡煉獄的 bossEvery=3 會讓所有
@@ -290,6 +302,10 @@ const ACHIEVEMENTS = {
               check: (meta) => (meta.games || 0) >= 100 },
   heroesAll: { id: "heroesAll", label: "英雄集結", desc: "收集全部英雄", reward: 40,
                check: (meta, ctx = {}) => (ctx.ownedHeroCount || 0) >= (ctx.totalHeroCount || 1) },
+  bondMax: { id: "bondMax", label: "羈絆圓滿", desc: "任一英雄羈絆達 Lv.15", reward: 60,
+             check: (meta) => Object.values((meta && meta.heroProgress) || {}).some((p) => (p.level || 1) >= 15) },
+  chronicleComplete: { id: "chronicleComplete", label: "編年讀畢", desc: "解鎖全部戰役編年", reward: 80,
+                       check: (meta, ctx = {}) => ctx.chronicleComplete === true },
 };
 
 // ===== 新手 10 波任務線（R7）=====

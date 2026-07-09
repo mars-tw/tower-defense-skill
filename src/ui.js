@@ -6,6 +6,7 @@
 (() => {
   "use strict";
   const { TOWERS, SKILLS, ENEMIES, BEGINNER_MISSIONS, MAP_AFFIXES } = TD.config;
+  const LORE = window.TD_LORE || {};
   const $ = (id) => document.getElementById(id);
   const hasOwn = (obj, key) => !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   const RULES = window.TDRules;
@@ -13,6 +14,8 @@
   let selectedBoardMap = (TD.getMap && TD.getMap().id) || "plains";
   let progressWasPaused = false;
   let heroDetailWasPaused = false;
+  let codexWasPaused = false;
+  let codexTab = "world";
   let settingsWasPaused = false;
   let advisorCollapsed = false;
   let advisorHidden = false;
@@ -20,11 +23,13 @@
   let warningSerial = 0;
   let recoveryNoticeShown = false;
   const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6", sniper: "7", arcane: "8" };
-  const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E", judgment: "R" };
+  const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E", judgment: "R", sealarray: "A" };
   const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
   const SKILL_BY_KEY = Object.fromEntries(Object.entries(SKILL_HOTKEYS).map(([id, key]) => [key.toLowerCase(), id]));
   const TEXT_SIZE_KEY = "td_text_size";
+  const CODEX_SEEN_KEY = "td_codex_seen_v1";
   const TEXT_SIZE_LABELS = { small: "小", medium: "中", large: "大" };
+  const notifiedCodexKeys = new Set();
   let textSize = loadTextSize();
 
   function normalizeTextSize(value) {
@@ -149,7 +154,7 @@
   }
 
   function isBlockingOverlayOpen() {
-    return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
+    return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "codexOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
   }
 
   function isTextEntryTarget(target) {
@@ -221,6 +226,10 @@
     saveMeta(meta);
     ownedHeroes.add(hero.id); saveOwned();
     refreshUI();
+    if (!isNew && refund) {
+      const gMeta = $("gachaMeta");
+      if (gMeta) gMeta.textContent = `重複英雄即時退還 +${refund}💎｜目前 ${meta.soulCrystal}💎`;
+    }
     playGachaAnimation(hero, isNew, refund, options);  // 盲盒動畫
     return true;
   }
@@ -356,6 +365,219 @@
     return `戰鬥 Lv.${hero.level || 1}｜本局 XP +${runXp}｜升級 +${gained}｜血量 ${hp}`;
   }
 
+  function loadCodexSeen() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CODEX_SEEN_KEY));
+      return {
+        campaign: raw && raw.campaign && typeof raw.campaign === "object" ? raw.campaign : {},
+        heroes: raw && raw.heroes && typeof raw.heroes === "object" ? raw.heroes : {},
+      };
+    } catch { return { campaign: {}, heroes: {} }; }
+  }
+
+  function saveCodexSeen(seen) {
+    try { localStorage.setItem(CODEX_SEEN_KEY, JSON.stringify(seen || { campaign: {}, heroes: {} })); } catch {}
+  }
+
+  function codexContext(meta) {
+    const st = TD.state();
+    return {
+      bestWave: Math.max(meta.bestWave || 0, st.wave || 0, st.clearedWave || 0),
+      clearedWave: Math.max(st.clearedWave || 0, st.betweenWaves ? (st.wave || 0) : Math.max(0, (st.wave || 1) - 1)),
+      bossKills: Math.max(st.bossKills || 0, meta.bossKills || 0),
+    };
+  }
+
+  function campaignSeenIds(seen) {
+    return Object.keys((seen && seen.campaign) || {}).filter((id) => seen.campaign[id] === true);
+  }
+
+  function heroStageSeen(seen, heroId, bond) {
+    return !!(seen && seen.heroes && seen.heroes[heroId] && seen.heroes[heroId][bond]);
+  }
+
+  function unlockedHeroStages(heroId, meta) {
+    const legend = LORE.HERO_LEGENDS && LORE.HERO_LEGENDS[heroId];
+    if (!legend || !Array.isArray(legend.stages)) return [];
+    const progress = heroProgressFor(heroId, meta);
+    const owned = ownedHeroes.has(heroId) || progress.xp > 0;
+    if (!owned) return [];
+    return legend.stages.filter((stage) => progress.level >= stage.bond);
+  }
+
+  function collectNewCodexKeys(meta) {
+    if (!LORE.evaluateCampaignUnlocks) return [];
+    const seen = loadCodexSeen();
+    const ctx = codexContext(meta);
+    const keys = LORE.evaluateCampaignUnlocks(campaignSeenIds(seen), ctx).map((id) => `campaign:${id}`);
+    for (const id of Object.keys(TD.config.HEROES || {})) {
+      for (const stage of unlockedHeroStages(id, meta)) {
+        if (!heroStageSeen(seen, id, stage.bond)) keys.push(`hero:${id}:${stage.bond}`);
+      }
+    }
+    return keys;
+  }
+
+  function markUnlockedCodexSeen(meta) {
+    if (!LORE.campaignUnlockState) return;
+    const seen = loadCodexSeen();
+    const state = LORE.campaignUnlockState(codexContext(meta));
+    seen.campaign = seen.campaign || {};
+    Object.keys(state).forEach((id) => { if (state[id]) seen.campaign[id] = true; });
+    seen.heroes = seen.heroes || {};
+    for (const id of Object.keys(TD.config.HEROES || {})) {
+      const stages = unlockedHeroStages(id, meta);
+      if (!stages.length) continue;
+      seen.heroes[id] = seen.heroes[id] || {};
+      stages.forEach((stage) => { seen.heroes[id][stage.bond] = true; });
+    }
+    saveCodexSeen(seen);
+  }
+
+  function refreshCodexBadge(meta) {
+    const btn = $("codexBtn");
+    if (!btn) return;
+    const hasNew = collectNewCodexKeys(meta || loadMeta()).length > 0;
+    btn.classList.toggle("has-new", hasNew);
+    btn.setAttribute("aria-label", hasNew ? "開啟神魔誌，有新內容" : "開啟神魔誌");
+  }
+
+  function showCodexOracle(meta) {
+    const keys = collectNewCodexKeys(meta || loadMeta()).filter((key) => key.startsWith("campaign:") && !notifiedCodexKeys.has(key));
+    if (!keys.length) return;
+    const first = keys[0];
+    notifiedCodexKeys.add(first);
+    const id = first.split(":")[1];
+    const chapter = (LORE.CAMPAIGN_CHAPTERS || []).find((item) => item.id === id);
+    if (!chapter) return;
+    const toast = document.createElement("div");
+    toast.className = "bond-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    toast.textContent = `神諭：${chapter.oracle}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2600);
+    pushLog(`📜 神魔誌解鎖「${chapter.title}」`);
+  }
+
+  function unlockText(unlock) {
+    if (!unlock || unlock.type === "start") return "初始解鎖";
+    if (unlock.type === "wave") return `抵達第 ${unlock.value} 波`;
+    if (unlock.type === "boss") return `擊敗 Boss ${unlock.value} 次`;
+    return "完成指定條件";
+  }
+
+  function renderCodexOverlay(meta) {
+    const content = $("codexContent");
+    const tabs = $("codexTabs");
+    if (!content || !tabs || !LORE.WORLD_LORE) return;
+    const m = meta || loadMeta();
+    const seen = loadCodexSeen();
+    const ctx = codexContext(m);
+    const campaignState = LORE.campaignUnlockState ? LORE.campaignUnlockState(ctx) : {};
+    const tabsDef = [
+      ["world", "世界觀"],
+      ["campaign", "戰役編年"],
+      ["heroes", "英雄列傳"],
+    ];
+    tabs.innerHTML = tabsDef.map(([id, label]) =>
+      `<button type="button" class="codex-tab ${codexTab === id ? "active" : ""}" data-codex-tab="${id}">${label}</button>`
+    ).join("");
+    tabs.querySelectorAll("[data-codex-tab]").forEach((btn) => {
+      btn.onclick = () => { codexTab = btn.dataset.codexTab || "world"; renderCodexOverlay(loadMeta()); };
+    });
+    if (codexTab === "campaign") {
+      content.innerHTML = `
+        <div class="codex-list">
+          ${(LORE.CAMPAIGN_CHAPTERS || []).map((chapter) => {
+            const unlocked = !!campaignState[chapter.id];
+            const isNew = unlocked && !seen.campaign[chapter.id];
+            return `<article class="codex-entry ${unlocked ? "" : "locked"}">
+              <div class="codex-entry-head">
+                <span class="codex-mark">${unlocked ? "📖" : "◆"}</span>
+                <div><h3>${unlocked ? chapter.title : "未解鎖章節"}</h3><p>${unlocked ? chapter.epithet : unlockText(chapter.unlock)}</p></div>
+                ${isNew ? '<b class="new-dot">NEW!</b>' : ""}
+              </div>
+              ${unlocked ? `<blockquote>${chapter.oracle}</blockquote><p>${chapter.body}</p>` : `<p class="codex-locked">條件：${unlockText(chapter.unlock)}</p>`}
+            </article>`;
+          }).join("")}
+        </div>`;
+    } else if (codexTab === "heroes") {
+      content.innerHTML = `
+        <div class="codex-hero-grid">
+          ${Object.values(TD.config.HEROES || {}).map((hero) => {
+            const progress = heroProgressFor(hero.id, m);
+            const owned = ownedHeroes.has(hero.id) || progress.xp > 0;
+            const legend = LORE.HERO_LEGENDS && LORE.HERO_LEGENDS[hero.id];
+            const stage = LORE.legendStageFor ? LORE.legendStageFor(hero.id, progress.level) : null;
+            const next = legend && legend.stages.find((item) => progress.level < item.bond);
+            const stages = legend ? legend.stages.map((item) => {
+              const unlocked = owned && progress.level >= item.bond;
+              const isNew = unlocked && !heroStageSeen(seen, hero.id, item.bond);
+              return `<div class="codex-stage ${unlocked ? "" : "locked"}">
+                <b>${unlocked ? item.title : `羈絆 Lv.${item.bond}`}</b>${isNew ? '<em>NEW!</em>' : ""}
+                <span>${unlocked ? item.text : `羈絆 Lv.${item.bond} 解鎖列傳`}</span>
+              </div>`;
+            }).join("") : "";
+            return `<article class="codex-hero ${owned ? "" : "locked"}">
+              <div class="codex-hero-head">
+                <span class="codex-avatar">${owned ? heroAvatar(hero) : "◆"}</span>
+                <div><h3>${owned ? hero.name : "未知英靈"}</h3><p>${owned ? `${legend ? legend.epithet : hero.desc}｜羈絆 Lv.${progress.level}` : "抽到英雄後解鎖序章"}</p></div>
+              </div>
+              ${owned && stage ? `<div class="codex-current"><b>當前列傳：${stage.title}</b><span>${stage.text}</span></div>` : ""}
+              ${owned && next ? `<div class="codex-next">下一節點：羈絆 Lv.${next.bond} 解鎖「${next.title}」</div>` : ""}
+              <div class="codex-stage-list">${stages}</div>
+            </article>`;
+          }).join("")}
+        </div>`;
+    } else {
+      content.innerHTML = `
+        <section class="codex-world">
+          <h3>${LORE.WORLD_LORE.title}</h3>
+          ${LORE.WORLD_LORE.body.map((p) => `<p>${p}</p>`).join("")}
+          <div class="oracle-card"><b>神諭低語</b><span>${LORE.oracleWhisper ? LORE.oracleWhisper((m.bestWave || 0) + (TD.state().wave || 0)) : ""}</span></div>
+        </section>`;
+    }
+  }
+
+  function openCodexOverlay() {
+    const overlay = $("codexOverlay");
+    if (!overlay || overlay.classList.contains("show")) return;
+    codexWasPaused = !!TD.state().paused;
+    TD.setPaused(true);
+    syncPauseButton(true);
+    const meta = loadMeta();
+    renderCodexOverlay(meta);
+    overlay.classList.add("show");
+    markUnlockedCodexSeen(meta);
+    refreshCodexBadge(meta);
+    focusSoon($("codexClose"));
+  }
+
+  function closeCodexOverlay() {
+    const overlay = $("codexOverlay");
+    if (!overlay) return;
+    overlay.classList.remove("show");
+    if (!codexWasPaused && !TD.state().over) {
+      TD.setPaused(false);
+      syncPauseButton(false);
+    }
+    focusSoon($("codexBtn"));
+  }
+
+  function currentHeroLegendHtml(id, progress) {
+    if (!LORE.legendStageFor || !LORE.HERO_LEGENDS) return "";
+    const stage = LORE.legendStageFor(id, progress.level);
+    const legend = LORE.HERO_LEGENDS[id];
+    if (!legend) return "";
+    const next = legend.stages.find((item) => progress.level < item.bond);
+    const body = stage
+      ? `<b>${legend.epithet}｜${stage.title}</b><span>${stage.text}</span>`
+      : `<b>${legend.epithet}</b><span>羈絆 Lv.1 解鎖列傳序章。</span>`;
+    const nextText = next ? `下一節點解鎖列傳：羈絆 Lv.${next.bond}「${next.title}」` : "列傳已全部解鎖";
+    return `<div class="hd-lore">${body}<em>${nextText}</em></div>`;
+  }
+
   function deployHeroFromRoster(id, progress) {
     if (TD.deployHero(id, progress)) {
       deployedThisGame.add(id);
@@ -404,6 +626,7 @@
       <div class="hd-progress-head"><span>羈絆進度</span><span>Lv.${node.previous} → Lv.${node.level}</span></div>
       <div class="hd-progress"><span style="width:${node.pct}%"></span></div>
       <div class="hd-node">${nextText}</div>
+      ${currentHeroLegendHtml(id, progress)}
       <div class="hd-run"><b>本局表現摘要</b><span>${heroRunSummary(id)}</span></div>
       <div class="hd-actions">
         <button type="button" id="heroDetailDeploy" ${deployed ? "disabled" : ""}>${deployed ? "已上場" : "上場"}</button>
@@ -474,8 +697,11 @@
       return;
     }
     box.innerHTML = "";
+    const meta = loadMeta();
     deployed.forEach((h) => {
       const def = TD.config.HEROES[h.id];
+      const progress = heroProgressFor(h.id, meta);
+      const bondLevel = Math.max(h.longLevel || 1, progress.level || 1);
       const hpPct = Math.max(0, Math.min(100, Math.round(((h.hp || 0) / Math.max(1, h.maxHp || 1)) * 100)));
       const active = st.pendingHero === h.uid;
       const guarded = !!h.guardPoint;
@@ -489,7 +715,7 @@
       btn.innerHTML = `
         <span class="dh-avatar">${heroAvatar(def)}</span>
         <span class="dh-body">
-          <span class="dh-top"><b>${def.name}</b><em>Lv.${h.level || 1} / 羈絆Lv.${h.longLevel || 1}</em></span>
+          <span class="dh-top"><b>${def.name}</b><em>戰鬥Lv.${h.level || 1}｜羈絆Lv.${bondLevel}</em></span>
           <span class="dh-hp"><span style="width:${hpPct}%"></span></span>
           <span class="dh-status">${active ? "選擇駐守點" : (guarded ? "駐守中" : "點我駐守")}</span>
         </span>`;
@@ -622,7 +848,9 @@
     }
     const p = TD.previewNextWave({ advisorMode });
     const theme = p.theme ? `${ELEM_ICON[p.theme] || ""}${ELEM_LABEL[p.theme] || p.theme}` : "混合";
-    const event = p.event ? `${p.event.emoji}${p.event.label}：${p.event.desc}` : (p.isBoss ? "⚠️ Boss 波" : "標準波");
+    const event = p.event
+      ? `<span class="event-badge" style="--event-color:${p.event.color || "#facc15"}">${p.event.emoji}${p.event.label}</span> ${p.event.desc}`
+      : (p.isBoss ? '<span class="event-badge boss">⚠️ Boss 波</span>' : "標準波");
     const affixText = p.affix ? ` · 詞綴 ${p.affix.label}` : "";
     const enemyTypes = (p.enemyTypes || []).filter((item) => ENEMIES[item.type]);
     const recs = (p.recommendations || []).filter((item) => TOWERS[item.id]);
@@ -753,6 +981,9 @@
       gMeta.textContent = `${meta.soulCrystal}💎｜保底 ${pityShown}/${TD.config.GACHA.pityLegendary}｜英雄 ${ownedHeroes.size}/${totalHeroes}${secondLine}`;
     }
     renderBeginnerMissions(meta);
+    showCodexOracle(meta);
+    refreshCodexBadge(meta);
+    if (isShown("codexOverlay")) renderCodexOverlay(meta);
     renderRoster();
     renderDeployedHeroes();
 
@@ -1169,6 +1400,9 @@
     const heroProgressResult = RULES.settleHeroProgress
       ? RULES.settleHeroProgress(withBoard, heroGrowth)
       : { meta: withBoard, entries: [] };
+    const chronicleComplete = LORE.campaignUnlockState
+      ? Object.values(LORE.campaignUnlockState({ bestWave: Math.max(wave, withBoard.bestWave || 0), clearedWave: wave, bossKills: (run && run.bossKills) || TD.state().bossKills || 0 })).every(Boolean)
+      : false;
     const achievementResult = RULES.evaluateAchievements(heroProgressResult.meta, {
       wave,
       score,
@@ -1176,6 +1410,7 @@
       difficultyId: diff.id,
       ownedHeroCount: ownedHeroes.size,
       totalHeroCount: Object.keys(TD.config.HEROES).length,
+      chronicleComplete,
     });
     const meta = achievementResult.meta;
     const earned = settlement.earned;
@@ -1293,8 +1528,10 @@
   $("goddessBtn").onclick = () => { TD.upgradeGoddess(); refreshUI(); };
   $("gachaBtn").onclick = () => { $("gachaBtn").blur(); doGacha(); };
   $("boardBtn").onclick = () => { openProgressOverlay(); };
+  $("codexBtn").onclick = () => { openCodexOverlay(); };
   $("settingsBtn").onclick = () => { openSettingsOverlay(); };
   $("progressClose").onclick = () => { closeProgressOverlay(); };
+  $("codexClose").onclick = () => { closeCodexOverlay(); };
   $("settingsClose").onclick = () => { closeSettingsOverlay(); };
   $("heroDetailClose").onclick = () => { closeHeroDetail(); };
   $("restartBtn").onclick = restartRun;
@@ -1349,6 +1586,11 @@
     }
     if (isShown("progressOverlay")) {
       if (e.code === "Escape") { e.preventDefault(); closeProgressOverlay(); }
+      else if (e.code !== "Tab") { e.preventDefault(); }
+      return;
+    }
+    if (isShown("codexOverlay")) {
+      if (e.code === "Escape") { e.preventDefault(); closeCodexOverlay(); }
       else if (e.code !== "Tab") { e.preventDefault(); }
       return;
     }

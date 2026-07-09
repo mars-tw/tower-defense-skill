@@ -74,6 +74,9 @@ const HEROES = {
   erlangshen:{ id: "erlangshen", name: "二郎神", emoji: "👁️", rarity: "legendary", element: "thunder", role: "melee",
              hp: 300, atk: 34, speed: 80, range: 52, atkRate: 1.3, color: "#a855f7",
              desc: "天眼破邪，三尖兩刃刀連斬穿透敵陣。", sprite: "assets/heroes/erlangshen.png", pierce: 2 },
+  zhongkui:{ id: "zhongkui", name: "鍾馗", emoji: "🧿", rarity: "epic", element: "physical", role: "ranged",
+             hp: 175, atk: 24, speed: 62, range: 105, atkRate: 1.0, color: "#c084fc",
+             desc: "封魔判官，以判筆與符劍鎮住群魔。", sprite: "assets/heroes/zhongkui.png", splash: 34 },
 };
 
 // 英雄升級曲線：每級數值成長

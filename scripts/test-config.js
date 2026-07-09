@@ -146,13 +146,13 @@ console.log("== R41：PWA/可近用性資產 ==");
     if (/\.(?:js|webmanifest)(?:\?|$)/.test(raw)) versionedRefs.push(raw);
   }
   const badRefs = versionedRefs.filter((raw) => !raw.endsWith(`?v=${swVersion}`));
-  assert(versionedRefs.length >= 6 && badRefs.length === 0,
+  assert(versionedRefs.length >= 7 && badRefs.length === 0,
     `index 本地 JS/manifest 皆帶 ?v=${swVersion}（共 ${versionedRefs.length}，異常 ${badRefs.slice(0, 3).join(",") || "0"}）`);
   const rawShellBody = (sw.match(/const\s+APP_SHELL\s*=\s*\[([\s\S]*?)\];/) || ["", ""])[1];
   const rawShellEntries = [...rawShellBody.matchAll(/["']([^"']+)["']/g)].map((m2) => m2[1]);
   const shellJs = rawShellEntries.filter((e) => /\.js(?:\?|$)/.test(e) && !/\/sw\.js$/.test(e));
   const badShellJs = shellJs.filter((e) => !e.endsWith(`?v=${swVersion}`));
-  assert(shellJs.length >= 5 && badShellJs.length === 0,
+  assert(shellJs.length >= 6 && badShellJs.length === 0,
     `sw.js APP_SHELL 的 JS 皆帶 ?v=${swVersion}（共 ${shellJs.length}，異常 ${badShellJs.slice(0, 3).join(",") || "0"}）`);
   const bootGuardAt = index.indexOf("getRegistration");
   const firstExternalJsAt = index.indexOf('src="src/config.js');
@@ -200,6 +200,10 @@ assert(SKILLS.judgment && SKILLS.judgment.element === "physical" && SKILLS.judgm
   SKILLS.judgment.damage === 45 && SKILLS.judgment.radius === 120 &&
   SKILLS.judgment.vuln && SKILLS.judgment.vuln.mult === 1.25 && SKILLS.judgment.vuln.duration === 4,
   "神聖裁決 R47 傷害、範圍與易傷欄位正確");
+assert(SKILLS.sealarray && SKILLS.sealarray.element === "physical" && SKILLS.sealarray.cooldown === 24 &&
+  SKILLS.sealarray.damage === 35 && SKILLS.sealarray.radius === 130 && SKILLS.sealarray.rootDur === 2.4 &&
+  SKILLS.sealarray.emoji === "🔯",
+  "封魔陣 R48 傷害、範圍、定身與 emoji 欄位正確");
 
 console.log("== 敵人欄位 ==");
 let badE = 0;
@@ -231,6 +235,17 @@ assert(ENEMIES.thunderronin && ENEMIES.thunderronin.element === "thunder" && ENE
   ENEMIES.thunderronin.ability && ENEMIES.thunderronin.ability.id === "bloodrage" &&
   ENEMIES.thunderronin.ability.threshold === 0.4 && ENEMIES.thunderronin.ability.speedMul === 1.3,
   "雷刃武士 R47 雷怒配置正確");
+assert(ENEMIES.lavagolem && ENEMIES.lavagolem.element === "fire" && ENEMIES.lavagolem.shield === 65 &&
+  ENEMIES.lavagolem.ability && ENEMIES.lavagolem.ability.id === "shieldRegen" &&
+  ENEMIES.lavagolem.ability.perSec === 18,
+  "熔岩魔像 R48 熔甲再生配置正確");
+assert(ENEMIES.abysshound && ENEMIES.abysshound.element === "thunder" && ENEMIES.abysshound.speed === 104 &&
+  ENEMIES.abysshound.ability && ENEMIES.abysshound.ability.id === "bloodrage" &&
+  ENEMIES.abysshound.ability.threshold === 0.45,
+  "深淵獵犬 R48 高速與裂界疾奔配置正確");
+assert(ENEMIES.yaksha && ENEMIES.yaksha.boss === true && ENEMIES.yaksha.element === "thunder" &&
+  ENEMIES.yaksha.hp === 270 && ENEMIES.yaksha.reward === 132,
+  "夜叉王 R48 交替 Boss 配置正確");
 
 console.log("== Stage 4：地圖資料 ==");
 let badMap = 0;
@@ -268,6 +283,10 @@ console.log("== R17：地圖詞綴配置 ==");
     MAP_AFFIXES.bloodmoon.killGoldMul === 1.18 && MAP_AFFIXES.bloodmoon.expectedGoldDelta === 0.10 &&
     MAP_AFFIXES.bloodmoon.expectedPowerDelta === 0.10 && MAP_AFFIXES.bloodmoon.towerImpact.includes("塔"),
     "血月 R47 詞綴配置正確且 towerImpact 含塔字");
+  assert(MAP_AFFIXES.demontide && MAP_AFFIXES.demontide.enemyHpMul === 1.05 &&
+    MAP_AFFIXES.demontide.enemySpeedMul === 1.05 && MAP_AFFIXES.demontide.towerDamageMul === 1.02 &&
+    MAP_AFFIXES.demontide.expectedGoldDelta === 0.08 && MAP_AFFIXES.demontide.expectedPowerDelta === 0.10,
+    "魔潮 R48 詞綴配置正確且維持上限內");
   assert(badAffix === 0, `地圖詞綴欄位完整且倍率為正（缺陷 ${badAffix}）`);
   assert(affixes.every((a) => a.towerImpact.includes("塔") || a.towerImpact.includes("控場") || a.towerImpact.includes("升級")),
     "每個詞綴都有對塔種影響摘要");
@@ -357,6 +376,9 @@ for (const e of Object.values(EVENT_WAVES)) {
   if (e.forceType === "medic") badEv++;
 }
 assert(badEv === 0, `事件波欄位完整、forceType 指向存在敵人且不強制醫官（異常 ${badEv}）`);
+assert(EVENT_WAVES.rift && EVENT_WAVES.rift.color === "#c084fc" &&
+  EVENT_WAVES.rift.hpMul === 1.18 && EVENT_WAVES.rift.goldMul === 1.35,
+  "裂界波 R48 有 color 與倍率配置");
 
 console.log("== Stage 3：成就目錄 ==");
 let badAch = 0;
@@ -371,6 +393,12 @@ assert(ACHIEVEMENTS.kills5000 && ACHIEVEMENTS.kills5000.reward === 100 && ACHIEV
   "kills5000 成就配置正確");
 assert(ACHIEVEMENTS.games100 && ACHIEVEMENTS.games100.reward === 80 && ACHIEVEMENTS.games100.check({ games: 100 }),
   "games100 成就配置正確");
+assert(ACHIEVEMENTS.bondMax && ACHIEVEMENTS.bondMax.reward === 60 &&
+  ACHIEVEMENTS.bondMax.check({ heroProgress: { daji: { level: 15 } } }),
+  "bondMax 成就配置正確");
+assert(ACHIEVEMENTS.chronicleComplete && ACHIEVEMENTS.chronicleComplete.reward === 80 &&
+  ACHIEVEMENTS.chronicleComplete.check({}, { chronicleComplete: true }),
+  "chronicleComplete 成就配置正確");
 
 console.log("== R7：首 10 波任務線 ==");
 let badMission = 0;

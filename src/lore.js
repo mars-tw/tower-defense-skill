@@ -224,6 +224,54 @@ const ORACLE_WHISPERS = [
   "最後一界仍在，是因為你還沒有放手。",
 ];
 
+const MAP_LORE = {
+  plains: {
+    title: "翠綠平原",
+    lines: [
+      "荒草間仍有舊村落的石井，神火第一次在這裡記住守軍的名字。",
+      "風很寬，妖潮也很早被看見；這片平原教會新塔陣如何呼吸。",
+    ],
+  },
+  canyon: {
+    title: "迂迴峽谷",
+    lines: [
+      "峽壁把號角聲切成回音，補給車常在最後一個彎道才抵達聖壇。",
+      "路長而曲折，適合埋伏，也適合裂界在陰影裡試探耐心。",
+    ],
+  },
+  lava: {
+    title: "熔岩峽道",
+    lines: [
+      "熔岩不斷翻亮古老礦脈，墜星殘骸仍在谷底慢慢發紅。",
+      "這裡的夜晚沒有黑暗，只有火光與妖影互相撕扯。",
+    ],
+  },
+};
+
+const WAVE_BEATS = {
+  1: { title: "神火初燃", line: "荒草間，聖壇第一次記住你的名字。" },
+  5: { title: "魔門試探", line: "第五道潮聲逼近，裂界學會了回來的路。" },
+  10: { title: "灰雨前線", line: "雨裡全是未竟的魂，別讓牠們靠近火。" },
+  15: { title: "灰誓成陣", line: "塔影與英靈並肩，聖壇終於不再只靠祈禱。" },
+  25: { title: "無星前線", line: "星空沉默時，每座塔都必須成為方向。" },
+  40: { title: "最後神火", line: "四十波只是門檻，不是終局；守住，世界才仍有名字。" },
+};
+
+const EVENT_FLAVOR = {
+  rush: "連風都在逃。",
+  elite: "裂界派來少數硬骨頭，專門拖慢你的節奏。",
+  swarm: "影子碎成翅聲，成群壓過路面。",
+  treasure: "金光混在妖潮裡，貪心與判斷都會被考驗。",
+  rift: "裂縫短暫張大，陌生的腳步混入戰線。",
+  eclipse: "神火被陰影壓低，請用更長的火線換回報酬。",
+  pilgrim: "有人提燈穿過妖潮，護衛不強，金袋卻沉。",
+};
+
+const BOSS_INTRO = {
+  boss: "魔王低聲笑了：火會熄，名字也會。",
+  yaksha: "夜叉王舉刃踏出雷影：讓神火跪下。",
+};
+
 function normalizeBondLevel(bondLevel) {
   const n = Math.floor(Number(bondLevel) || 0);
   return n > 0 ? n : 0;
@@ -277,15 +325,40 @@ function oracleWhisper(index) {
   return ORACLE_WHISPERS[((n % len) + len) % len];
 }
 
+function mapLoreFor(mapId) {
+  return MAP_LORE[mapId] || MAP_LORE.plains;
+}
+
+function waveBeatFor(wave) {
+  const key = Math.max(0, Math.floor(Number(wave) || 0));
+  return WAVE_BEATS[key] || null;
+}
+
+function eventFlavorFor(eventId) {
+  return EVENT_FLAVOR[eventId] || "";
+}
+
+function bossIntroFor(type) {
+  return BOSS_INTRO[type] || "";
+}
+
 const TD_LORE = {
   WORLD_LORE,
   CAMPAIGN_CHAPTERS,
   HERO_LEGENDS,
   ORACLE_WHISPERS,
+  MAP_LORE,
+  WAVE_BEATS,
+  EVENT_FLAVOR,
+  BOSS_INTRO,
   legendStageFor,
   campaignUnlockState,
   evaluateCampaignUnlocks,
   oracleWhisper,
+  mapLoreFor,
+  waveBeatFor,
+  eventFlavorFor,
+  bossIntroFor,
 };
 
 if (typeof window !== "undefined") {

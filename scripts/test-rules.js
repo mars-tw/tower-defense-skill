@@ -29,6 +29,7 @@ const {
   evaluateBeginnerMissions,
   generateWaveQueue,
   waveRngSeed,
+  selectTowerMuteTarget,
   towerPoisonDpsFor,
   applyDifficulty,
   distanceToPath,
@@ -197,11 +198,30 @@ console.log("\n== R21：下一波建議塔種純函式 ==");
   const batWave = names([{ type: "bat" }, { type: "bat" }, { type: "goblin" }]);
   const shieldWave = names([{ type: "shieldman" }, { type: "shieldman" }, { type: "orc" }]);
   const bossWave = recommendTowersForWave({ queue: [{ type: "boss" }, { type: "medic" }, { type: "imp" }] });
+  const muteWave = names([{ type: "silencer" }, { type: "goblin" }, { type: "bat" }]);
+  const auraWave = names([{ type: "warden" }, { type: "shieldman" }, { type: "orc" }]);
   assert(iceWave.includes("cannon"), `冰系敵人會推薦火系加農砲（${iceWave.join(",")}）`);
   assert(batWave.includes("frost"), `雷系/高速敵人會推薦寒冰塔（${batWave.join(",")}）`);
   assert(shieldWave.includes("poison"), `盾兵與高血敵會推薦毒霧塔（${shieldWave.join(",")}）`);
+  assert(muteWave.includes("beacon"), `緘口/高速波會推薦引魂燈塔（${muteWave.join(",")}）`);
+  assert(auraWave.includes("mortar"), `守門光環/高血波會推薦墜星臼砲（${auraWave.join(",")}）`);
   assert(bossWave.length <= 3 && bossWave.some((item) => item.id === "tesla") && bossWave.every((item) => item.reason),
     `Boss/火系混波會推薦含理由的前三塔種（${bossWave.map((item) => `${item.id}:${item.reason}`).join(" / ")}）`);
+}
+
+console.log("\n== P0：新敵機制純規則 ==");
+{
+  const enemy = { x: 100, y: 100 };
+  const towers = [
+    { type: "arrow", x: 80, y: 100, order: 2 },
+    { type: "cannon", x: 120, y: 100, order: 1 },
+    { type: "frost", x: 160, y: 100, order: 0 },
+  ];
+  const picked = selectTowerMuteTarget(enemy, towers, 50);
+  assert(picked && picked.index === 1 && picked.tower.type === "cannon",
+    `towerMute 同距時取建造序較早者（${picked && picked.tower.type}）`);
+  const near = selectTowerMuteTarget(enemy, towers, 10);
+  assert(near === null, "towerMute 範圍外不選塔");
 }
 
 console.log("\n== R25：塔陣顧問、克制警告與存檔保護 ==");
@@ -355,7 +375,8 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   for (let w = 3; w <= 50; w++) {
     generateWaveQueue(w, cfg.DIFFICULTIES.normal, makeRng(w * 17)).queue.forEach((spec) => seen.add(spec.type));
   }
-  assert(seen.has("shieldman") && seen.has("medic") && seen.has("emberbat") && seen.has("frostwraith") && seen.has("thunderronin") && seen.has("lavagolem") && seen.has("abysshound"),
+  assert(seen.has("shieldman") && seen.has("medic") && seen.has("emberbat") && seen.has("frostwraith") && seen.has("thunderronin") && seen.has("lavagolem") && seen.has("abysshound") &&
+    seen.has("silencer") && seen.has("mirrorling") && seen.has("warden"),
     `固定 rng 掃描可產出新敵人（${[...seen].join(",")}）`);
 
   const wave3Emberbat = generateWaveQueue(3, cfg.DIFFICULTIES.normal, sequenceRng([0.75]));
@@ -389,10 +410,25 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   const wave8NoAbyss = generateWaveQueue(8, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.96]));
   assert(!wave8NoAbyss.queue.some((spec) => spec.type === "abysshound"),
     "第 9 波前不會選出深淵獵犬");
-  const wave12Abyss = generateWaveQueue(12, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.96]));
+  const wave10Silencer = generateWaveQueue(10, cfg.DIFFICULTIES.brutal, sequenceRng([0.99, 0.92]));
+  assert(wave10Silencer.queue.some((spec) => spec.type === "silencer"),
+    "第 10 波起緘口妖僧可進預設池");
+  const wave10NoMirror = generateWaveQueue(10, cfg.DIFFICULTIES.brutal, sequenceRng([0.99, 0.94]));
+  assert(!wave10NoMirror.queue.some((spec) => spec.type === "mirrorling"),
+    "第 11 波前不會選出裂鏡童");
+  const wave11Mirror = generateWaveQueue(13, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.94]));
+  assert(wave11Mirror.queue.some((spec) => spec.type === "mirrorling"),
+    "第 11 波起裂鏡童可進預設池");
+  const wave11NoWarden = generateWaveQueue(11, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.97]));
+  assert(!wave11NoWarden.queue.some((spec) => spec.type === "warden"),
+    "第 12 波前不會選出裂界守門人");
+  const wave12Warden = generateWaveQueue(13, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.97]));
+  assert(wave12Warden.queue.some((spec) => spec.type === "warden"),
+    "第 12 波起裂界守門人可進預設池");
+  const wave12Abyss = generateWaveQueue(12, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.985]));
   assert(wave12Abyss.queue.some((spec) => spec.type === "abysshound"),
     "第 9 波後深淵獵犬可進預設池");
-  const wave12Ronin = generateWaveQueue(12, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.98]));
+  const wave12Ronin = generateWaveQueue(12, cfg.DIFFICULTIES.normal, sequenceRng([0.99, 0.96]));
   assert(wave12Ronin.queue.some((spec) => spec.type === "thunderronin"),
     "第 8 波後雷刃武士仍可進預設池");
   const boss1 = generateWaveQueue(5, cfg.DIFFICULTIES.normal, makeRng(5));
@@ -428,19 +464,29 @@ console.log("\n== 建塔格距離路徑判定 ==");
 
 console.log("\n== 事件波與 Boss 波互斥（三難度） ==");
 {
+  const seenEvents = new Set();
+  let pilgrimPlan = null;
   for (const diff of Object.values(cfg.DIFFICULTIES)) {
     let eventCount = 0;
     let overlap = 0;
     for (let w = 1; w <= 60; w++) {
       const plan = generateWaveQueue(w, diff, makeRng(w));
       const bossSpecs = plan.queue.filter((spec) => cfg.ENEMIES[spec.type] && cfg.ENEMIES[spec.type].boss).length;
-      if (plan.event) eventCount++;
+      if (plan.event) {
+        eventCount++;
+        seenEvents.add(plan.event.id);
+        if (plan.event.id === "pilgrim" && !pilgrimPlan) pilgrimPlan = plan;
+      }
       if (plan.event && plan.isBoss) overlap++;
       if (plan.isBoss && (plan.event || bossSpecs !== 1)) overlap++;
     }
     assert(eventCount >= 5, `${diff.label} 60 波內有事件波（${eventCount} 次）`);
     assert(overlap === 0, `${diff.label} 事件波與 Boss 波不互撞`);
   }
+  assert(seenEvents.has("eclipse") && seenEvents.has("pilgrim"),
+    `事件池包含 P0 新事件（${[...seenEvents].join(",")}）`);
+  assert(pilgrimPlan && pilgrimPlan.queue.some((spec) => spec.role === "pilgrim" && spec.rewardMul === 8),
+    "朝聖波 queue 會插入事件專用高獎勵朝聖者");
 }
 
 console.log("");

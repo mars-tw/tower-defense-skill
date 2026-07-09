@@ -103,7 +103,10 @@ const attackTowers = Object.values(TOWERS).filter((t) => !t.support);
 const towerStats = [];
 for (const t of Object.values(TOWERS)) {
   if (t.support) {
-    console.log(`  ${t.name}: 支援塔，Lv1 範圍=${t.range} 增傷=+${Math.round(t.buff * 100)}%，不列入直接 DPS CP`);
+    const supportText = t.slowAura
+      ? `暴露 + 減速 ${Math.round(t.slowAura * 100)}%`
+      : `增傷=+${Math.round((t.buff || 0) * 100)}%`;
+    console.log(`  ${t.name}: 支援塔，Lv1 範圍=${t.range} ${supportText}，不列入直接 DPS CP`);
     continue;
   }
   const dps1 = towerDPS(t, 1), cp1 = dps1 / t.cost;

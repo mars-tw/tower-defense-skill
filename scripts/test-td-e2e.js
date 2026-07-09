@@ -573,10 +573,55 @@ async function run() {
     assert(noTowerStart.disabled && noTowerStart.text.includes("先建一座塔") && noTowerStart.wave === 0 && noTowerStart.towers === 0,
       "未建塔時開始第 1 波按鈕提示先建一座塔");
 
+    const p0Narration = await page.evaluate(() => {
+      function addTower() {
+        window.TD.state().towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 999, order: 0 }];
+      }
+      window.TD.newGame({ runSeed: 13579, affixSeed: 24680 });
+      addTower();
+      window.TD.startWave();
+      const waveText = document.getElementById("log").innerText;
+
+      window.TD.newGame({ runSeed: 13579, affixSeed: 24680 });
+      const st = window.TD.state();
+      addTower();
+      let eventWave = null;
+      for (let w = 5; w <= 30; w++) {
+        st.wave = w - 1;
+        st.betweenWaves = true;
+        const p = window.TD.previewNextWave();
+        if (p.event) { eventWave = w; break; }
+      }
+      if (eventWave) {
+        st.wave = eventWave - 1;
+        st.betweenWaves = true;
+        window.TD.startWave();
+      }
+      const eventText = document.getElementById("log").innerText;
+
+      window.TD.newGame({ runSeed: 13579, affixSeed: 24680 });
+      addTower();
+      const bossState = window.TD.state();
+      bossState.wave = 4;
+      bossState.betweenWaves = true;
+      window.TD.startWave();
+      const bossText = document.getElementById("log").innerText;
+
+      window.TD.newGame({ runSeed: 13579, affixSeed: 24680 });
+      window.__tdUI();
+      return { waveText, eventText, bossText, eventWave };
+    });
+    assert(p0Narration.waveText.includes("神火初燃") && p0Narration.eventWave &&
+      (p0Narration.eventText.includes("連風都在逃") || p0Narration.eventText.includes("裂界") || p0Narration.eventText.includes("金光") || p0Narration.eventText.includes("神火被陰影") || p0Narration.eventText.includes("提燈") || p0Narration.eventText.includes("硬骨頭") || p0Narration.eventText.includes("翅聲")) &&
+      (p0Narration.bossText.includes("魔王低聲笑了") || p0Narration.bossText.includes("夜叉王舉刃")),
+      `波次節點、事件波與 Boss 旁白會在 startWave 投放（event wave ${p0Narration.eventWave || "none"}）`);
+
     if (vp.w === 1280) {
       const badges = await page.evaluate(() => ({
         arrow: document.querySelector('.tower-btn[data-type="arrow"]').dataset.hotkey,
         cannon: document.querySelector('.tower-btn[data-type="cannon"]').dataset.hotkey,
+        beacon: document.querySelector('.tower-btn[data-type="beacon"]').dataset.hotkey,
+        mortar: document.querySelector('.tower-btn[data-type="mortar"]').dataset.hotkey,
         meteor: document.querySelector('.skill-btn[data-skill="meteor"]').dataset.hotkey,
         freeze: document.querySelector('.skill-btn[data-skill="freeze"]').dataset.hotkey,
         start: document.getElementById("startBtn").dataset.hotkey,
@@ -584,7 +629,8 @@ async function run() {
         pause: document.getElementById("pauseBtn").dataset.hotkey,
         gacha: document.getElementById("gachaBtn").dataset.hotkey,
       }));
-      assert(badges.arrow === "1" && badges.cannon === "2" && badges.meteor === "Q" && badges.freeze === "W" &&
+      assert(badges.arrow === "1" && badges.cannon === "2" && badges.beacon === "9" && badges.mortar === "0" &&
+        badges.meteor === "Q" && badges.freeze === "W" &&
         badges.start === "⏎" && badges.speed2 === "T" && badges.pause === "P" && badges.gacha === "H",
         "快捷鍵徽章標在塔、技能、下一波、加速、暫停與抽英雄按鈕");
 
@@ -601,6 +647,13 @@ async function run() {
         pendingSkill: window.TD.state().pendingSkill,
       }));
       assert(!escCancel.selectedTowerType && !escCancel.pendingSkill, "Esc 取消選塔/待施放技能");
+
+      await page.keyboard.press("Digit9");
+      const beaconHotkey = await page.evaluate(() => window.TD.state().selectedTowerType);
+      await page.keyboard.press("Digit0");
+      const mortarHotkey = await page.evaluate(() => window.TD.state().selectedTowerType);
+      assert(beaconHotkey === "beacon" && mortarHotkey === "mortar", "按 9/0 可選引魂燈塔與墜星臼砲");
+      await page.keyboard.press("Escape");
 
       await page.keyboard.press("KeyQ");
       const skillHotkey = await page.evaluate(() => ({
@@ -788,6 +841,8 @@ async function run() {
         clearedWave: st.clearedWave,
         betweenWaves: st.betweenWaves,
         running: st.running,
+        skillCooldowns: Object.assign({}, st.skillCooldowns),
+        currentEvent: st.currentEvent,
       };
       st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
 
@@ -860,6 +915,51 @@ async function run() {
       window.TD.debug.step(0.05);
       const splitChildren = st.enemies.filter((enemy) => enemy._splitChild).length;
 
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      const beacon = { type: "beacon", level: 1, x: 220, y: 220, cx: 4, cy: 4, cd: 0, order: 0 };
+      const beaconEnemy = window.TD.debug.spawnEnemy("slime", { x: 230, y: 220, wp: 1, hp: 100, maxHp: 100, speed: 100 });
+      st.towers = [beacon];
+      window.TD.debug.step(0.05);
+      const beaconSlowFactor = beaconEnemy.beaconSlowFactor;
+      const beaconRevealed = beaconEnemy.revealedUntil > st.clock;
+      beaconEnemy.slowUntil = st.clock + 1;
+      beaconEnemy.slowFactor = 0.5;
+      window.TD.debug.step(0.05);
+      const combinedSlowFactor = Math.min(beaconEnemy.slowFactor, beaconEnemy.beaconSlowFactor);
+
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      const mortar = { type: "mortar", level: 1, x: 300, y: 300, cx: 6, cy: 6, cd: 0, order: 0 };
+      const nearMortarEnemy = window.TD.debug.spawnEnemy("slime", { x: 330, y: 300, wp: 1, hp: 100, maxHp: 100, speed: 0, walkDist: 100 });
+      const farMortarEnemy = window.TD.debug.spawnEnemy("slime", { x: 410, y: 300, wp: 1, hp: 100, maxHp: 100, speed: 0, walkDist: 300 });
+      st.towers = [mortar];
+      const mortarTarget = window.TD.debug.acquireTarget(mortar);
+      st.enemies = [nearMortarEnemy];
+      const mortarNearOnly = window.TD.debug.acquireTarget(mortar);
+
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      const muteA = { type: "arrow", level: 1, x: 80, y: 100, cx: 1, cy: 2, cd: 999, order: 2 };
+      const muteB = { type: "cannon", level: 1, x: 120, y: 100, cx: 2, cy: 2, cd: 999, order: 1 };
+      st.towers = [muteA, muteB];
+      window.TD.debug.spawnEnemy("silencer", { x: 100, y: 100, wp: 1, hp: 92, maxHp: 92, speed: 0 });
+      window.TD.debug.step(0.05);
+      const mutedByOrder = (muteB.mutedUntil || 0) > st.clock && !(muteA.mutedUntil > st.clock);
+
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      const mirror = window.TD.debug.spawnEnemy("mirrorling", { x: 200, y: 200, wp: 1, hp: 100, maxHp: 100, speed: 0 });
+      window.TD.debug.castSkill("meteor", 200, 200);
+      const mirrorAfterReflect = mirror.hp;
+      const mirrorReflected = mirror.reflectedSkill === true;
+      window.TD.debug.applyDamage(mirror, 30, { source: "skill" });
+      const mirrorAfterSecondSkill = mirror.hp;
+
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      const ally = window.TD.debug.spawnEnemy("slime", { x: 220, y: 220, wp: 1, hp: 100, maxHp: 100, speed: 0 });
+      window.TD.debug.spawnEnemy("warden", { x: 260, y: 220, wp: 1, hp: 150, maxHp: 150, speed: 0 });
+      const armoredDealt = window.TD.debug.applyDamage(ally, 40, { source: "tower" });
+      const armoredFlag = ally._armoredLastHit === true;
+      st.enemies = [ally];
+      const unarmoredDealt = window.TD.debug.applyDamage(ally, 40, { source: "tower" });
+
       st.towers = saved.towers;
       st.enemies = saved.enemies;
       st.bullets = saved.bullets;
@@ -870,7 +970,17 @@ async function run() {
       st.clearedWave = saved.clearedWave;
       st.betweenWaves = saved.betweenWaves;
       st.running = saved.running;
-      return { afterHit, afterDot, stacks, poisonDps1, poisonDps4, highStackDps, leakEnemyType, leakByType, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB, goblinDodged, orcRaged, splitChildren };
+      st.skillCooldowns = saved.skillCooldowns;
+      st.currentEvent = saved.currentEvent;
+      return {
+        afterHit, afterDot, stacks, poisonDps1, poisonDps4, highStackDps, leakEnemyType, leakByType, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB, goblinDodged, orcRaged, splitChildren,
+        beaconSlowFactor, beaconRevealed, combinedSlowFactor,
+        mortarTargetIsFar: mortarTarget === farMortarEnemy,
+        mortarNearOnlyNull: mortarNearOnly === null,
+        mutedByOrder,
+        mirrorAfterReflect, mirrorReflected, mirrorAfterSecondSkill,
+        armoredDealt, armoredFlag, unarmoredDealt,
+      };
     });
     assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
       `毒霧塔 DoT 生效（命中後 ${stage4Combat.afterHit.toFixed(1)} → tick 後 ${stage4Combat.afterDot.toFixed(1)}，層數 ${stage4Combat.stacks}）`);
@@ -886,6 +996,16 @@ async function run() {
       "同等聖光塔重疊時，單座顯示邊際 DPS 為 0");
     assert(stage4Combat.goblinDodged && stage4Combat.orcRaged && stage4Combat.splitChildren === 1,
       "敵人能力觸發：哥布林首擊閃避、獸人殘血狂暴、蝙蝠死亡分裂");
+    assert(Math.abs(stage4Combat.beaconSlowFactor - 0.85) < 0.001 && stage4Combat.beaconRevealed && stage4Combat.combinedSlowFactor === 0.5,
+      `引魂燈塔暴露並 15% 減速，與寒冰取高不疊乘（beacon ${stage4Combat.beaconSlowFactor}, combined ${stage4Combat.combinedSlowFactor}）`);
+    assert(stage4Combat.mortarTargetIsFar && stage4Combat.mortarNearOnlyNull,
+      "墜星臼砲不攻擊 minRange 內敵人，會選外環目標");
+    assert(stage4Combat.mutedByOrder,
+      "緘口妖僧 towerMute 同距時依建造序選中較早塔");
+    assert(stage4Combat.mirrorReflected && stage4Combat.mirrorAfterReflect === 100 && stage4Combat.mirrorAfterSecondSkill === 70,
+      `裂鏡童反射第一次技能傷害，第二次技能才生效（${stage4Combat.mirrorAfterReflect} → ${stage4Combat.mirrorAfterSecondSkill}）`);
+    assert(Math.abs(stage4Combat.armoredDealt - 30) < 0.01 && stage4Combat.armoredFlag && Math.abs(stage4Combat.unarmoredDealt - 40) < 0.01,
+      `裂界守門人 auraArmor 讓友軍受擊 ×0.75（${stage4Combat.armoredDealt} / ${stage4Combat.unarmoredDealt}）`);
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");
@@ -993,11 +1113,18 @@ async function run() {
     // 3. 魂晶不足：第二抽（成本 20）應被擋
     const gacha2 = await page.evaluate(() => {
       const before = JSON.parse(localStorage.getItem("td_meta_v1"));
+      const cost = window.TD.config.GACHA.cost;
+      if (before.soulCrystal >= cost) {
+        before.soulCrystal = cost - 1;
+        localStorage.setItem("td_meta_v1", JSON.stringify(before));
+        window.__tdUI();
+      }
       document.getElementById("gachaBtn").click();
       const after = JSON.parse(localStorage.getItem("td_meta_v1"));
-      return { btnDisabled: document.getElementById("gachaBtn").disabled, countBefore: before.gachaCount, countAfter: after.gachaCount };
+      return { btnDisabled: document.getElementById("gachaBtn").disabled, beforeCrystal: before.soulCrystal, cost, countBefore: before.gachaCount, countAfter: after.gachaCount };
     });
-    assert(gacha2.btnDisabled === true && gacha2.countAfter === gacha2.countBefore, "魂晶不足時抽卡被擋（按鈕 disabled、抽數不變）");
+    assert(gacha2.btnDisabled === true && gacha2.beforeCrystal < gacha2.cost && gacha2.countAfter === gacha2.countBefore,
+      `魂晶不足時抽卡被擋（${gacha2.beforeCrystal}💎，按鈕 disabled、抽數不變）`);
 
     // 4. 不預置魂晶：靠建塔/首波/上場/升級/施法任務湊滿第二抽
     const missionPathToSecondDraw = await page.evaluate(() => {

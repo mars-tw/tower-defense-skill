@@ -2,7 +2,7 @@
 
 | 項目 | 結論 |
 |------|------|
-| 入版版本 | `td-r50-v1` / `0.5.0` |
+| 入版版本 | `td-r51-v1` / `0.5.1` |
 | 必修 | 採納 R2-S1：新增 run-level salt，`waveSeed = hash(runSeed, affixSeed, wave)` |
 | 保證 | 同局內 `previewNextWave()` 與 `startWave()` 仍共用同一 `waveSeed`，預告 queue = 實波 queue |
 | 存檔 | `META_VERSION = 7`，舊 meta 無 `runSeed` 時補 deterministic 預設 `1`；匯出/匯入保留 `runSeed` |
@@ -43,7 +43,7 @@
 
 ## 版本與守門
 
-- 版本同步：`package.json` / `package-lock.json` = `0.5.0`，`sw.js` / `index.html` = `td-r50-v1`，manifest 與 JS refs 皆 `?v=td-r50-v1`。
+- 版本同步：`package.json` / `package-lock.json` = `0.5.1`，`sw.js` / `index.html` = `td-r51-v1`，manifest 與 JS refs 皆 `?v=td-r51-v1`。
 - repo 沒有 `version.js`；本輪同步現有版本來源。
 - live 檔 grep：`td-r49-v1`、`0.4.9` 在 `package*`、`index.html`、`sw.js`、`manifest`、`src`、`scripts`、`README`、`references` 皆 0 matches。
 - `npm test`：全綠。

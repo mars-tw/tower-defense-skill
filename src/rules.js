@@ -417,6 +417,23 @@
     };
   }
 
+  function selectTowerMuteTarget(enemy, towers, range) {
+    if (!enemy || !Array.isArray(towers)) return null;
+    const r = Math.max(0, safeNumber(range, 0));
+    let best = null;
+    for (let i = 0; i < towers.length; i++) {
+      const tw = towers[i];
+      if (!tw || !isFiniteNumber(tw.x) || !isFiniteNumber(tw.y)) continue;
+      const d = Math.hypot(tw.x - safeNumber(enemy.x, 0), tw.y - safeNumber(enemy.y, 0));
+      if (d > r) continue;
+      const order = isFiniteNumber(tw.order) ? tw.order : i;
+      if (!best || d < best.distance - 1e-9 || (Math.abs(d - best.distance) <= 1e-9 && order < best.order)) {
+        best = { index: i, tower: tw, distance: d, order };
+      }
+    }
+    return best;
+  }
+
   function pickDefaultEnemy(wave, roll) {
     if (wave < 3) {
       if (roll < 0.62) return "slime";
@@ -431,9 +448,11 @@
     if (roll < 0.78) return "emberbat";
     if (roll < 0.86) return wave >= 5 ? "shieldman" : "imp";
     if (roll < 0.90) return wave >= 7 ? "lavagolem" : (wave >= 6 ? "frostwraith" : "frostwolf");
-    if (roll < 0.94) return wave >= 7 ? "medic" : "bat";
-    if (roll < 0.97) return wave >= 9 ? "abysshound" : (wave >= 8 ? "thunderronin" : "frostwolf");
-    if (roll < 0.99) return wave >= 8 ? "thunderronin" : "orc";
+    if (roll < 0.93) return wave >= 10 ? "silencer" : (wave >= 7 ? "medic" : "bat");
+    if (roll < 0.95) return wave >= 11 ? "mirrorling" : (wave >= 9 ? "abysshound" : (wave >= 8 ? "thunderronin" : "frostwolf"));
+    if (roll < 0.965) return wave >= 8 ? "thunderronin" : "orc";
+    if (roll < 0.98) return wave >= 12 ? "warden" : (wave >= 9 ? "abysshound" : "orc");
+    if (roll < 0.99) return wave >= 9 ? "abysshound" : (wave >= 8 ? "thunderronin" : "orc");
     return "orc";
   }
 
@@ -444,6 +463,9 @@
     if (type === "medic") return wave >= 7;
     if (type === "thunderronin") return wave >= 8;
     if (type === "abysshound") return wave >= 9;
+    if (type === "silencer") return wave >= 10;
+    if (type === "mirrorling") return wave >= 11;
+    if (type === "warden") return wave >= 12;
     return true;
   }
 
@@ -476,6 +498,23 @@
         type = pickDefaultEnemy(w, rand());
       }
       queue.push({ type, hpScale: eventHpScale, event, affix: affix ? affix.id : null });
+    }
+
+    if (event && event.id === "pilgrim" && event.special && hasOwn(cfg.ENEMIES, event.special.type)) {
+      const special = event.special;
+      queue.unshift({
+        type: special.type,
+        hpScale: eventHpScale * safeNumber(special.hpMul, 1),
+        speedMul: safeNumber(special.speedMul, 1),
+        rewardMul: safeNumber(special.rewardMul, 1),
+        leakOverride: isFiniteNumber(special.leak) ? special.leak : null,
+        role: special.role || "pilgrim",
+        nameOverride: special.name || null,
+        emojiOverride: special.emoji || null,
+        colorOverride: special.color || null,
+        event,
+        affix: affix ? affix.id : null,
+      });
     }
 
     if (isBoss) {
@@ -520,12 +559,23 @@
       if (f.highHp > 0) return "持續傷害適合高血敵與 Boss。";
       return "穩定疊毒，適合慢速或耐久敵人。";
     }
+    if (towerId === "beacon") {
+      if (f.fast > 0) return "引魂燈塔用暴露與小幅減速拖住高速敵，不與寒冰減速疊乘。";
+      if (f.mute > 0) return "緘口妖僧靠近前先被暴露拖速，主力塔較不易一起噤聲。";
+      return "不做傷害，補支援與資訊控場位置。";
+    }
+    if (towerId === "mortar") {
+      if (f.aura > 0) return "墜星臼砲可在最短射程外轟掉守門光環核心。";
+      if (f.healer > 0) return "大範圍爆破能壓醫官與護衛群。";
+      if (f.ice > 0) return "火系高爆克制冰系敵群，但需要留出最短射程。";
+      return "高傷大爆破適合中後段密集敵群。";
+    }
     if (towerId === "support") return "主力塔成形後增傷，放在核心火力區。";
     return "便宜高攻速，適合補刀與觸發閃避後追擊。";
   }
 
   function waveFactsFromCounts(counts) {
-    const facts = { physical: 0, fire: 0, ice: 0, thunder: 0, shield: 0, healer: 0, fast: 0, highHp: 0, boss: 0, split: 0, total: 0 };
+    const facts = { physical: 0, fire: 0, ice: 0, thunder: 0, shield: 0, healer: 0, fast: 0, highHp: 0, boss: 0, split: 0, mute: 0, reflect: 0, aura: 0, total: 0 };
     for (const [type, count] of Object.entries(counts || {})) {
       const enemy = cfg.ENEMIES[type];
       if (!enemy) continue;
@@ -538,6 +588,9 @@
       if (enemy.hp >= 100) facts.highHp += n;
       if (enemy.boss) facts.boss += n;
       if (enemy.ability && enemy.ability.id === "splitBat") facts.split += n;
+      if (enemy.ability && enemy.ability.id === "towerMute") facts.mute += n;
+      if (enemy.ability && enemy.ability.id === "reflectOnce") facts.reflect += n;
+      if (enemy.ability && enemy.ability.id === "auraArmor") facts.aura += n;
     }
     return facts;
   }
@@ -554,19 +607,28 @@
         const enemy = cfg.ENEMIES[type];
         if (!enemy) continue;
         const n = Math.max(0, Math.floor(safeNumber(count, 0)));
-        const mul = cfg.elementMultiplier ? cfg.elementMultiplier(tower.element, enemy.element) : 1;
-        score += n * mul;
-        if (cfg.COUNTERS && cfg.COUNTERS[tower.element] === enemy.element) score += n * 0.8;
-        if (tower.id === "arrow" && (enemy.element === "physical" || (enemy.ability && enemy.ability.id === "dodgeFirst"))) score += n * 0.35;
-        if (tower.id === "cannon" && (enemy.shield || enemy.healRadius || (enemy.ability && enemy.ability.id === "splitBat"))) score += n * 0.7;
-        if (tower.id === "frost" && (enemy.speed >= 80 || (enemy.ability && enemy.ability.id === "bloodrage"))) score += n * 0.85;
-        if (tower.id === "tesla" && (enemy.shield || enemy.healRadius || (enemy.ability && enemy.ability.id === "splitBat"))) score += n * 0.65;
-        if (tower.id === "poison" && (enemy.shield || enemy.hp >= 100 || enemy.boss)) score += n * 1.05;
+        if (!tower.support) {
+          const mul = cfg.elementMultiplier ? cfg.elementMultiplier(tower.element, enemy.element) : 1;
+          score += n * mul;
+          if (cfg.COUNTERS && cfg.COUNTERS[tower.element] === enemy.element) score += n * 0.8;
+          if (tower.id === "arrow" && (enemy.element === "physical" || (enemy.ability && enemy.ability.id === "dodgeFirst"))) score += n * 0.35;
+          if (tower.id === "cannon" && (enemy.shield || enemy.healRadius || (enemy.ability && enemy.ability.id === "splitBat"))) score += n * 0.7;
+          if (tower.id === "frost" && (enemy.speed >= 80 || (enemy.ability && enemy.ability.id === "bloodrage"))) score += n * 0.85;
+          if (tower.id === "tesla" && (enemy.shield || enemy.healRadius || (enemy.ability && enemy.ability.id === "splitBat"))) score += n * 0.65;
+          if (tower.id === "poison" && (enemy.shield || enemy.hp >= 100 || enemy.boss)) score += n * 1.05;
+          if (tower.id === "mortar" && (enemy.healRadius || enemy.shield || enemy.hp >= 120 || (enemy.ability && enemy.ability.id === "auraArmor"))) score += n * 0.95;
+        }
+        if (tower.id === "beacon" && (enemy.speed >= 80 || (enemy.ability && enemy.ability.id === "towerMute"))) score += n * 1.05;
       }
       if (tower.id === "support") {
         score += facts.total >= 12 ? 4 : 0;
         score += facts.boss ? 3 : 0;
         score += facts.highHp >= 2 ? 1.5 : 0;
+      }
+      if (tower.id === "beacon") {
+        score += facts.fast ? 2.5 : 0;
+        score += facts.mute ? 2 : 0;
+        score += facts.total >= 12 ? 1 : 0;
       }
       recommendations.push({
         id: tower.id,
@@ -930,6 +992,9 @@
     const enemy = top.enemy;
     if (enemy.speed >= 80 && !towerCounts.frost) return { cause: "fast", text: `${enemy.name}未被減速` };
     if (enemy.ability && enemy.ability.id === "splitBat" && !towerCounts.frost) return { cause: "fast", text: `${enemy.name}分裂後缺少緩速攔截` };
+    if (enemy.ability && enemy.ability.id === "towerMute") return { cause: "mute", text: `${enemy.name}讓核心塔噤聲，火力短暫中斷` };
+    if (enemy.ability && enemy.ability.id === "reflectOnce") return { cause: "reflect", text: `${enemy.name}反射首次技能，爆發沒有打穿` };
+    if (enemy.ability && enemy.ability.id === "auraArmor") return { cause: "aura", text: `${enemy.name}替附近敵人減傷，清場變慢` };
     if (enemy.shield && !towerCounts.poison) return { cause: "shield", text: `${enemy.name}護盾未被毒塔穿透` };
     if ((enemy.boss || enemy.hp >= 120) && !towerCounts.poison && !towerCounts.cannon) return { cause: "durable", text: `${enemy.name}血量高，單體火力不足` };
     const counterElement = Object.entries(cfg.COUNTERS || {}).find((item) => item[1] === enemy.element);
@@ -962,6 +1027,24 @@
       return [
         "Boss 或高血波前升級主力加農砲，避免火力分散。",
         "補毒霧塔或聖光塔提高長時間輸出效率。",
+      ];
+    }
+    if (reason.cause === "mute") {
+      return [
+        "把主力塔分散，不要讓緘口妖僧一次封住核心輸出。",
+        "補引魂燈塔或寒冰塔拖慢牠靠近，再用弓箭塔與狙擊塔先點掉。",
+      ];
+    }
+    if (reason.cause === "reflect") {
+      return [
+        "遇裂鏡童先用塔火力拆反射，不要把第一發隕石砸在牠身上。",
+        "毒霧塔與電磁塔能用持續或多段輸出穩定破鏡。",
+      ];
+    }
+    if (reason.cause === "aura") {
+      return [
+        "優先集火裂界守門人，解除周邊減傷光環。",
+        "加農砲或墜星臼砲放在中段，利用範圍傷害連同護衛一起清掉。",
       ];
     }
     if (reason.cause === "counter") {
@@ -1141,6 +1224,7 @@
     analyzeRunReport,
     protectMetaWrite,
     applyDifficulty,
+    selectTowerMuteTarget,
     waveRngSeed,
     generateWaveQueue,
     towerPoisonDpsFor,

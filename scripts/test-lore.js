@@ -12,10 +12,18 @@ const {
   CAMPAIGN_CHAPTERS,
   HERO_LEGENDS,
   ORACLE_WHISPERS,
+  MAP_LORE,
+  WAVE_BEATS,
+  EVENT_FLAVOR,
+  BOSS_INTRO,
   legendStageFor,
   campaignUnlockState,
   evaluateCampaignUnlocks,
   oracleWhisper,
+  mapLoreFor,
+  waveBeatFor,
+  eventFlavorFor,
+  bossIntroFor,
 } = lore;
 
 let failed = 0;
@@ -41,6 +49,17 @@ assert(ORACLE_WHISPERS.length >= 10, `神諭短語至少 10 句（${ORACLE_WHISP
 assert(oracleWhisper(0) === ORACLE_WHISPERS[0] && oracleWhisper(ORACLE_WHISPERS.length) === ORACLE_WHISPERS[0],
   "oracleWhisper 依 index 輪替");
 assert(oracleWhisper(-1) === ORACLE_WHISPERS[ORACLE_WHISPERS.length - 1], "oracleWhisper 支援負 index 正規化");
+assert(MAP_LORE && ["plains", "canyon", "lava"].every((id) => MAP_LORE[id] && MAP_LORE[id].lines.length >= 2),
+  "三張地圖都有至少兩句短地誌");
+assert(mapLoreFor("canyon").title === "迂迴峽谷" && mapLoreFor("missing").title === "翠綠平原",
+  "mapLoreFor 可查地圖 lore 並對未知值 fallback");
+assert(WAVE_BEATS && [1, 5, 10, 15].every((w) => waveBeatFor(w) && waveBeatFor(w).title && waveBeatFor(w).line),
+  "至少四個波次節點有標題與一行旁白");
+assert(waveBeatFor(2) === null, "未設定的波次節點回傳 null");
+assert(EVENT_FLAVOR.eclipse && EVENT_FLAVOR.pilgrim && eventFlavorFor("eclipse").length > 0 && eventFlavorFor("pilgrim").length > 0,
+  "P0 新事件有事件波進場旁白");
+assert(BOSS_INTRO.boss && BOSS_INTRO.yaksha && bossIntroFor("boss").length > 0 && bossIntroFor("yaksha").length > 0,
+  "兩個 Boss 都有登場台詞");
 
 console.log("\n== 戰役編年解鎖 ==");
 {

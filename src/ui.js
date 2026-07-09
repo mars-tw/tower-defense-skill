@@ -22,7 +22,7 @@
   let advisorMode = "control";
   let warningSerial = 0;
   let recoveryNoticeShown = false;
-  const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6", sniper: "7", arcane: "8" };
+  const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6", sniper: "7", arcane: "8", beacon: "9", mortar: "0" };
   const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E", judgment: "R", sealarray: "A" };
   const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
   const SKILL_BY_KEY = Object.fromEntries(Object.entries(SKILL_HOTKEYS).map(([id, key]) => [key.toLowerCase(), id]));
@@ -31,6 +31,7 @@
   const TEXT_SIZE_LABELS = { small: "小", medium: "中", large: "大" };
   const notifiedCodexKeys = new Set();
   let textSize = loadTextSize();
+  let drainedIntroCount = 0;
 
   function normalizeTextSize(value) {
     return hasOwn(TEXT_SIZE_LABELS, value) ? value : "medium";
@@ -92,10 +93,12 @@
 
   // ===== 建塔選單（補關鍵數值與元素，D3 資訊透明）=====
   function towerMetaText(t) {
+    if (t.slowAura) return `範圍 ${t.range} · 暴露 · 減速 ${Math.round(t.slowAura * 100)}%`;
     if (t.support) return `範圍 ${t.range} · 增傷 +${Math.round(t.buff * 100)}%`;
     const extra = t.poisonDps ? ` · 毒 ${t.poisonDps}/秒` : "";
     const control = t.id === "frost" ? " · 控場減速" : "";
-    return `傷 ${t.damage} · 程 ${t.range} · 速 ${t.fireRate}/秒${extra}${control}`;
+    const minRange = t.minRange ? ` · 盲區 ${t.minRange}` : "";
+    return `傷 ${t.damage} · 程 ${t.range}${minRange} · 速 ${t.fireRate}/秒${extra}${control}`;
   }
   const towerList = $("towerList");
   Object.values(TOWERS).forEach((t) => {
@@ -535,6 +538,7 @@
         <section class="codex-world">
           <h3>${LORE.WORLD_LORE.title}</h3>
           ${LORE.WORLD_LORE.body.map((p) => `<p>${p}</p>`).join("")}
+          ${(LORE.MAP_LORE ? Object.values(LORE.MAP_LORE).map((m) => `<p><b>${m.title}</b>：${(m.lines || []).join(" ")}</p>`).join("") : "")}
           <div class="oracle-card"><b>神諭低語</b><span>${LORE.oracleWhisper ? LORE.oracleWhisper((m.bestWave || 0) + (TD.state().wave || 0)) : ""}</span></div>
         </section>`;
     }
@@ -834,7 +838,8 @@
       <div class="enemy-title">${e.emoji || ""} ${e.name}</div>
       <div class="enemy-stats">血量 ${e.hp}${e.shield ? ` + 護盾 ${e.shield}` : ""} · 速度 ${e.speed} · 元素 ${ELEM_ICON[e.element]}${ELEM_LABEL[e.element]}</div>
       <div class="enemy-trait">特性：${enemyTrait(e)}</div>
-      <div class="enemy-counter">反制：${e.counterHint || "用克制元素塔集火，必要時補寒冰塔控場。"}</div>`;
+      <div class="enemy-counter">反制：${e.counterHint || "用克制元素塔集火，必要時補寒冰塔控場。"}</div>
+      ${e.loreLine ? `<div class="enemy-counter">裂界註記：${e.loreLine}</div>` : ""}`;
     document.querySelectorAll(".enemy-chip-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.enemy === id));
   }
 
@@ -1029,7 +1034,9 @@
       const tw = st.selectedTower, def = TOWERS[tw.type];
       const maxed = tw.level >= TD.config.UPGRADE.maxLevel;
       let statLine;
-      if (def.support) {
+      if (def.slowAura) {
+        statLine = `暴露敵人 · 減速 ${Math.round(def.slowAura * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}<br>與寒冰塔取較強減速，不造成傷害`;
+      } else if (def.support) {
         const gain = TD.supportDpsGain ? TD.supportDpsGain(tw) : 0;
         statLine = `增傷 +${Math.round(TD.towerStat(tw, "buff") * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}<br>目前加成 +${gain.toFixed(1)} DPS`;
       } else {
@@ -1037,7 +1044,8 @@
         const effective = TD.effectiveTowerDamage ? TD.effectiveTowerDamage(tw) : TD.towerStat(tw, "damage");
         const poisonDps = def.poisonDps && TD.towerStat ? TD.towerStat(tw, "poisonDps") : def.poisonDps;
         const poison = def.poisonDps ? `<br>毒素 ${poisonDps.toFixed(1)}/秒 · ${def.poisonDuration} 秒 · 最多 ${def.poisonMaxStacks} 層` : "";
-        statLine = `傷害 ${Math.round(effective)}${buff > 0 ? `（聖光 +${Math.round(buff * 100)}%）` : ""} · 射程 ${Math.round(TD.towerStat(tw, "range"))}${poison}`;
+        const blind = def.minRange ? ` · 盲區 ${Math.round(TD.towerStat(tw, "minRange"))}` : "";
+        statLine = `傷害 ${Math.round(effective)}${buff > 0 ? `（聖光 +${Math.round(buff * 100)}%）` : ""} · 射程 ${Math.round(TD.towerStat(tw, "range"))}${blind}${poison}`;
       }
       $("selInfo").innerHTML = `
         <b>${def.emoji} ${def.name}</b> Lv.${tw.level}<br>
@@ -1646,6 +1654,11 @@
     getTextSize: () => textSize,
     renderPwaSettings,
   };
+  if (TD.drainIntroLogs) {
+    const intro = TD.drainIntroLogs();
+    drainedIntroCount = intro.length;
+    intro.forEach((msg) => pushLog(msg));
+  }
 
   function handleRuntimeFault() {
     saveMeta(loadMeta());
@@ -1670,11 +1683,14 @@
       const opt = document.createElement("button");
       opt.className = "map-opt" + (m.id === lastMap ? " active" : "");
       const goldText = m.goldMul === 1 ? "標準資源" : `資源 ${Math.round(m.goldMul * 100)}%`;
+      const mapLore = LORE.mapLoreFor ? LORE.mapLoreFor(m.id) : null;
+      const loreText = mapLore && Array.isArray(mapLore.lines) ? mapLore.lines.slice(0, 2).join(" ") : "";
       opt.innerHTML = `
         <span class="demoji">${m.emoji}</span>
         <span class="dinfo">
           <span class="dname">${m.label}</span>
           <span class="ddesc">${m.desc}</span>
+          ${loreText ? `<span class="ddesc">${loreText}</span>` : ""}
           <span class="dbest">${goldText} · 路徑節點 ${m.path.length}</span>
         </span>`;
       opt.onclick = () => {
@@ -1773,5 +1789,5 @@
 
   renderRoster();
   refreshUI();
-  pushLog("放置砲塔、抽英雄上場守護女神！火克冰、冰克雷、雷克火。");
+  if (!drainedIntroCount) pushLog("放置砲塔、抽英雄上場守護女神！火克冰、冰克雷、雷克火。");
 })();

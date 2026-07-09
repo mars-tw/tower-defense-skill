@@ -230,6 +230,33 @@
   function randomRunSeed() {
     return Math.floor(Math.random() * 0x7fffffff) + 1;
   }
+  function pathLength(path) {
+    let total = 0;
+    for (let i = 0; i < path.length - 1; i++) total += Math.hypot(path[i + 1].x - path[i].x, path[i + 1].y - path[i].y);
+    return Math.max(1, total);
+  }
+  function getLore() { return window.TD_LORE || {}; }
+  function openingLoreLines(mapDef, affix) {
+    const lore = getLore();
+    const mapLore = lore.mapLoreFor ? lore.mapLoreFor(mapDef.id) : null;
+    const lines = [];
+    if (mapLore && Array.isArray(mapLore.lines)) {
+      lines.push(`${mapDef.emoji || ""} ${mapLore.title}：${mapLore.lines[0]}`);
+      if (mapLore.lines[1]) lines.push(mapLore.lines[1]);
+    } else {
+      lines.push(`${mapDef.emoji || ""} ${mapDef.label}：${mapDef.desc}`);
+    }
+    if (affix) {
+      const whisper = lore.oracleWhisper ? lore.oracleWhisper((state && state.affixSeed) || 0) : "";
+      lines.push(`${affix.emoji} 詞綴「${affix.label}」：${affix.desc}${whisper ? `｜${whisper}` : ""}`);
+    }
+    return lines;
+  }
+  function emitIntroLogs() {
+    if (!state || !state.introLogs || !state.introLogs.length || typeof window.__tdLog !== "function") return;
+    const items = state.introLogs.splice(0);
+    items.forEach((msg) => log(msg));
+  }
 
   function newGame(options) {
     const opts = options || {};
@@ -250,6 +277,7 @@
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       mapId: mapDef.id, mapDef, path, runSeed, affixSeed, affix,
+      pathTotalLength: pathLength(path),
       waveSeeds: {}, backgroundCache: null, buildableReachCache: null,
       performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
@@ -262,12 +290,17 @@
       pendingSkill: null,         // 準備施放的技能
       skillCooldowns: {},         // 技能冷卻計時
       speed: 1,                    // 遊戲速度倍率
+      towerSeq: 0,
+      enemySeq: 0,
       advisorMode: "control",
       advisorBuildConfirm: false,
       advisorUpgradeTarget: null,
     };
+    state.introLogs = openingLoreLines(mapDef, affix);
+    state.banner = { text: mapDef.label, color: "#fde047", life: 2.0 };
     Object.keys(SKILLS).forEach((k) => (state.skillCooldowns[k] = 0));
     state.map = buildMapLayout(); // 亂數地圖佈局
+    emitIntroLogs();
     notifyUI(true);
   }
 
@@ -349,12 +382,24 @@
     state.spawnQueue = plan.queue;
     state.spawnTimer = 0;
     startLoop();
+    const lore = getLore();
+    const beat = lore.waveBeatFor ? lore.waveBeatFor(w) : null;
+    if (beat) {
+      log(`【${beat.title}】${beat.line}`);
+      flashBanner(beat.title, "#facc15");
+    }
     if (ev) {
-      log(`${ev.emoji} 第 ${w} 波【${ev.label}】${ev.desc}`);
+      const flavor = lore.eventFlavorFor ? lore.eventFlavorFor(ev.id) : "";
+      log(`${ev.emoji} 第 ${w} 波【${ev.label}】${ev.desc}${flavor ? `｜${flavor}` : ""}`);
       flashBanner(`${ev.emoji} ${ev.label}`, ev.color); // 畫面橫幅提示
     } else {
       log(`第 ${w} 波來襲！${isBoss ? "⚠️ Boss 出現！" : ""}`);
-      if (isBoss) flashBanner("⚠️ BOSS 來襲", "#dc2626");
+      if (isBoss) {
+        const bossSpec = plan.queue.find((spec) => ENEMIES[spec.type] && ENEMIES[spec.type].boss);
+        const bossLine = bossSpec && lore.bossIntroFor ? lore.bossIntroFor(bossSpec.type) : "";
+        if (bossLine) log(bossLine, "bad");
+        flashBanner("⚠️ BOSS 來襲", "#dc2626");
+      }
     }
     if (w === 1 && state.affix) log(`${state.affix.emoji} 本局詞綴：${state.affix.label}｜${state.affix.desc}`);
     notifyUI();
@@ -367,6 +412,11 @@
   function affixMul(key) {
     const affix = state && state.affix;
     const val = affix && typeof affix[key] === "number" ? affix[key] : 1;
+    return Number.isFinite(val) ? val : 1;
+  }
+  function eventMul(key) {
+    const ev = state && state.currentEvent;
+    const val = ev && typeof ev[key] === "number" ? ev[key] : 1;
     return Number.isFinite(val) ? val : 1;
   }
 
@@ -414,16 +464,20 @@
     const affix = state.affix || null;
     const maxHp = Math.round(def.hp * scale);
     const maxShield = def.shield ? Math.round(def.shield * scale) : 0;
+    const seq = state.enemySeq = (state.enemySeq || 0) + 1;
     return Object.assign({
       ...def, type, x: state.path[0].x, y: state.path[0].y, wp: 1,
-      speed: def.speed * (ev ? ev.speedMul : 1) * (affix ? affixMul("enemySpeedMul") : 1), // 事件波/詞綴速度
-      reward: Math.round(def.reward * (ev ? ev.goldMul : 1) * (affix ? affixMul("killGoldMul") : 1)), // 事件波/詞綴金錢
+      name: spec.nameOverride || def.name,
+      emoji: spec.emojiOverride || def.emoji,
+      speed: def.speed * (ev ? ev.speedMul : 1) * (spec.speedMul || 1) * (affix ? affixMul("enemySpeedMul") : 1), // 事件波/詞綴速度
+      reward: Math.round(def.reward * (ev ? ev.goldMul : 1) * (spec.rewardMul || 1) * (affix ? affixMul("killGoldMul") : 1)), // 事件波/詞綴金錢
+      leak: spec.leakOverride == null ? def.leak : spec.leakOverride,
       hp: maxHp, maxHp, shield: maxShield, maxShield, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
       poisonStacks: [], _poisonAcc: 0, _poisonFloatAt: 0, healCd: def.healInterval || 0,
       walkDist: 0, animSeed: Math.random() * Math.PI * 2, vx: 1, vy: 0, flipX: false, hitFlash: 0, hitKick: 0,
-      event: ev, color: ev && ev.id === "elite" ? "#a855f7" : def.color, // 精英波變色
+      event: ev, role: spec.role || null, color: spec.colorOverride || (ev && ev.id === "elite" ? "#a855f7" : def.color), // 精英波變色
       _dodgeRoll: Math.random(),
-      uid: "e" + (Math.random() * 1e9 | 0),
+      uid: "e" + seq,
     }, overrides || {});
   }
 
@@ -434,12 +488,40 @@
     ring(e.x, e.y, "#a855f7", 34);
   }
 
+  function auraArmorMulFor(target, opts) {
+    if (!target || opts && opts.ignoreAuraArmor) return 1;
+    let mul = 1;
+    for (const source of state.enemies) {
+      if (!source || source === target || source._dead) continue;
+      const ability = source.ability;
+      if (!ability || ability.id !== "auraArmor") continue;
+      const radius = ability.radius || 0;
+      if (radius <= 0 || Math.hypot(source.x - target.x, source.y - target.y) > radius) continue;
+      mul = Math.min(mul, ability.damageMul || 0.75);
+    }
+    return mul;
+  }
+
   function applyDamage(e, amount, opts) {
     if (!e || e._dead || e._leaked) return 0;
     opts = opts || {};
     let dmg = Math.max(0, amount || 0);
     if (dmg <= 0) return 0;
     e._dodgedLastHit = false;
+    e._reflectedLastHit = false;
+    e._armoredLastHit = false;
+    if (opts.source === "skill" && e.ability && e.ability.id === "reflectOnce" && !e.reflectedSkill) {
+      e.reflectedSkill = true;
+      e._reflectedLastHit = true;
+      flashText(e.x, e.y - 14, "反射", { color: "#f0abfc", size: 13 });
+      ring(e.x, e.y, "#e879f9", 34);
+      return 0;
+    }
+    const armorMul = auraArmorMulFor(e, opts);
+    if (armorMul < 1) {
+      dmg *= armorMul;
+      e._armoredLastHit = true;
+    }
     if (!opts.bypassShield && !opts.noDodge && e.ability && e.ability.id === "dodgeFirst" && !e._dodgeTried) {
       e._dodgeTried = true;
       if ((e._dodgeRoll || 0) < (e.ability.chance || 0)) {
@@ -523,6 +605,22 @@
         e.color = "#f97316";
         flashText(e.x, e.y - 14, "狂暴", { color: "#fb923c", size: 13 });
       }
+      if (e.ability && e.ability.id === "towerMute") {
+        e.muteCd = (e.muteCd || 0) - dt;
+        if (e.muteCd <= 0) {
+          const range = e.ability.range || 0;
+          const target = TDRules.selectTowerMuteTarget ? TDRules.selectTowerMuteTarget(e, state.towers, range) : null;
+          if (target && target.tower) {
+            target.tower.mutedUntil = Math.max(target.tower.mutedUntil || 0, state.clock + (e.ability.duration || 2));
+            target.tower.lastMutedBy = e.uid;
+            flashText(target.tower.x, target.tower.y - 18, "噤聲", { color: "#f0abfc", size: 13 });
+            ring(target.tower.x, target.tower.y, "#c084fc", 28);
+            e.muteCd = e.ability.interval || 3;
+          } else {
+            e.muteCd = 0.25;
+          }
+        }
+      }
       if (!e.healRadius || !e.healAmount || !e.healInterval) continue;
       e.healCd -= dt;
       if (e.healCd > 0) continue;
@@ -538,6 +636,31 @@
       if (healed > 0) {
         ring(e.x, e.y, "#4ade80", e.healRadius);
         flashText(e.x, e.y - 18, "+" + Math.round(healed), { color: "#86efac", size: 13 });
+      }
+    }
+  }
+
+  function towerDisabled(tw) {
+    return (tw.stunnedUntil || 0) > state.clock || (tw.mutedUntil || 0) > state.clock;
+  }
+
+  function updateBeaconAuras() {
+    for (const e of state.enemies) {
+      if (!e || e._dead) continue;
+      e.beaconSlowUntil = 0;
+      e.beaconSlowFactor = 1;
+      e.revealedUntil = 0;
+    }
+    for (const tw of state.towers) {
+      const def = TOWERS[tw.type];
+      if (!def || !def.slowAura || towerDisabled(tw)) continue;
+      const range = towerStat(tw, "range");
+      const factor = 1 - def.slowAura;
+      for (const e of state.enemies) {
+        if (!e || e._dead || Math.hypot(e.x - tw.x, e.y - tw.y) > range) continue;
+        e.revealedUntil = Math.max(e.revealedUntil || 0, state.clock + 0.2);
+        e.beaconSlowUntil = Math.max(e.beaconSlowUntil || 0, state.clock + 0.2);
+        e.beaconSlowFactor = Math.min(e.beaconSlowFactor || 1, factor);
       }
     }
   }
@@ -623,6 +746,7 @@
 
     updateEnemyStatuses(dt);
     updateEnemyAbilities(dt);
+    updateBeaconAuras();
 
     // 敵人移動
     for (const e of state.enemies) {
@@ -630,8 +754,9 @@
       if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
       if (e.hitKick > 0) e.hitKick = Math.max(0, e.hitKick - dt);
       const frozen = e.frozenUntil > state.clock;
-      const slowed = e.slowUntil > state.clock;
-      const spd = frozen ? 0 : e.speed * (slowed ? e.slowFactor : 1);
+      const frostFactor = e.slowUntil > state.clock ? e.slowFactor : 1;
+      const beaconFactor = e.beaconSlowUntil > state.clock ? e.beaconSlowFactor : 1;
+      const spd = frozen ? 0 : e.speed * Math.min(frostFactor, beaconFactor);
       const target = state.path[e.wp];
       if (!target) { leak(e); continue; }
       const dx = target.x - e.x, dy = target.y - e.y;
@@ -651,7 +776,7 @@
     // 塔射擊
     for (const tw of state.towers) {
       if (TOWERS[tw.type].support) continue;
-      if ((tw.stunnedUntil || 0) > state.clock) continue;
+      if (towerDisabled(tw)) continue;
       tw.cd -= dt;
       if (tw.cd > 0) continue;
       const target = acquireTarget(tw);
@@ -919,9 +1044,10 @@
   // ===== 塔瞄準與射擊 =====
   function towerStat(tw, key) {
     const base = TOWERS[tw.type][key];
-    if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul");
-    if (key === "poisonDps") return (base || 0) * Math.pow(UPGRADE.poisonDpsMul || UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul");
+    if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul") * eventMul("towerDamageMul");
+    if (key === "poisonDps") return (base || 0) * Math.pow(UPGRADE.poisonDpsMul || UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul") * eventMul("towerDamageMul");
     if (key === "range") return base * Math.pow(UPGRADE.rangeMul, tw.level - 1) * affixMul("towerRangeMul");
+    if (key === "minRange") return (base || 0) * Math.pow(UPGRADE.rangeMul, tw.level - 1) * affixMul("towerRangeMul");
     if (key === "buff") return (base || 0) + (tw.level - 1) * (TOWERS[tw.type].buffPerLevel || 0);
     return base;
   }
@@ -958,31 +1084,38 @@
     }, 0);
   }
   function acquireTarget(tw) {
+    const def = TOWERS[tw.type];
     const range = towerStat(tw, "range");
-    let best = null, bestProg = -1;
+    const minRange = towerStat(tw, "minRange") || 0;
+    let best = null, bestScore = -Infinity;
     for (const e of state.enemies) {
       if (e._dead) continue;
       const d = Math.hypot(e.x - tw.x, e.y - tw.y);
-      if (d <= range) {
+      if (d <= range && d >= minRange) {
         const target = state.path[e.wp];
         const prev = state.path[Math.max(0, e.wp - 1)];
         const segLen = target && prev ? Math.max(1, Math.hypot(target.x - prev.x, target.y - prev.y)) : 1;
         const distToWaypoint = target ? Math.hypot(target.x - e.x, target.y - e.y) : 0;
         const prog = e.wp - Math.min(1, distToWaypoint / segLen); // 越前面越優先
-        if (prog > bestProg) { bestProg = prog; best = e; }
+        let score = prog;
+        if (def && def.targetPriority === "midpath") {
+          const ratio = Math.max(0, Math.min(1, (e.walkDist || 0) / (state.pathTotalLength || 1)));
+          score = 100 - Math.abs(ratio - 0.55) * 100 + prog * 0.001;
+        }
+        if (score > bestScore) { bestScore = score; best = e; }
       }
     }
     return best;
   }
   // 塔/元素對應的投射物圖
-  const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning", poison: "arrow", sniper: "arrow", arcane: "lightning" };
+  const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning", poison: "arrow", sniper: "arrow", arcane: "lightning", mortar: "fireball" };
   const PROJECTILE_BY_ELEMENT = { physical: "arrow", fire: "fireball", ice: "iceshard", thunder: "lightning" };
 
   function fire(tw, target) {
     const def = TOWERS[tw.type];
     const poisonDps = towerStat(tw, "poisonDps");
     state.bullets.push({
-      x: tw.x, y: tw.y, target, speed: 320, color: def.color,
+      x: tw.x, y: tw.y, target, speed: def.id === "mortar" ? 250 : 320, color: def.color,
       damage: effectiveTowerDamage(tw), element: def.element,
       splash: def.splash || 0, slow: def.slow || 0, pierce: def.pierce || 0, type: tw.type,
       poison: poisonDps ? { dps: poisonDps, duration: def.poisonDuration, maxStacks: def.poisonMaxStacks } : null,
@@ -1018,7 +1151,7 @@
     const chilled = (e.slowUntil > state.clock) || (e.frozenUntil > state.clock);
     const synergy = chilled ? 1.25 : 1;
     const dmg = b.damage * mult * synergy;
-    const dealt = applyDamage(e, dmg);
+    const dealt = applyDamage(e, dmg, { source: b._heroOwner ? "hero" : "tower", element: b.element });
     if (e._dodgedLastHit) return;
     damageNumber(e.x, e.y, dealt || dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
     if (b.poison) applyPoison(e, b.poison);
@@ -1037,7 +1170,8 @@
       if (e._dead) continue;
       if (Math.hypot(e.x - x, e.y - y) <= sk.radius) {
         const mult = elementMultiplier(sk.element, e.element);
-        applyDamage(e, sk.damage * mult);
+        applyDamage(e, sk.damage * mult, { source: "skill", element: sk.element });
+        if (e._reflectedLastHit) continue;
         if (sk.freezeDur) e.frozenUntil = state.clock + sk.freezeDur;
         if (sk.rootDur) e.frozenUntil = state.clock + sk.rootDur;
         if (sk.vuln) markVulnerable(e, sk.vuln.mult, sk.vuln.duration);
@@ -1092,7 +1226,7 @@
     state.towers.push({
       type: state.selectedTowerType, cx, cy,
       x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2,
-      level: 1, cd: 0,
+      level: 1, cd: 0, order: state.towerSeq++,
     });
     state.towersBuilt = (state.towersBuilt || 0) + 1;
     state.buildGhost = null;
@@ -1454,6 +1588,10 @@
     ctx.strokeStyle = preview.ok ? "#4ade80" : "#ef4444"; ctx.lineWidth = 2.5;
     ctx.setLineDash([10, 6]);
     ctx.beginPath(); ctx.arc(preview.x, preview.y, preview.range, 0, Math.PI * 2); ctx.stroke();
+    if (def.minRange) {
+      ctx.strokeStyle = "rgba(248,113,113,.75)";
+      ctx.beginPath(); ctx.arc(preview.x, preview.y, def.minRange * affixMul("towerRangeMul"), 0, Math.PI * 2); ctx.stroke();
+    }
     ctx.setLineDash([]);
     ctx.save();
     ctx.globalAlpha = 0.55;
@@ -1470,6 +1608,13 @@
   function drawTowerRange(tw) {
     ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(tw.x, tw.y, towerStat(tw, "range"), 0, Math.PI * 2); ctx.stroke();
+    const minRange = towerStat(tw, "minRange") || 0;
+    if (minRange > 0) {
+      ctx.strokeStyle = "rgba(248,113,113,.45)";
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath(); ctx.arc(tw.x, tw.y, minRange, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
   }
   function drawAdvisorHighlight() {
     const tw = state.advisorUpgradeTarget;
@@ -1564,6 +1709,11 @@
     }
 
     drawSprite(`assets/towers/${tw.type}.png`, def.emoji, tw.x, tw.y, spriteSize);
+    if ((tw.mutedUntil || 0) > state.clock || (tw.stunnedUntil || 0) > state.clock) {
+      const label = (tw.mutedUntil || 0) > state.clock ? "🤐" : "✖";
+      ctx.font = "18px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(label, tw.x, tw.y - baseR - 8);
+    }
     // 等級星
     if (lv > 1) {
       ctx.fillStyle = "#facc15"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
@@ -1636,6 +1786,29 @@
       ctx.globalAlpha = performanceLow() ? 0.55 : 0.9;
       ctx.strokeStyle = "#c084fc"; ctx.lineWidth = performanceLow() ? 1 : 2;
       ctx.beginPath(); ctx.arc(drawX, drawY, size * 0.7, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    if (e.beaconSlowUntil > state.clock || e.revealedUntil > state.clock) {
+      ctx.save();
+      ctx.globalAlpha = performanceLow() ? 0.45 : 0.75;
+      ctx.strokeStyle = "#fb7185"; ctx.lineWidth = performanceLow() ? 1 : 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(drawX, drawY, size * 0.76, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+    if (e.ability && e.ability.id === "auraArmor") {
+      ctx.save();
+      ctx.globalAlpha = performanceLow() ? 0.25 : 0.38;
+      ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.ability.radius || 90, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    if (e.ability && e.ability.id === "reflectOnce" && !e.reflectedSkill) {
+      ctx.save();
+      ctx.globalAlpha = performanceLow() ? 0.4 : 0.7;
+      ctx.strokeStyle = "#e879f9"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(drawX, drawY, size * 0.5, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
     if (e.poisonStacks && e.poisonStacks.length) {
@@ -1913,6 +2086,10 @@
     cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },
     setSpeed: (s) => { state.speed = s; },
     buildPreviewAt: (x, y) => buildPreviewAt(x, y),
+    drainIntroLogs: () => {
+      const items = state && Array.isArray(state.introLogs) ? state.introLogs.splice(0) : [];
+      return items;
+    },
     debug: {
       spawnEnemy: (type, overrides) => {
         const e = createEnemy({ type, hpScale: 1 }, overrides);
@@ -1921,6 +2098,9 @@
       },
       step: (dt) => { update(dt || 0.016); render(); },
       fireTower: (tw, target) => fire(tw, target),
+      acquireTarget: (tw) => acquireTarget(tw),
+      applyDamage: (enemy, amount, opts) => applyDamage(enemy, amount, opts),
+      castSkill: (id, x, y) => castSkill(id, x, y),
       forcePerformanceSample: (fps) => { handlePerformanceSample(fps); return getPerformanceStatus(); },
     },
     config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, MAP_AFFIXES, EVENT_WAVES, ACHIEVEMENTS, BEGINNER_MISSIONS },

@@ -114,9 +114,9 @@ console.log("\n== 即時魂晶入袋後死亡不重複結算 ==");
 console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
 {
   const v1 = migrateMeta({ bestWave: 8, soulCrystal: 12, bestByDiff: { normal: 8 } });
-  assert(v1.version === META_VERSION && META_VERSION === 6, "v1 無 version 存檔升級到 version 6");
+  assert(v1.version === META_VERSION && META_VERSION === 7, "v1 無 version 存檔升級到 version 7");
   assert(v1.bestWave === 8 && v1.soulCrystal === 12 && v1.bestByDiff.normal === 8, "v1 有效欄位無損保留");
-  assert(v1.board && Object.keys(v1.board).length === 0 && v1.achievements && Object.keys(v1.achievements).length === 0 && v1.beginnerMissions && Object.keys(v1.beginnerMissions).length === 0 && v1.heroProgress && Object.keys(v1.heroProgress).length === 0, "v1 補齊 board/achievements/beginnerMissions/heroProgress");
+  assert(v1.board && Object.keys(v1.board).length === 0 && v1.achievements && Object.keys(v1.achievements).length === 0 && v1.beginnerMissions && Object.keys(v1.beginnerMissions).length === 0 && v1.heroProgress && Object.keys(v1.heroProgress).length === 0 && v1.runSeed === 1, "v1 補齊 board/achievements/beginnerMissions/heroProgress/runSeed");
 
   const v2 = migrateMeta({
     version: 2,
@@ -128,7 +128,7 @@ console.log("\n== migrateMeta v1/v2 → v3 與污染清洗 ==");
     gachaCount: 6,
     bestByDiff: { normal: 14 },
   });
-  assert(v2.version === 6 && v2.totalKills === 120 && v2.gachaCount === 6, "v2 存檔無損升級到 version 6");
+  assert(v2.version === 7 && v2.totalKills === 120 && v2.gachaCount === 6 && v2.runSeed === 1, "v2 存檔無損升級到 version 7");
   const mapMeta = migrateMeta({ lastMap: "canyon" });
   const badMapMeta = migrateMeta({ lastMap: "unknown" });
   assert(mapMeta.lastMap === "canyon" && badMapMeta.lastMap === "plains", "lastMap 合法保留、非法回預設");

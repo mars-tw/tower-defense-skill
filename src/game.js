@@ -221,11 +221,25 @@
     };
   }
   setPerformanceMode(perfState.mode);
-  function newGame() {
+  function normalizedSeed(value, fallback) {
+    if (TDRules.normalizeRunSeed) return TDRules.normalizeRunSeed(value, fallback);
+    const fb = (Math.floor(Number(fallback) || 1) >>> 0) || 1;
+    return (Math.floor(Number(value) || fb) >>> 0) || fb;
+  }
+
+  function randomRunSeed() {
+    return Math.floor(Math.random() * 0x7fffffff) + 1;
+  }
+
+  function newGame(options) {
+    const opts = options || {};
     loopToken++; // 作廢任何正在跑的舊迴圈
     const mapDef = getMap();
     const path = mapDef.path;
-    const affixSeed = Math.floor(Math.random() * 0x7fffffff);
+    const hasRunSeed = Object.prototype.hasOwnProperty.call(opts, "runSeed");
+    const hasAffixSeed = Object.prototype.hasOwnProperty.call(opts, "affixSeed");
+    const runSeed = normalizedSeed(opts.runSeed, hasRunSeed ? 1 : randomRunSeed());
+    const affixSeed = normalizedSeed(opts.affixSeed, hasAffixSeed ? 1 : randomRunSeed());
     const affix = TDRules.selectMapAffix ? TDRules.selectMapAffix(affixSeed) : null;
     markPathCells(path);
     const end = path[path.length - 1];
@@ -235,7 +249,7 @@
       goddess: (() => { const gm = getDifficulty().goddessMul; const hp = Math.round(GODDESS.baseHp * gm); return { level: 1, hp, maxHp: hp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 }; })(),
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
-      mapId: mapDef.id, mapDef, path, affixSeed, affix,
+      mapId: mapDef.id, mapDef, path, runSeed, affixSeed, affix,
       waveSeeds: {}, backgroundCache: null, buildableReachCache: null,
       performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
@@ -284,10 +298,12 @@
   // theme 用 config 的共用 waveTheme()——startWave 出怪讀同一個來源，預告才不會是假的
   function waveSeedFor(wave) {
     const w = Math.max(1, Math.floor(Number(wave) || 1));
-    const key = String(w);
+    const runSeed = normalizedSeed(state.runSeed, 1);
+    const affixSeed = normalizedSeed(state.affixSeed, 1);
+    const key = `${runSeed}:${affixSeed}:${w}`;
     if (!state.waveSeeds) state.waveSeeds = {};
     if (!Object.prototype.hasOwnProperty.call(state.waveSeeds, key)) {
-      state.waveSeeds[key] = TDRules.waveRngSeed ? TDRules.waveRngSeed(w) : (((w * 1664525 + 1013904223) >>> 0) || 1);
+      state.waveSeeds[key] = TDRules.waveRngSeed ? TDRules.waveRngSeed(w, runSeed, affixSeed) : (((w * 1664525 + 1013904223) >>> 0) || 1);
     }
     return state.waveSeeds[key];
   }
@@ -1873,7 +1889,7 @@
   // ===== 對外接口（給 UI 與測試）=====
   window.TD = {
     state: () => state,
-    newGame: () => { newGame(); state.clock = 0; render(); },
+    newGame: (options) => { newGame(options); state.clock = 0; render(); },
     startWave,
     selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; },
     cancelBuild: () => { state.selectedTowerType = null; state.buildGhost = null; state.advisorBuildConfirm = false; },

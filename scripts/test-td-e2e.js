@@ -248,7 +248,7 @@ async function run() {
 
     const saveManagerR33 = await page.evaluate(() => {
       const before = JSON.parse(localStorage.getItem("td_meta_v1") || "{}");
-      const seed = Object.assign({}, before, { soulCrystal: 33, bestWave: 4, bestByDiff: { normal: 4 } });
+      const seed = Object.assign({}, before, { soulCrystal: 33, bestWave: 4, bestByDiff: { normal: 4 }, runSeed: 246813579 });
       localStorage.setItem("td_meta_v1", JSON.stringify(seed));
       const code = window.__tdSaveManager.export();
       const decoded = window.__tdSaveManager.decode(code);
@@ -262,13 +262,13 @@ async function run() {
       const heroes = JSON.parse(localStorage.getItem("td_heroes_owned_v1") || "[]");
       const area = document.getElementById("saveCode").value;
       if (before && Object.keys(before).length) localStorage.setItem("td_meta_v1", JSON.stringify(before));
-      return { codeLen: code.length, decodedCrystal: decoded.rawMeta.soulCrystal, badOk: bad.ok, afterBadCrystal: afterBad.soulCrystal, goodOk: good.ok, afterGoodCrystal: afterGood.soulCrystal, backupCrystal: backup.meta && backup.meta.soulCrystal, heroes, areaLen: area.length };
+      return { codeLen: code.length, decodedCrystal: decoded.rawMeta.soulCrystal, decodedRunSeed: decoded.rawMeta.runSeed, badOk: bad.ok, afterBadCrystal: afterBad.soulCrystal, goodOk: good.ok, afterGoodCrystal: afterGood.soulCrystal, afterGoodRunSeed: afterGood.runSeed, backupCrystal: backup.meta && backup.meta.soulCrystal, heroes, areaLen: area.length };
     });
     assert(saveManagerR33.codeLen > 40 && saveManagerR33.areaLen > 40 && saveManagerR33.decodedCrystal === 33 &&
       saveManagerR33.badOk === false && saveManagerR33.afterBadCrystal === 33 &&
-      saveManagerR33.goodOk === true && saveManagerR33.afterGoodCrystal === 88 && saveManagerR33.backupCrystal === 33 &&
+      saveManagerR33.goodOk === true && saveManagerR33.afterGoodCrystal === 88 && saveManagerR33.decodedRunSeed === 246813579 && saveManagerR33.afterGoodRunSeed === 246813579 && saveManagerR33.backupCrystal === 33 &&
       saveManagerR33.heroes.includes("archer") && saveManagerR33.heroes.includes("cleric") && !saveManagerR33.heroes.includes("__bad"),
-      "R33 存檔管家可匯出 Base64、拒絕壞資料、成功匯入前自動備份並清洗英雄清單");
+      "R33 存檔管家可匯出 Base64、拒絕壞資料、穩定往返 runSeed、成功匯入前自動備份並清洗英雄清單");
     const quickIntro = await page.evaluate(() => ({
       tutorialShown: document.getElementById("tutorial").classList.contains("show"),
       quickText: document.getElementById("tutorialQuick").textContent,
@@ -388,6 +388,7 @@ async function run() {
         else localStorage.setItem("td_heroes_owned_v1", savedHeroes);
         window.__tdUI();
       };
+      window.TD.newGame({ runSeed: 222222, affixSeed: 777 });
       const st = window.TD.state();
       st.wave = 8; // 下一波第 9 波：冰系主題
       st.betweenWaves = true;
@@ -399,7 +400,7 @@ async function run() {
       document.getElementById("startBtn").click();
       const warn = document.getElementById("waveWarning");
       const missing = { shown: warn.classList.contains("show"), text: warn.innerText, wave: st.wave, running: st.running };
-      window.TD.newGame();
+      window.TD.newGame({ runSeed: 222222, affixSeed: 777 });
       const st2 = window.TD.state();
       st2.wave = 8;
       st2.betweenWaves = true;
@@ -430,6 +431,7 @@ async function run() {
         else localStorage.setItem("td_heroes_owned_v1", savedHeroes);
         window.__tdUI();
       };
+      window.TD.newGame({ runSeed: 111111, affixSeed: 777 });
       const st = window.TD.state();
       st.wave = 6;
       st.betweenWaves = true;
@@ -951,9 +953,21 @@ async function run() {
       `首抽後顯示第二英雄進度與可取得路徑（魂晶 ${deployFirstHeroMission.crystal}）`);
 
     const waveSoul = await page.evaluate(() => {
-      const before = JSON.parse(localStorage.getItem("td_meta_v1"));
-      window.TD.startWave();
+      let before = JSON.parse(localStorage.getItem("td_meta_v1"));
+      before.beginnerMissions = Object.assign({}, before.beginnerMissions, { firstWave: false });
+      localStorage.setItem("td_meta_v1", JSON.stringify(before));
+      window.__tdUI();
       const st = window.TD.state();
+      st.wave = 0;
+      st.clearedWave = 0;
+      st.betweenWaves = true;
+      st.running = false;
+      st.spawnQueue = [];
+      st.enemies = [];
+      st.runSoulEarned = 0;
+      st.soulRewardedWaves = new Set();
+      before = JSON.parse(localStorage.getItem("td_meta_v1"));
+      window.TD.startWave();
       st.spawnQueue = [];
       st.enemies = [];
       window.TD.debug.step(0.2);
@@ -967,12 +981,13 @@ async function run() {
         delta: after.soulCrystal - before.soulCrystal,
         expected,
         runSoulEarned: st.runSoulEarned,
+        firstWaveAfter: after.beginnerMissions && after.beginnerMissions.firstWave === true,
         metaText: document.getElementById("gachaMeta").textContent,
         logText: document.getElementById("log").innerText,
       };
     });
     const firstWaveMissionReward = 4;
-    assert(waveSoul.delta === waveSoul.expected + firstWaveMissionReward && waveSoul.runSoulEarned === waveSoul.expected && waveSoul.metaText.includes(`${waveSoul.after}💎`) && waveSoul.logText.includes(`+${waveSoul.expected}`),
+    assert(waveSoul.delta === waveSoul.expected + firstWaveMissionReward && waveSoul.runSoulEarned === waveSoul.expected && waveSoul.firstWaveAfter && waveSoul.metaText.includes(`${waveSoul.after}💎`) && waveSoul.logText.includes(`+${waveSoul.expected}`),
       `清掉第 ${waveSoul.wave} 波後魂晶即時入袋並領首波任務（${waveSoul.before} → ${waveSoul.after}，清波 +${waveSoul.expected}，任務 +${firstWaveMissionReward}）`);
 
     // 3. 魂晶不足：第二抽（成本 20）應被擋
@@ -1133,11 +1148,31 @@ async function run() {
       "點英雄小卡可進入駐守模式，點地圖後成功設定駐守點");
 
     // 5. 主題波一致性：直接跳到主題波（wave 8 之後找一個 ice/fire 主題波），驗證出怪偏壓
+    const runSeedDiversity = await page.evaluate(() => {
+      const diff = window.TD.getDifficulty();
+      const affix = window.TD.state().affix;
+      const typesFor = (runSeed) => {
+        const waveSeed = window.TDRules.waveRngSeed(9, runSeed, 777);
+        return window.TDRules.generateWaveQueue(9, diff, waveSeed, affix).queue.map((spec) => spec.type);
+      };
+      const a = typesFor(111111);
+      const a2 = typesFor(111111);
+      const b = typesFor(222222);
+      return {
+        sameRunStable: JSON.stringify(a) === JSON.stringify(a2),
+        differentRunDifferent: JSON.stringify(a) !== JSON.stringify(b),
+        a,
+        b,
+      };
+    });
+    assert(runSeedDiversity.sameRunStable && runSeedDiversity.differentRunDifferent,
+      `同 runSeed 可重現、不同 runSeed 組成不同（A=${runSeedDiversity.a.join(",")} / B=${runSeedDiversity.b.join(",")}）`);
     const themed = await page.evaluate(() => {
       const st = window.TD.state();
       // waveTheme(9)=ice：把 wave 設 8，下一波就是 9
       st.wave = 8;
       const preview = window.TD.previewNextWave();
+      const expectedSeed = window.TDRules.waveRngSeed(9, st.runSeed, st.affixSeed);
       const originalRandom = Math.random;
       Math.random = () => 0.1;
       try {
@@ -1148,9 +1183,11 @@ async function run() {
       const q = st.spawnQueue.map((s) => s.type);
       const previewQueue = preview.queue.map((s) => s.type);
       const themeEls = q.filter((t) => (window.ENEMIES[t] || {}).element === preview.theme).length;
-      return { theme: preview.theme, queueLen: q.length, themeCount: themeEls, types: [...new Set(q)], sameQueue: JSON.stringify(q) === JSON.stringify(previewQueue), previewQueue, actualQueue: q };
+      return { theme: preview.theme, seed: preview.seed, expectedSeed, runSeed: st.runSeed, affixSeed: st.affixSeed, queueLen: q.length, themeCount: themeEls, types: [...new Set(q)], sameQueue: JSON.stringify(q) === JSON.stringify(previewQueue), previewQueue, actualQueue: q };
     });
     assert(themed.theme === "ice", `第 9 波預告主題為 ice（實際 ${themed.theme}）`);
+    assert(themed.runSeed > 0 && themed.seed === themed.expectedSeed,
+      `預告 waveSeed 由 runSeed+affixSeed+wave 決定（run=${themed.runSeed}, affix=${themed.affixSeed}, seed=${themed.seed}）`);
     assert(themed.sameQueue,
       `預告 queue 與實際出怪 queue 完全一致（${themed.previewQueue.join(",")}）`);
     assert(themed.themeCount >= Math.floor(themed.queueLen * 0.3),

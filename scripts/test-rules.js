@@ -19,6 +19,7 @@ const {
   heroLongXpForLevel,
   heroPermanentBonus,
   selectMapAffix,
+  normalizeRunSeed,
   affixExpectedBalance,
   recommendTowersForWave,
   adviseTowerActions,
@@ -79,6 +80,7 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
   });
   assert(old.version === META_VERSION, `無 version 舊存檔升級到 version ${META_VERSION}`);
   assert(old.bestWave === 7 && old.soulCrystal === 9 && old.bestByDiff.normal === 6, "舊存檔有效欄位無損保留");
+  assert(old.runSeed === 1, "舊存檔缺 runSeed 時補 deterministic 預設值");
 
   const missing = migrateMeta({ version: 1, bestWave: 2 });
   assert(missing.bestWave === 2 && missing.soulCrystal === 0 && missing.gachaCount === 0, "缺欄位以預設值補齊");
@@ -94,12 +96,14 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
     games: null,
     gachaPity: undefined,
     gachaCount: 5,
+    runSeed: Infinity,
     bestByDiff: { normal: NaN, brutal: 8 },
     beginnerMissions: { firstTower: true, firstWave: false, bad: "yes" },
     heroProgress: { fox: { xp: 120 }, bad: { xp: NaN }, "__proto__": { xp: 999 } },
   });
   assert(bad.version === META_VERSION, "NaN version 會修成目前版本");
   assert(bad.bestWave === 0 && bad.totalKills === 0 && bad.soulCrystal === 0 && bad.games === 0 && bad.gachaPity === 0, "NaN/非數字欄位回預設值");
+  assert(bad.runSeed === 1, "非法 runSeed 會回 deterministic 預設值");
   assert(bad.gachaCount === 5 && bad.bestByDiff.brutal === 8 && bad.bestByDiff.normal == null, "有效數字保留，巢狀 NaN 紀錄丟棄");
   assert(bad.beginnerMissions.firstTower === true && bad.beginnerMissions.firstWave == null && bad.beginnerMissions.bad == null,
     "beginnerMissions 只保留 true 標記");
@@ -110,6 +114,10 @@ console.log("\n== migrateMeta 版本化與舊存檔遷移 ==");
   const badMapMeta = migrateMeta({ lastMap: "missing-map" });
   assert(mapMeta.lastMap === "canyon", "lastMap 合法值會保留");
   assert(badMapMeta.lastMap === "plains", "lastMap 非法值會回預設地圖");
+  const seeded = migrateMeta({ runSeed: 246813579, soulCrystal: 5 });
+  const protectedSeed = protectMetaWrite(migrateMeta({ soulCrystal: 1 }), seeded);
+  assert(seeded.runSeed === 246813579 && protectedSeed.ok && protectedSeed.meta.runSeed === 246813579,
+    "runSeed 存檔遷移與 protectMetaWrite 往返穩定");
   for (const pollutedKey of ["__proto__", "toString", "constructor"]) {
     const polluted = migrateMeta({ lastMap: pollutedKey });
     assert(polluted.lastMap === "plains", `lastMap 原型鍵 ${pollutedKey} 會回預設地圖`);
@@ -326,6 +334,17 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   const explicitSeed = generateWaveQueue(9, cfg.DIFFICULTIES.normal, waveRngSeed(9));
   assert(JSON.stringify(implicitSeed.queue) === JSON.stringify(explicitSeed.queue),
     "預設波次 seed 與明確 waveRngSeed 生成相同 queue");
+  assert(normalizeRunSeed(0) === 1 && normalizeRunSeed(12345) === 12345, "runSeed 正規化保持正整數且 0 回預設");
+  const runSeedA = waveRngSeed(9, 111111, 777);
+  const runSeedA2 = waveRngSeed(9, 111111, 777);
+  assert(runSeedA === runSeedA2, "同 runSeed/affixSeed/wave 會產生相同 waveSeed");
+  let diverseWave = null;
+  for (let w = 3; w <= 30; w++) {
+    const qa = generateWaveQueue(w, cfg.DIFFICULTIES.normal, waveRngSeed(w, 111111, 777)).queue.map((spec) => spec.type).join(",");
+    const qb = generateWaveQueue(w, cfg.DIFFICULTIES.normal, waveRngSeed(w, 222222, 777)).queue.map((spec) => spec.type).join(",");
+    if (qa !== qb) { diverseWave = w; break; }
+  }
+  assert(diverseWave != null, `不同 runSeed 會讓至少一個測試波次組成不同（wave ${diverseWave || "none"}）`);
   assert(a.theme === "ice" && a.event === null && !a.isBoss, "第 9 波為 ice 主題且非事件/非 Boss");
 
   const themed = generateWaveQueue(9, cfg.DIFFICULTIES.normal, constantRng(0.1));

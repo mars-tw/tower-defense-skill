@@ -156,13 +156,13 @@ R11 英雄指揮：
 
 總獎勵 38 魂晶，保存於 `meta.beginnerMissions`，不可重複領取。
 
-## Meta v5
+## Meta v7
 
 localStorage key 為 `td_meta_v1`。
 
 ```js
 META_DEFAULT = {
-  version: 5,
+  version: 7,
   bestWave: 0,
   totalKills: 0,
   soulCrystal: 0,
@@ -173,6 +173,8 @@ META_DEFAULT = {
   board: {},
   achievements: {},
   beginnerMissions: {},
+  heroProgress: {},
+  runSeed: 1,
   lastMap: "plains"
 };
 ```

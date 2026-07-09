@@ -1079,7 +1079,7 @@
 
   const SAVE_BACKUP_KEY = "td_meta_backup_v1";
   const SAVE_KIND = "td-save-v1";
-  const META_IMPORT_KEYS = ["version", "soulCrystal", "bestWave", "bestByDiff", "board", "achievements", "beginnerMissions", "heroProgress", "games", "totalKills", "gachaPity", "gachaCount", "lastMap"];
+  const META_IMPORT_KEYS = ["version", "soulCrystal", "bestWave", "bestByDiff", "board", "achievements", "beginnerMissions", "heroProgress", "games", "totalKills", "gachaPity", "gachaCount", "runSeed", "lastMap"];
 
   function encodeTextBase64(text) {
     const bytes = new TextEncoder().encode(String(text || ""));

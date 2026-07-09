@@ -15,8 +15,8 @@
     ? require("./config.js")
     : root;
 
-  const META_VERSION = 6;
-  const META_NUMERIC_KEYS = ["bestWave", "totalKills", "soulCrystal", "games", "gachaPity", "gachaCount"];
+  const META_VERSION = 7;
+  const META_NUMERIC_KEYS = ["bestWave", "totalKills", "soulCrystal", "games", "gachaPity", "gachaCount", "runSeed"];
   const META_DEFAULT = {
     version: META_VERSION,
     bestWave: 0,
@@ -30,6 +30,7 @@
     achievements: {},
     beginnerMissions: {},
     heroProgress: {},
+    runSeed: 1,
     lastMap: "plains",
   };
   const SOUL_REWARD_MUL_BY_DIFF = { normal: 1.8, brutal: 2.4, endless: 2.2 };
@@ -255,6 +256,29 @@
     return s / 4294967296;
   }
 
+  function normalizeSeedPart(value, fallback) {
+    const fb = Math.floor(safeNumber(fallback, 1)) >>> 0;
+    const n = Math.floor(safeNumber(value, fb)) >>> 0;
+    return n || fb || 1;
+  }
+
+  function normalizeRunSeed(seed, fallback) {
+    return normalizeSeedPart(seed, fallback == null ? META_DEFAULT.runSeed : fallback);
+  }
+
+  function mixSeedParts(parts) {
+    let h = 2166136261;
+    for (const part of parts) {
+      let x = normalizeSeedPart(part, 0);
+      for (let i = 0; i < 4; i++) {
+        h ^= x & 0xff;
+        h = Math.imul(h, 16777619) >>> 0;
+        x >>>= 8;
+      }
+    }
+    return h || 1;
+  }
+
   function normalizeAffix(affix) {
     const affixes = cfg.MAP_AFFIXES || {};
     if (typeof affix === "string" && hasOwn(affixes, affix)) return affixes[affix];
@@ -368,8 +392,11 @@
     return ((wave * 2654435761) % 1000) / 1000;
   }
 
-  function waveRngSeed(wave) {
+  function waveRngSeed(wave, runSeed, affixSeed) {
     const w = Math.max(1, Math.floor(safeNumber(wave, 1)));
+    if (runSeed != null || affixSeed != null) {
+      return mixSeedParts([normalizeRunSeed(runSeed), normalizeSeedPart(affixSeed, 0), w]);
+    }
     return ((w * 1664525 + 1013904223) >>> 0) || 1;
   }
 
@@ -1105,6 +1132,7 @@
     heroLongXpForLevel,
     heroPermanentBonus,
     selectMapAffix,
+    normalizeRunSeed,
     affixExpectedBalance,
     recommendTowersForWave,
     ADVISOR_MODES,

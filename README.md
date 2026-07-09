@@ -34,7 +34,7 @@
 
 | 類別 | 現況 |
 |---|---|
-| meta | `td_meta_v1`，`META_VERSION = 5` |
+| meta | `td_meta_v1`，`META_VERSION = 7` |
 | 起始金幣 | 220，再乘地圖倍率 |
 | 塔升級 | 傷害 x1.5、射程 x1.08、費用 x1.52、最高 Lv.10 |
 | 女神 | base HP 100、每級 +60、最高 Lv.8、Lv.2 解鎖聖擊 |

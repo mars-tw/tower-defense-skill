@@ -85,7 +85,7 @@ function towerDPS(t, level = 1) {
   let dps = dmg * (t.fireRate || 0);
   if (t.poisonDps) {
     const stacks = Math.min(t.poisonMaxStacks || 1, (t.fireRate || 0) * (t.poisonDuration || 0));
-    dps += t.poisonDps * stacks;
+    dps += t.poisonDps * Math.pow(UPGRADE.poisonDpsMul || UPGRADE.damageMul || 1, level - 1) * stacks;
   }
   if (t.splash) dps *= 2.2;   // 範圍傷害對群體的等效加成
   if (t.pierce) dps *= (1 + (t.pierce - 1) * 0.6); // 穿透多目標加成

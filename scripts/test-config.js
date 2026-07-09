@@ -181,6 +181,8 @@ for (const t of Object.values(TOWERS)) {
 assert(badT === 0, `砲塔欄位完整且元素合法（異常 ${badT}）`);
 assert(TOWERS.poison && TOWERS.poison.poisonDps > 0 && TOWERS.poison.poisonDuration > 0 && TOWERS.poison.poisonMaxStacks === 3,
   "毒霧塔有 DoT 欄位（DPS/持續/最多 3 層）");
+assert(UPGRADE.poisonDpsMul > 1 && UPGRADE.poisonDpsMul < UPGRADE.damageMul,
+  `毒霧塔 DoT 有獨立升級倍率（${UPGRADE.poisonDpsMul}，低於直傷 ${UPGRADE.damageMul}）`);
 assert(TOWERS.support && TOWERS.support.support === true && TOWERS.support.buff > 0 && TOWERS.support.damage === 0 && TOWERS.support.fireRate === 0,
   "聖光塔為不攻擊支援塔，且有 buff 欄位");
 assert(TOWERS.frost.cost === 70 && TOWERS.frost.fireRate === 1.45 && TOWERS.frost.slow === 0.5,

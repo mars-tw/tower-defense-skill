@@ -48,7 +48,8 @@ const TOWERS = {
             desc: "秘紋水晶標記敵人，使後續攻擊造成更多傷害。" },
 };
 // 升級：每級提升傷害與射程，造價遞增。Lv.10 給後期金錢出口，costMul 讓 7~10 級明顯昂貴但仍可追求。
-const UPGRADE = { damageMul: 1.5, rangeMul: 1.08, costMul: 1.52, maxLevel: 10 };
+// 毒素可疊 3 層，DoT 用獨立成長避免直接套 1.5 倍後壓過範圍/穿透塔定位。
+const UPGRADE = { damageMul: 1.5, rangeMul: 1.08, poisonDpsMul: 1.32, costMul: 1.52, maxLevel: 10 };
 
 // ===== 敵人定義 =====
 // hp 基礎血量、speed 速度(px/s)、reward 擊殺金錢、leak 漏過扣的生命

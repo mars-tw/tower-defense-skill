@@ -368,6 +368,11 @@
     return ((wave * 2654435761) % 1000) / 1000;
   }
 
+  function waveRngSeed(wave) {
+    const w = Math.max(1, Math.floor(safeNumber(wave, 1)));
+    return ((w * 1664525 + 1013904223) >>> 0) || 1;
+  }
+
   function normalizeUnit(value) {
     if (!isFiniteNumber(value)) return 0;
     if (value <= 0) return 0;
@@ -377,7 +382,8 @@
 
   function makeRng(rng, wave) {
     if (typeof rng === "function") return () => normalizeUnit(rng());
-    let seed = ((Math.max(1, Math.floor(safeNumber(wave, 1))) * 1664525 + 1013904223) >>> 0);
+    let seed = (isFiniteNumber(rng) ? Math.floor(rng) : waveRngSeed(wave)) >>> 0;
+    if (!seed) seed = 1;
     return () => {
       seed = (seed * 1664525 + 1013904223) >>> 0;
       return seed / 4294967296;
@@ -571,8 +577,18 @@
     let dps = safeNumber(tower.damage, 0) * Math.pow(cfg.UPGRADE.damageMul || 1.5, Math.max(1, level) - 1) * damageMul * safeNumber(tower.fireRate, 0);
     if (tower.splash) dps *= 2.2;
     if (tower.pierce) dps *= 1 + (tower.pierce - 1) * 0.6;
-    if (tower.poisonDps) dps += tower.poisonDps * Math.min(2.2, tower.poisonDuration || 1) * 0.7;
+    if (tower.poisonDps) dps += towerPoisonDpsFor(type, level, affixInput) * Math.min(2.2, tower.poisonDuration || 1) * 0.7;
     return dps;
+  }
+
+  function towerPoisonDpsFor(type, level, affixInput) {
+    const tower = cfg.TOWERS[type];
+    if (!tower || !tower.poisonDps) return 0;
+    const affix = normalizeAffix(affixInput);
+    const damageMul = affix ? safeNumber(affix.towerDamageMul, 1) : 1;
+    const lv = Math.max(1, Math.floor(safeNumber(level, 1)));
+    const poisonMul = cfg.UPGRADE.poisonDpsMul || cfg.UPGRADE.damageMul || 1;
+    return safeNumber(tower.poisonDps, 0) * Math.pow(poisonMul, lv - 1) * damageMul;
   }
 
   function towerRangeFor(type, level, affixInput) {
@@ -1097,7 +1113,9 @@
     analyzeRunReport,
     protectMetaWrite,
     applyDifficulty,
+    waveRngSeed,
     generateWaveQueue,
+    towerPoisonDpsFor,
     updateBoard,
     evaluateAchievements,
     evaluateBeginnerMissions,

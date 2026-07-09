@@ -23,13 +23,31 @@
   function cellCenter(cx, cy) {
     return { x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2 };
   }
-  function cellPathDistance(cx, cy) {
-    const p = cellCenter(cx, cy);
-    return TDRules.distanceToPath(p.x, p.y, state.path);
+  function buildableReachData(range) {
+    const cols = state && state.map ? state.map.cols : Math.ceil(W / CELL);
+    const rows = state && state.map ? state.map.rows : Math.ceil(H / CELL);
+    const safeRange = Math.max(0, Number(range) || 0);
+    const key = `${state ? state.mapId : "map"}:${state && state.affix ? state.affix.id : "none"}:${cols}x${rows}:${Math.round(safeRange * 100)}`;
+    if (state && state.buildableReachCache && state.buildableReachCache.key === key) return state.buildableReachCache;
+    const cells = {};
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const p = cellCenter(cx, cy);
+        const distance = TDRules.distanceToPath(p.x, p.y, state.path);
+        cells[cellKey(cx, cy)] = { distance, reachable: distance <= safeRange + 1e-9 };
+      }
+    }
+    const cache = { key, cells };
+    if (state) state.buildableReachCache = cache;
+    return cache;
+  }
+  function cellReachInfo(cx, cy, range) {
+    if (!state || !state.path) return { distance: Infinity, reachable: false };
+    const cache = buildableReachData(range);
+    return cache.cells[cellKey(cx, cy)] || { distance: Infinity, reachable: false };
   }
   function canCellReachPath(cx, cy, range) {
-    const p = cellCenter(cx, cy);
-    return TDRules.canReachPath(p.x, p.y, state.path, range);
+    return cellReachInfo(cx, cy, range).reachable;
   }
   function markPathCells(path) {
     blocked.clear();
@@ -54,6 +72,7 @@
   let state;
   let lastT = 0;
   let loopToken = 0;
+  let uiRefreshScheduled = false;
   let reducedFlashCache;
   function reducedFlashEnabled() {
     if (reducedFlashCache !== undefined) return reducedFlashCache;
@@ -64,6 +83,20 @@
         (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     } catch { reducedFlashCache = false; }
     return reducedFlashCache;
+  }
+  function flushUIRefresh() {
+    uiRefreshScheduled = false;
+    if (typeof window.__tdUI === "function") window.__tdUI();
+  }
+  function notifyUI(force) {
+    if (typeof window.__tdUI !== "function") return;
+    if (force || !state || state.betweenWaves || state.over || !state.running) {
+      flushUIRefresh();
+      return;
+    }
+    if (uiRefreshScheduled) return;
+    uiRefreshScheduled = true;
+    requestAnimationFrame(flushUIRefresh);
   }
 
   const PERF_MODE_KEY = "td_perf_mode";
@@ -203,6 +236,7 @@
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       mapId: mapDef.id, mapDef, path, affixSeed, affix,
+      waveSeeds: {}, backgroundCache: null, buildableReachCache: null,
       performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
@@ -220,7 +254,7 @@
     };
     Object.keys(SKILLS).forEach((k) => (state.skillCooldowns[k] = 0));
     state.map = buildMapLayout(); // 亂數地圖佈局
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI(true);
   }
 
   // 亂數地圖佈局：每格隨機草地變化 + 隨機裝飾物（避開路徑）
@@ -248,11 +282,24 @@
 
   // 下一波預告（D4）：回傳下一波的敵人數、是否 Boss、主元素傾向。
   // theme 用 config 的共用 waveTheme()——startWave 出怪讀同一個來源，預告才不會是假的
+  function waveSeedFor(wave) {
+    const w = Math.max(1, Math.floor(Number(wave) || 1));
+    const key = String(w);
+    if (!state.waveSeeds) state.waveSeeds = {};
+    if (!Object.prototype.hasOwnProperty.call(state.waveSeeds, key)) {
+      state.waveSeeds[key] = TDRules.waveRngSeed ? TDRules.waveRngSeed(w) : (((w * 1664525 + 1013904223) >>> 0) || 1);
+    }
+    return state.waveSeeds[key];
+  }
+  function wavePlanFor(wave) {
+    return TDRules.generateWaveQueue(wave, getDifficulty(), waveSeedFor(wave), state.affix);
+  }
   function previewNextWave(options) {
     const opts = options || {};
     const advisorMode = opts.advisorMode || opts.mode || state.advisorMode || "control";
     const w = state.wave + 1;
-    const plan = TDRules.generateWaveQueue(w, getDifficulty(), null, state.affix);
+    const seed = waveSeedFor(w);
+    const plan = wavePlanFor(w);
     const counts = {};
     for (const item of plan.queue) counts[item.type] = (counts[item.type] || 0) + 1;
     const enemyTypes = Object.entries(counts)
@@ -263,7 +310,7 @@
     const advisorInput = { queue: plan.queue, towers: state.towers, gold: state.gold, path: state.path, affix: state.affix, width: W, height: H, advisorMode };
     const advisor = TDRules.adviseTowerActions ? TDRules.adviseTowerActions(advisorInput) : [];
     const counterWarning = TDRules.counterWarningForWave ? TDRules.counterWarningForWave(advisorInput) : null;
-    return { wave: w, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, enemyTypes, recommendations, advisor, counterWarning, advisorMode };
+    return { wave: w, seed, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, queue: plan.queue.map((item) => Object.assign({}, item)), enemyTypes, recommendations, advisor, counterWarning, advisorMode };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
@@ -277,7 +324,7 @@
     state.wave++;
     state.betweenWaves = false;
     const w = state.wave;
-    const plan = TDRules.generateWaveQueue(w, getDifficulty(), Math.random, state.affix);
+    const plan = wavePlanFor(w);
     const isBoss = plan.isBoss;
     const ev = plan.event;
     state.currentEvent = ev;
@@ -294,7 +341,7 @@
       if (isBoss) flashBanner("⚠️ BOSS 來襲", "#dc2626");
     }
     if (w === 1 && state.affix) log(`${state.affix.emoji} 本局詞綴：${state.affix.label}｜${state.affix.desc}`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
   // 事件波橫幅提示（畫面中央短暫顯示）
   function flashBanner(text, color) {
@@ -344,14 +391,15 @@
   function createEnemy(spec, overrides) {
     if (typeof spec === "string") spec = { type: spec, hpScale: 1 };
     spec = spec || { type: "slime", hpScale: 1 };
-    const def = ENEMIES[spec.type];
+    const type = ENEMIES[spec.type] ? spec.type : "slime";
+    const def = ENEMIES[type];
     const ev = spec.event;
     const scale = spec.hpScale || 1;
     const affix = state.affix || null;
     const maxHp = Math.round(def.hp * scale);
     const maxShield = def.shield ? Math.round(def.shield * scale) : 0;
     return Object.assign({
-      ...def, x: state.path[0].x, y: state.path[0].y, wp: 1,
+      ...def, type, x: state.path[0].x, y: state.path[0].y, wp: 1,
       speed: def.speed * (ev ? ev.speedMul : 1) * (affix ? affixMul("enemySpeedMul") : 1), // 事件波/詞綴速度
       reward: Math.round(def.reward * (ev ? ev.goldMul : 1) * (affix ? affixMul("killGoldMul") : 1)), // 事件波/詞綴金錢
       hp: maxHp, maxHp, shield: maxShield, maxShield, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
@@ -385,6 +433,7 @@
       }
     }
     const hpBefore = e.hp;
+    const shieldBefore = e.shield || 0;
     if (!opts.bypassShield && e.shield > 0) {
       const shieldHit = Math.min(e.shield, dmg);
       e.shield -= shieldHit;
@@ -401,7 +450,9 @@
         e.hitDirY = -(e.vy || 0);
       }
     }
-    return Math.max(0, hpBefore - Math.max(0, e.hp));
+    const hpDealt = Math.max(0, hpBefore - Math.max(0, e.hp));
+    const shieldDealt = Math.max(0, shieldBefore - Math.max(0, e.shield || 0));
+    return hpDealt + shieldDealt;
   }
 
   function applyPoison(e, poison) {
@@ -642,7 +693,7 @@
       } else {
         log(`第 ${state.wave} 波清空！+${bonus} 金`);
       }
-      if (typeof window.__tdUI === "function") window.__tdUI();
+      notifyUI();
     }
   }
   // 敵人漏過終點 = 攻擊守護女神
@@ -655,7 +706,8 @@
     const waveEntry = state.runLeaks.byWave[waveKey] || { count: 0, damage: 0, byType: {} };
     waveEntry.count += 1;
     waveEntry.damage += dmg;
-    waveEntry.byType[e.type] = (waveEntry.byType[e.type] || 0) + 1;
+    const type = ENEMIES[e.type] ? e.type : (ENEMIES[e.id] ? e.id : "slime");
+    waveEntry.byType[type] = (waveEntry.byType[type] || 0) + 1;
     state.runLeaks.byWave[waveKey] = waveEntry;
     state.runLeaks.total += 1;
     state.goddess.hp -= dmg;
@@ -663,7 +715,7 @@
     burst(state.goddess.x, state.goddess.y, "#ef4444", 14);
     log(`${e.name} 攻擊了${GODDESS.name}！-${dmg} 生命`, "bad");
     if (state.goddess.hp <= 0) { state.goddess.hp = 0; gameOver(); }
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
 
   // ===== 英雄系統 =====
@@ -684,7 +736,7 @@
     };
     state.heroes.push(h);
     log(`${def.name} 上場！`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
     return true;
   }
 
@@ -698,7 +750,7 @@
     state.buildGhost = null;
     canvas.style.cursor = "crosshair";
     log(`已選 ${HEROES[h.id].name}，點地圖指定駐守點。`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
     return true;
   }
 
@@ -801,7 +853,7 @@
       flashText(h.x, h.y, "LV UP!");
       log(`${def.name} 升到 ${h.level} 級！`);
     }
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
 
   function spawnSplitBat(parent) {
@@ -845,13 +897,14 @@
     if (e.boss) { state.bossKills = (state.bossKills || 0) + 1; ring(e.x, e.y, "#fde047", 70); screenShake(); }
     // combo 達門檻時畫面跳大數字
     if (state.combo >= 3) flashText(e.x, e.y - 12, `COMBO x${state.combo}`, { color: "#fde047", size: 14 + Math.min(state.combo, 10), big: true });
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
 
   // ===== 塔瞄準與射擊 =====
   function towerStat(tw, key) {
     const base = TOWERS[tw.type][key];
     if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul");
+    if (key === "poisonDps") return (base || 0) * Math.pow(UPGRADE.poisonDpsMul || UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul");
     if (key === "range") return base * Math.pow(UPGRADE.rangeMul, tw.level - 1) * affixMul("towerRangeMul");
     if (key === "buff") return (base || 0) + (tw.level - 1) * (TOWERS[tw.type].buffPerLevel || 0);
     return base;
@@ -895,7 +948,11 @@
       if (e._dead) continue;
       const d = Math.hypot(e.x - tw.x, e.y - tw.y);
       if (d <= range) {
-        const prog = e.wp + (1 - 0); // 越前面越優先
+        const target = state.path[e.wp];
+        const prev = state.path[Math.max(0, e.wp - 1)];
+        const segLen = target && prev ? Math.max(1, Math.hypot(target.x - prev.x, target.y - prev.y)) : 1;
+        const distToWaypoint = target ? Math.hypot(target.x - e.x, target.y - e.y) : 0;
+        const prog = e.wp - Math.min(1, distToWaypoint / segLen); // 越前面越優先
         if (prog > bestProg) { bestProg = prog; best = e; }
       }
     }
@@ -907,11 +964,12 @@
 
   function fire(tw, target) {
     const def = TOWERS[tw.type];
+    const poisonDps = towerStat(tw, "poisonDps");
     state.bullets.push({
       x: tw.x, y: tw.y, target, speed: 320, color: def.color,
       damage: effectiveTowerDamage(tw), element: def.element,
       splash: def.splash || 0, slow: def.slow || 0, pierce: def.pierce || 0, type: tw.type,
-      poison: def.poisonDps ? { dps: def.poisonDps, duration: def.poisonDuration, maxStacks: def.poisonMaxStacks } : null,
+      poison: poisonDps ? { dps: poisonDps, duration: def.poisonDuration, maxStacks: def.poisonMaxStacks } : null,
       vuln: def.vuln || null,
       projectile: PROJECTILE_BY_TOWER[tw.type] || PROJECTILE_BY_ELEMENT[def.element],
     });
@@ -972,7 +1030,7 @@
     }
     burst(x, y, sk.color, 40); ring(x, y, sk.color, sk.radius > 200 ? 180 : sk.radius + 30); // V2：技能擴張環
     log(`施放 ${sk.name}！`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
     return true;
   }
 
@@ -981,14 +1039,15 @@
     const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
     const def = TOWERS[state.selectedTowerType];
     const center = cellCenter(cx, cy);
-    const pathDistance = def ? cellPathDistance(cx, cy) : Infinity;
     const buildRange = def ? def.range * affixMul("towerRangeMul") : 0;
+    const reach = def ? cellReachInfo(cx, cy, buildRange) : { distance: Infinity, reachable: false };
+    const pathDistance = reach.distance;
     let reason = "";
     if (!def) reason = "尚未選塔";
     else if (px < 0 || py < 0 || px >= W || py >= H) reason = "超出戰場";
     else if (blocked.has(cellKey(cx, cy))) reason = "路徑上不能放";
     else if (state.towers.some((t) => t.cx === cx && t.cy === cy)) reason = "已有塔";
-    else if (pathDistance > buildRange) reason = "太遠打不到路徑";
+    else if (!reach.reachable) reason = "太遠打不到路徑";
     else if (state.gold < def.cost) reason = "金錢不足";
     return {
       ok: reason === "",
@@ -1023,7 +1082,7 @@
     state.buildGhost = null;
     state.mouse = null;
     log(`建造 ${def.name}！`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
     return true;
   }
   function upgradeTower(tw) {
@@ -1034,7 +1093,7 @@
     tw.level++;
     state.towerUpgrades = (state.towerUpgrades || 0) + 1;
     log(`${TOWERS[tw.type].name} 升到 ${tw.level} 級！`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
   function upgradeCost(tw) { return Math.round(TOWERS[tw.type].cost * Math.pow(UPGRADE.costMul, tw.level)); }
   function sellTower(tw) {
@@ -1043,7 +1102,7 @@
     state.towers = state.towers.filter((t) => t !== tw);
     state.selectedTower = null;
     log(`賣出 ${TOWERS[tw.type].name}，回收 ${refund} 金。`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
 
   // ===== 守護女神升級 =====
@@ -1062,7 +1121,7 @@
     burst(gd.x, gd.y, "#fde047", 30);
     const unlocked = gd.level === GODDESS.smiteUnlockLevel ? "（解鎖聖光反擊！）" : "";
     log(`${GODDESS.name} 升到 ${gd.level} 級！生命上限 +${GODDESS.hpPerLevel} ${unlocked}`);
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
 
   // ===== 粒子 =====
@@ -1279,8 +1338,13 @@
     ctx.fillText("Lv." + gd.level, gd.x, gd.y + CELL * 0.85);
   }
 
-  function drawBackground() {
-    ctx.fillStyle = "#0e1a14"; ctx.fillRect(0, 0, W, H);
+  function bakeBackground() {
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    const bg = c.getContext("2d");
+    let ready = true;
+    bg.fillStyle = "#0e1a14"; bg.fillRect(0, 0, W, H);
     const map = state.map;
     // 用草地磚塊亂數鋪滿（圖未載入時退回純色格）
     if (map) {
@@ -1288,18 +1352,29 @@
         for (let cx = 0; cx < map.cols; cx++) {
           const im = getImg(`assets/tiles/grass${map.grass[cy][cx]}.png`, true);
           if (im && im.complete && im.naturalWidth > 0) {
-            ctx.drawImage(im, cx * CELL, cy * CELL, CELL, CELL);
+            bg.drawImage(im, cx * CELL, cy * CELL, CELL, CELL);
           } else {
-            ctx.fillStyle = (cx + cy) % 2 ? "#13241a" : "#15281d";
-            ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
+            ready = false;
+            bg.fillStyle = (cx + cy) % 2 ? "#13241a" : "#15281d";
+            bg.fillRect(cx * CELL, cy * CELL, CELL, CELL);
           }
         }
       }
     }
     // V3 場景深度：暗角 vignette（中心透明 → 邊緣壓暗）
-    const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.75);
+    const vig = bg.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.75);
     vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,.4)");
-    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+    bg.fillStyle = vig; bg.fillRect(0, 0, W, H);
+    return { canvas: c, ready };
+  }
+  function drawBackground() {
+    if (!state.backgroundCache || !state.backgroundCache.ready) {
+      const baked = bakeBackground();
+      if (baked.ready) state.backgroundCache = baked;
+      ctx.drawImage(baked.canvas, 0, 0);
+      return;
+    }
+    ctx.drawImage(state.backgroundCache.canvas, 0, 0);
   }
   function drawPath() {
     // 路徑：先畫底色路（保證可見），再用路徑磚平鋪沿線蓋上
@@ -1330,13 +1405,14 @@
     const cols = state.map ? state.map.cols : Math.ceil(W / CELL);
     const rows = state.map ? state.map.rows : Math.ceil(H / CELL);
     const occupied = new Set(state.towers.map((t) => cellKey(t.cx, t.cy)));
+    const range = def.range * affixMul("towerRangeMul");
     ctx.save();
     ctx.lineWidth = 1;
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
         const key = cellKey(cx, cy);
         if (blocked.has(key) || occupied.has(key)) continue;
-        if (canCellReachPath(cx, cy, def.range)) {
+        if (canCellReachPath(cx, cy, range)) {
           ctx.fillStyle = "rgba(74,222,128,.10)";
           ctx.strokeStyle = "rgba(74,222,128,.22)";
         } else {
@@ -1358,10 +1434,10 @@
     ctx.fillStyle = preview.ok ? "rgba(74,222,128,.3)" : "rgba(239,68,68,.32)";
     ctx.fillRect(preview.cx * CELL, preview.cy * CELL, CELL, CELL);
     ctx.fillStyle = preview.ok ? "rgba(74,222,128,.08)" : "rgba(239,68,68,.08)";
-    ctx.beginPath(); ctx.arc(preview.x, preview.y, def.range, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(preview.x, preview.y, preview.range, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = preview.ok ? "#4ade80" : "#ef4444"; ctx.lineWidth = 2.5;
     ctx.setLineDash([10, 6]);
-    ctx.beginPath(); ctx.arc(preview.x, preview.y, def.range, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(preview.x, preview.y, preview.range, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
     ctx.save();
     ctx.globalAlpha = 0.55;
@@ -1651,7 +1727,7 @@
         state.selectedTowerType = null;
         state.buildGhost = null;
         canvas.style.cursor = "default";
-        if (typeof window.__tdUI === "function") window.__tdUI();
+        notifyUI();
         return built;
       }
       state.advisorBuildConfirm = false;
@@ -1659,7 +1735,7 @@
       state.buildGhost = null;
       canvas.style.cursor = "default";
       log("已取消顧問建造預覽。");
-      if (typeof window.__tdUI === "function") window.__tdUI();
+      notifyUI();
       return false;
     }
     if (!isTouch) { tryBuildTower(p.x, p.y); return; }
@@ -1691,7 +1767,7 @@
         log(onSelf ? `${HEROES[h.id].name} 解除駐守，自由作戰。` : `${HEROES[h.id].name} 駐守此地！`);
       }
       state.pendingHero = null; canvas.style.cursor = "default";
-      if (typeof window.__tdUI === "function") window.__tdUI();
+      notifyUI();
       return;
     }
     // 點到地圖上的英雄 → 選中它（準備設駐守點）
@@ -1699,13 +1775,13 @@
     if (hero) {
       state.pendingHero = hero.uid; canvas.style.cursor = "crosshair";
       log(`已選 ${HEROES[hero.id].name}，點地圖指定駐守點（點它自己取消駐守）。`);
-      if (typeof window.__tdUI === "function") window.__tdUI();
+      notifyUI();
       return;
     }
     const cx = Math.floor(p.x / CELL), cy = Math.floor(p.y / CELL);
     const tw = state.towers.find((t) => t.cx === cx && t.cy === cy);
     state.selectedTower = tw || null;
-    if (typeof window.__tdUI === "function") window.__tdUI();
+    notifyUI();
   }
   canvas.addEventListener("mousemove", (ev) => { state.mouse = canvasPos(ev.clientX, ev.clientY); });
   canvas.addEventListener("click", (ev) => { handleTap(canvasPos(ev.clientX, ev.clientY), false); });
@@ -1754,7 +1830,7 @@
       canvas.style.cursor = "crosshair";
       flashText(preview.x, preview.y - 18, "再點一次確認建造", { color: "#fde047", size: 13, big: true });
       render();
-      if (typeof window.__tdUI === "function") window.__tdUI();
+      notifyUI();
       return true;
     }
     if (action.kind === "upgrade") {
@@ -1771,7 +1847,7 @@
       canvas.style.cursor = "default";
       flashText(tw.x, tw.y - 24, "建議升級", { color: "#facc15", size: 13, big: true });
       render();
-      if (typeof window.__tdUI === "function") window.__tdUI();
+      notifyUI();
       return true;
     }
     return false;
@@ -1818,7 +1894,7 @@
     getPerformanceStatus,
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
-    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; if (typeof window.__tdUI === "function") window.__tdUI(); },
+    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },
     setSpeed: (s) => { state.speed = s; },
     buildPreviewAt: (x, y) => buildPreviewAt(x, y),
     debug: {

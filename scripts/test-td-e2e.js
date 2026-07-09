@@ -781,6 +781,11 @@ async function run() {
         bullets: st.bullets,
         spawnQueue: st.spawnQueue,
         particles: st.particles,
+        wave: st.wave,
+        runLeaks: st.runLeaks,
+        clearedWave: st.clearedWave,
+        betweenWaves: st.betweenWaves,
+        running: st.running,
       };
       st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
 
@@ -793,6 +798,26 @@ async function run() {
       const stacks = e.poisonStacks.length;
       window.TD.debug.step(1.0);
       const afterDot = e.hp;
+      const poisonDps1 = window.TD.towerStat(poison, "poisonDps");
+      st.enemies = []; st.bullets = [];
+      const poisonLv4 = { type: "poison", level: 4, x: 220, y: 220, cx: 4, cy: 4, cd: 999 };
+      const highPoisonEnemy = window.TD.debug.spawnEnemy("slime", { x: 220, y: 220, wp: 1, hp: 200, maxHp: 200, speed: 0 });
+      st.towers = [poisonLv4];
+      window.TD.debug.fireTower(poisonLv4, highPoisonEnemy);
+      window.TD.debug.step(0.2);
+      const poisonDps4 = window.TD.towerStat(poisonLv4, "poisonDps");
+      const highStackDps = highPoisonEnemy.poisonStacks[0] && highPoisonEnemy.poisonStacks[0].dps;
+
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = [];
+      st.wave = 0;
+      st.clearedWave = 0;
+      st.betweenWaves = true;
+      st.running = false;
+      st.runLeaks = { total: 0, byWave: {} };
+      const leakEnemy = window.TD.debug.spawnEnemy("slime", { x: 0, y: 0, wp: st.path.length, hp: 40, maxHp: 40, speed: 0 });
+      const leakEnemyType = leakEnemy.type;
+      window.TD.debug.step(0.05);
+      const leakByType = ((st.runLeaks.byWave || {})["1"] || {}).byType || {};
 
       const arrow = { type: "arrow", level: 1, x: 200, y: 200, cx: 4, cy: 4, cd: 0 };
       const support = { type: "support", level: 1, x: 230, y: 200, cx: 5, cy: 4, cd: 0 };
@@ -838,10 +863,19 @@ async function run() {
       st.bullets = saved.bullets;
       st.spawnQueue = saved.spawnQueue;
       st.particles = saved.particles;
-      return { afterHit, afterDot, stacks, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB, goblinDodged, orcRaged, splitChildren };
+      st.wave = saved.wave;
+      st.runLeaks = saved.runLeaks;
+      st.clearedWave = saved.clearedWave;
+      st.betweenWaves = saved.betweenWaves;
+      st.running = saved.running;
+      return { afterHit, afterDot, stacks, poisonDps1, poisonDps4, highStackDps, leakEnemyType, leakByType, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB, goblinDodged, orcRaged, splitChildren };
     });
     assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
       `毒霧塔 DoT 生效（命中後 ${stage4Combat.afterHit.toFixed(1)} → tick 後 ${stage4Combat.afterDot.toFixed(1)}，層數 ${stage4Combat.stacks}）`);
+    assert(stage4Combat.poisonDps4 > stage4Combat.poisonDps1 && Math.abs(stage4Combat.highStackDps - stage4Combat.poisonDps4) < 0.05,
+      `毒霧塔 DoT 隨等級成長並寫入彈體（${stage4Combat.poisonDps1.toFixed(1)} → ${stage4Combat.poisonDps4.toFixed(1)}）`);
+    assert(stage4Combat.leakEnemyType === "slime" && stage4Combat.leakByType.slime === 1 && !Object.prototype.hasOwnProperty.call(stage4Combat.leakByType, "undefined"),
+      `漏怪 byType 使用真實敵種（${JSON.stringify(stage4Combat.leakByType)}）`);
     assert(stage4Combat.buff >= 0.20 && stage4Combat.effective > stage4Combat.base,
       `聖光塔 buff 生效（base ${stage4Combat.base}，buff ${stage4Combat.buff}，effective ${stage4Combat.effective}）`);
     assert(Math.abs(stage4Combat.poisonGain - stage4Combat.poisonExpectedGain) < 0.05,
@@ -1112,10 +1146,13 @@ async function run() {
         Math.random = originalRandom;
       }
       const q = st.spawnQueue.map((s) => s.type);
+      const previewQueue = preview.queue.map((s) => s.type);
       const themeEls = q.filter((t) => (window.ENEMIES[t] || {}).element === preview.theme).length;
-      return { theme: preview.theme, queueLen: q.length, themeCount: themeEls, types: [...new Set(q)] };
+      return { theme: preview.theme, queueLen: q.length, themeCount: themeEls, types: [...new Set(q)], sameQueue: JSON.stringify(q) === JSON.stringify(previewQueue), previewQueue, actualQueue: q };
     });
     assert(themed.theme === "ice", `第 9 波預告主題為 ice（實際 ${themed.theme}）`);
+    assert(themed.sameQueue,
+      `預告 queue 與實際出怪 queue 完全一致（${themed.previewQueue.join(",")}）`);
     assert(themed.themeCount >= Math.floor(themed.queueLen * 0.3),
       `主題波出怪偏壓生效（${themed.themeCount}/${themed.queueLen} 隻為 ${themed.theme} 系，含冰霜狼）`);
 

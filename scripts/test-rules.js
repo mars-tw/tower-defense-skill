@@ -27,6 +27,8 @@ const {
   protectMetaWrite,
   evaluateBeginnerMissions,
   generateWaveQueue,
+  waveRngSeed,
+  towerPoisonDpsFor,
   applyDifficulty,
   distanceToPath,
   canReachPath,
@@ -320,6 +322,10 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
   const a = generateWaveQueue(9, cfg.DIFFICULTIES.normal, makeRng(42));
   const b = generateWaveQueue(9, cfg.DIFFICULTIES.normal, makeRng(42));
   assert(JSON.stringify(a.queue) === JSON.stringify(b.queue), "固定 rng 下波次 queue 可重現");
+  const implicitSeed = generateWaveQueue(9, cfg.DIFFICULTIES.normal, null);
+  const explicitSeed = generateWaveQueue(9, cfg.DIFFICULTIES.normal, waveRngSeed(9));
+  assert(JSON.stringify(implicitSeed.queue) === JSON.stringify(explicitSeed.queue),
+    "預設波次 seed 與明確 waveRngSeed 生成相同 queue");
   assert(a.theme === "ice" && a.event === null && !a.isBoss, "第 9 波為 ice 主題且非事件/非 Boss");
 
   const themed = generateWaveQueue(9, cfg.DIFFICULTIES.normal, constantRng(0.1));
@@ -376,6 +382,16 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
     "第 1 次 Boss 波維持魔王");
   assert(boss2.queue.some((spec) => spec.type === "yaksha") && !boss2.event,
     "偶數 Boss 波改為夜叉且不與事件波互撞");
+}
+
+console.log("\n== 毒霧塔 DoT 等級成長 ==");
+{
+  const lv1 = towerPoisonDpsFor("poison", 1);
+  const lv4 = towerPoisonDpsFor("poison", 4);
+  const expected = cfg.TOWERS.poison.poisonDps * Math.pow(cfg.UPGRADE.poisonDpsMul, 3);
+  assert(lv1 === cfg.TOWERS.poison.poisonDps, `Lv1 毒 DPS 維持基礎值 ${lv1}`);
+  assert(Math.abs(lv4 - expected) < 1e-9 && lv4 > lv1,
+    `Lv4 毒 DPS 依 poisonDpsMul 成長（${lv1.toFixed(1)} → ${lv4.toFixed(1)}）`);
 }
 
 console.log("\n== 建塔格距離路徑判定 ==");

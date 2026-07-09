@@ -1035,7 +1035,8 @@
       } else {
         const buff = TD.getTowerBuff ? TD.getTowerBuff(tw) : 0;
         const effective = TD.effectiveTowerDamage ? TD.effectiveTowerDamage(tw) : TD.towerStat(tw, "damage");
-        const poison = def.poisonDps ? `<br>毒素 ${def.poisonDps}/秒 · ${def.poisonDuration} 秒 · 最多 ${def.poisonMaxStacks} 層` : "";
+        const poisonDps = def.poisonDps && TD.towerStat ? TD.towerStat(tw, "poisonDps") : def.poisonDps;
+        const poison = def.poisonDps ? `<br>毒素 ${poisonDps.toFixed(1)}/秒 · ${def.poisonDuration} 秒 · 最多 ${def.poisonMaxStacks} 層` : "";
         statLine = `傷害 ${Math.round(effective)}${buff > 0 ? `（聖光 +${Math.round(buff * 100)}%）` : ""} · 射程 ${Math.round(TD.towerStat(tw, "range"))}${poison}`;
       }
       $("selInfo").innerHTML = `
@@ -1078,7 +1079,7 @@
 
   const SAVE_BACKUP_KEY = "td_meta_backup_v1";
   const SAVE_KIND = "td-save-v1";
-  const META_IMPORT_KEYS = ["version", "soulCrystal", "bestWave", "bestByDiff", "board", "achievements", "beginnerMissions", "heroProgress", "games", "totalKills", "gachaCount"];
+  const META_IMPORT_KEYS = ["version", "soulCrystal", "bestWave", "bestByDiff", "board", "achievements", "beginnerMissions", "heroProgress", "games", "totalKills", "gachaPity", "gachaCount", "lastMap"];
 
   function encodeTextBase64(text) {
     const bytes = new TextEncoder().encode(String(text || ""));

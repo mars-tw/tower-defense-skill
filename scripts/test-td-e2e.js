@@ -935,6 +935,14 @@ async function run() {
       const mortarTarget = window.TD.debug.acquireTarget(mortar);
       st.enemies = [nearMortarEnemy];
       const mortarNearOnly = window.TD.debug.acquireTarget(mortar);
+      const mortarLv10 = { type: "mortar", level: 10, x: 300, y: 300, cx: 6, cy: 6, cd: 0, order: 0 };
+      const mortarMinL1 = window.TD.towerStat(mortar, "minRange");
+      const mortarMinL10 = window.TD.towerStat(mortarLv10, "minRange");
+      const mortarRangeL1 = window.TD.towerStat(mortar, "range");
+      const mortarRangeL10 = window.TD.towerStat(mortarLv10, "range");
+      const midMortarEnemy = window.TD.debug.spawnEnemy("slime", { x: 400, y: 300, wp: 1, hp: 100, maxHp: 100, speed: 0, walkDist: 240 });
+      st.enemies = [midMortarEnemy];
+      const mortarLv10MidTarget = window.TD.debug.acquireTarget(mortarLv10) === midMortarEnemy;
 
       st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
       const muteA = { type: "arrow", level: 1, x: 80, y: 100, cx: 1, cy: 2, cd: 999, order: 2 };
@@ -977,6 +985,7 @@ async function run() {
         beaconSlowFactor, beaconRevealed, combinedSlowFactor,
         mortarTargetIsFar: mortarTarget === farMortarEnemy,
         mortarNearOnlyNull: mortarNearOnly === null,
+        mortarMinL1, mortarMinL10, mortarRangeL1, mortarRangeL10, mortarLv10MidTarget,
         mutedByOrder,
         mirrorAfterReflect, mirrorReflected, mirrorAfterSecondSkill,
         armoredDealt, armoredFlag, unarmoredDealt,
@@ -1000,6 +1009,8 @@ async function run() {
       `引魂燈塔暴露並 15% 減速，與寒冰取高不疊乘（beacon ${stage4Combat.beaconSlowFactor}, combined ${stage4Combat.combinedSlowFactor}）`);
     assert(stage4Combat.mortarTargetIsFar && stage4Combat.mortarNearOnlyNull,
       "墜星臼砲不攻擊 minRange 內敵人，會選外環目標");
+    assert(stage4Combat.mortarMinL1 === 70 && stage4Combat.mortarMinL10 === 70 && stage4Combat.mortarRangeL10 > stage4Combat.mortarRangeL1 && stage4Combat.mortarLv10MidTarget,
+      `墜星臼砲升級只擴外圈、不放大盲區（range ${Math.round(stage4Combat.mortarRangeL1)}→${Math.round(stage4Combat.mortarRangeL10)}，min ${stage4Combat.mortarMinL1}→${stage4Combat.mortarMinL10}）`);
     assert(stage4Combat.mutedByOrder,
       "緘口妖僧 towerMute 同距時依建造序選中較早塔");
     assert(stage4Combat.mirrorReflected && stage4Combat.mirrorAfterReflect === 100 && stage4Combat.mirrorAfterSecondSkill === 70,
@@ -1294,6 +1305,39 @@ async function run() {
     });
     assert(runSeedDiversity.sameRunStable && runSeedDiversity.differentRunDifferent,
       `同 runSeed 可重現、不同 runSeed 組成不同（A=${runSeedDiversity.a.join(",")} / B=${runSeedDiversity.b.join(",")}）`);
+    const eventSeedDiversity = await page.evaluate(() => {
+      const st = window.TD.state();
+      const saved = {
+        runSeed: st.runSeed,
+        affixSeed: st.affixSeed,
+        wave: st.wave,
+      };
+      const tableFor = (runSeed) => {
+        st.runSeed = runSeed;
+        st.affixSeed = 777;
+        const ids = [];
+        for (let w = 1; w <= 60; w++) {
+          st.wave = w - 1;
+          const preview = window.TD.previewNextWave();
+          if (preview.event) ids.push(`${preview.wave}:${preview.event.id}`);
+        }
+        return ids;
+      };
+      const a = tableFor(111111);
+      const a2 = tableFor(111111);
+      const b = tableFor(222222);
+      st.runSeed = saved.runSeed;
+      st.affixSeed = saved.affixSeed;
+      st.wave = saved.wave;
+      return {
+        sameRunStable: JSON.stringify(a) === JSON.stringify(a2),
+        differentRunDifferent: JSON.stringify(a) !== JSON.stringify(b),
+        a,
+        b,
+      };
+    });
+    assert(eventSeedDiversity.sameRunStable && eventSeedDiversity.differentRunDifferent,
+      `事件波表同 runSeed 可重現、不同 runSeed 分布不同（A=${eventSeedDiversity.a.join(",")} / B=${eventSeedDiversity.b.join(",")}）`);
     const themed = await page.evaluate(() => {
       const st = window.TD.state();
       // waveTheme(9)=ice：把 wave 設 8，下一波就是 9

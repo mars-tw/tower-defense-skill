@@ -1047,7 +1047,7 @@
     if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul") * eventMul("towerDamageMul");
     if (key === "poisonDps") return (base || 0) * Math.pow(UPGRADE.poisonDpsMul || UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul") * eventMul("towerDamageMul");
     if (key === "range") return base * Math.pow(UPGRADE.rangeMul, tw.level - 1) * affixMul("towerRangeMul");
-    if (key === "minRange") return (base || 0) * Math.pow(UPGRADE.rangeMul, tw.level - 1) * affixMul("towerRangeMul");
+    if (key === "minRange") return base || 0;
     if (key === "buff") return (base || 0) + (tw.level - 1) * (TOWERS[tw.type].buffPerLevel || 0);
     return base;
   }
@@ -1590,7 +1590,7 @@
     ctx.beginPath(); ctx.arc(preview.x, preview.y, preview.range, 0, Math.PI * 2); ctx.stroke();
     if (def.minRange) {
       ctx.strokeStyle = "rgba(248,113,113,.75)";
-      ctx.beginPath(); ctx.arc(preview.x, preview.y, def.minRange * affixMul("towerRangeMul"), 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(preview.x, preview.y, def.minRange, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.setLineDash([]);
     ctx.save();

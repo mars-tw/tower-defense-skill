@@ -388,8 +388,12 @@
     return Math.pow(1 + cfg.GAME.hpGrowthEarly, 9) * Math.pow(1 + cfg.GAME.hpGrowthLate, w - 10);
   }
 
-  function eventWaveSeed(wave) {
-    return ((wave * 2654435761) % 1000) / 1000;
+  function eventWaveSeed(wave, runSeed, affixSeed) {
+    const w = Math.max(1, Math.floor(safeNumber(wave, 1)));
+    if (runSeed != null || affixSeed != null) {
+      return mixSeedParts([w, normalizeSeedPart(runSeed, 0), normalizeSeedPart(affixSeed, 0), 0x65766e74]) / 4294967296;
+    }
+    return ((w * 2654435761) % 1000) / 1000;
   }
 
   function waveRngSeed(wave, runSeed, affixSeed) {
@@ -476,7 +480,8 @@
     const bossEvery = difficultyValue(diff, "bossEvery", cfg.GAME.bossEveryWaves || 5);
     const isBoss = w % bossEvery === 0;
     const hpScale = applyDifficulty({ hpScale: baseWaveHpScale(w) }, diff).hpScale;
-    const event = cfg.getEventWave(w, isBoss, eventWaveSeed(w));
+    const eventSalt = isFiniteNumber(rng) ? Math.floor(rng) : null;
+    const event = cfg.getEventWave(w, isBoss, eventWaveSeed(w, eventSalt));
     const theme = cfg.waveTheme(w);
     const themePool = theme ? (cfg.themeEnemyPool(theme) || []).filter((type) => enemyAvailableInWave(type, w)) : null;
     const rand = makeRng(rng, w);

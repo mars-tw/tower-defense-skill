@@ -365,6 +365,21 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
     if (qa !== qb) { diverseWave = w; break; }
   }
   assert(diverseWave != null, `不同 runSeed 會讓至少一個測試波次組成不同（wave ${diverseWave || "none"}）`);
+  const eventIdsFor = (runSeed) => {
+    const ids = [];
+    for (let w = 1; w <= 60; w++) {
+      const plan = generateWaveQueue(w, cfg.DIFFICULTIES.normal, waveRngSeed(w, runSeed, 777));
+      if (plan.event) ids.push(`${w}:${plan.event.id}`);
+    }
+    return ids;
+  };
+  const eventsA = eventIdsFor(111111);
+  const eventsA2 = eventIdsFor(111111);
+  const eventsB = eventIdsFor(222222);
+  assert(JSON.stringify(eventsA) === JSON.stringify(eventsA2),
+    `同 runSeed 的事件波表可重現（${eventsA.join(",")}）`);
+  assert(JSON.stringify(eventsA) !== JSON.stringify(eventsB),
+    `不同 runSeed 的事件波分布不同（A=${eventsA.join(",")} / B=${eventsB.join(",")}）`);
   assert(a.theme === "ice" && a.event === null && !a.isBoss, "第 9 波為 ice 主題且非事件/非 Boss");
 
   const themed = generateWaveQueue(9, cfg.DIFFICULTIES.normal, constantRng(0.1));

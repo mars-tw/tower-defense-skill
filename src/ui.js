@@ -93,7 +93,7 @@
 
   // ===== 建塔選單（補關鍵數值與元素，D3 資訊透明）=====
   function towerMetaText(t) {
-    if (t.slowAura) return `範圍 ${t.range} · 暴露 · 減速 ${Math.round(t.slowAura * 100)}%`;
+    if (t.slowAura) return `範圍 ${t.range} · 暴露 · 減速 ${Math.round(t.slowAura * 100)}% · 不補盲區`;
     if (t.support) return `範圍 ${t.range} · 增傷 +${Math.round(t.buff * 100)}%`;
     const extra = t.poisonDps ? ` · 毒 ${t.poisonDps}/秒` : "";
     const control = t.id === "frost" ? " · 控場減速" : "";
@@ -1035,7 +1035,7 @@
       const maxed = tw.level >= TD.config.UPGRADE.maxLevel;
       let statLine;
       if (def.slowAura) {
-        statLine = `暴露敵人 · 減速 ${Math.round(def.slowAura * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}<br>與寒冰塔取較強減速，不造成傷害`;
+        statLine = `暴露敵人 · 減速 ${Math.round(def.slowAura * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}<br>與寒冰塔取較強減速，不造成傷害；不補臼砲盲區`;
       } else if (def.support) {
         const gain = TD.supportDpsGain ? TD.supportDpsGain(tw) : 0;
         statLine = `增傷 +${Math.round(TD.towerStat(tw, "buff") * 100)}% · 射程 ${Math.round(TD.towerStat(tw, "range"))}<br>目前加成 +${gain.toFixed(1)} DPS`;
@@ -1044,8 +1044,9 @@
         const effective = TD.effectiveTowerDamage ? TD.effectiveTowerDamage(tw) : TD.towerStat(tw, "damage");
         const poisonDps = def.poisonDps && TD.towerStat ? TD.towerStat(tw, "poisonDps") : def.poisonDps;
         const poison = def.poisonDps ? `<br>毒素 ${poisonDps.toFixed(1)}/秒 · ${def.poisonDuration} 秒 · 最多 ${def.poisonMaxStacks} 層` : "";
-        const blind = def.minRange ? ` · 盲區 ${Math.round(TD.towerStat(tw, "minRange"))}` : "";
-        statLine = `傷害 ${Math.round(effective)}${buff > 0 ? `（聖光 +${Math.round(buff * 100)}%）` : ""} · 射程 ${Math.round(TD.towerStat(tw, "range"))}${blind}${poison}`;
+        const blind = def.minRange ? ` · 固定盲區 ${Math.round(TD.towerStat(tw, "minRange"))}` : "";
+        const blindNote = def.minRange ? "<br>腳下需由其他塔補位，引魂燈不會替臼砲補盲區" : "";
+        statLine = `傷害 ${Math.round(effective)}${buff > 0 ? `（聖光 +${Math.round(buff * 100)}%）` : ""} · 射程 ${Math.round(TD.towerStat(tw, "range"))}${blind}${poison}${blindNote}`;
       }
       $("selInfo").innerHTML = `
         <b>${def.emoji} ${def.name}</b> Lv.${tw.level}<br>

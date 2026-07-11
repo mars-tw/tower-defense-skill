@@ -131,6 +131,12 @@ console.log("== R41：PWA/可近用性資產 ==");
   assert(index.includes('rel="manifest"') && index.includes("navigator.webdriver") && index.includes("swtest"), "index 連結 manifest、webdriver 跳過 SW 註冊且提供 swtest");
   assert(index.includes("controllerchange") && index.includes("AUTO_RELOAD_WINDOW_MS") && index.includes("sessionStorage"), "index 具備 SW controllerchange 自動更新守衛");
   assert(index.includes("data-text-size") && index.includes(":focus-visible") && index.includes("checkUpdateBtn"), "index 有文字大小、focus-visible 與檢查更新 UI");
+  assert(index.includes("viewport-fit=cover") && index.includes("safe-area-inset-top") && index.includes("safe-area-inset-bottom"),
+    "手機殼啟用 viewport-fit 與上下 safe-area 防護");
+  assert(index.includes('rel="apple-touch-icon"') && index.includes("apple-mobile-web-app-capable") &&
+    index.includes("beforeinstallprompt") && index.includes("installBtn"), "PWA 有 iOS 主畫面 metadata 與產品內安裝入口");
+  assert(index.includes("width: 724px") && index.includes("battlefield-scroll") && index.includes("touch-action: pan-x pan-y"),
+    "手機直式戰場具備 ≥36px 格位與可平移容器");
 
   // R45：URL 版本化守門 — 根治「新 HTML 配舊 JS」版本錯配
   const swVersion = (sw.match(/const\s+CACHE_VERSION\s*=\s*["']([^"']+)["']/) || [])[1] || "";

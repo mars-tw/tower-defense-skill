@@ -367,7 +367,7 @@
     if (value < 45) {
       perfState.lowSamples++;
       perfState.highSamples = 0;
-      if (perfState.lowSamples >= 1) setPerformanceQuality("low", "auto-low-fps");
+      if (perfState.lowSamples >= 2) setPerformanceQuality("low", "auto-low-fps");
     } else if (value >= 54) {
       perfState.highSamples++;
       perfState.lowSamples = 0;
@@ -493,6 +493,12 @@
     state.map = buildMapLayout(); // 亂數地圖佈局
     emitIntroLogs();
     notifyUI(true);
+    const battlefield = document.getElementById("battlefieldScroll");
+    if (battlefield) {
+      // 手機放大戰場留少量左右點擊緩衝，避免首個半屏邊界格落在裁切線外。
+      battlefield.scrollLeft = battlefield.scrollWidth > battlefield.clientWidth + 2 ? 8 : 0;
+      battlefield.scrollTop = 0;
+    }
   }
 
   // 亂數地圖佈局：每格隨機草地變化 + 隨機裝飾物（避開路徑）
@@ -1568,7 +1574,8 @@
   function burst(x, y, color, n, opts) {
     if (reducedEffectsEnabled()) return;
     opts = opts || {};
-    const count = performanceLow() ? Math.max(1, Math.round((n || 1) * 0.45)) : n;
+    const lowScale = opts.criticalFx ? 0.34 : 0.45;
+    const count = performanceLow() ? Math.max(1, Math.round((n || 1) * lowScale)) : n;
     for (let i = 0; i < count; i++) {
       const a = effectRand() * Math.PI * 2, sp = 50 + effectRand() * 160;
       pushParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
@@ -1928,7 +1935,7 @@
           ctx.strokeStyle = "rgba(148,163,184,.10)";
         }
         ctx.fillRect(cx * CELL + 1, cy * CELL + 1, CELL - 2, CELL - 2);
-        ctx.strokeRect(cx * CELL + 4, cy * CELL + 4, CELL - 8, CELL - 8);
+        if (!performanceLow()) ctx.strokeRect(cx * CELL + 4, cy * CELL + 4, CELL - 8, CELL - 8);
       }
     }
     ctx.restore();
@@ -1982,7 +1989,7 @@
     ctx.strokeStyle = "#facc15";
     ctx.lineWidth = 3;
     ctx.shadowColor = "#facc15";
-    ctx.shadowBlur = 14;
+    ctx.shadowBlur = performanceLow() ? 0 : 14;
     ctx.beginPath();
     ctx.arc(tw.x, tw.y, CELL * 0.58 * pulse, 0, Math.PI * 2);
     ctx.stroke();
@@ -2046,7 +2053,7 @@
     // 高等級的外圈發光
     if (lv >= 2) {
       ctx.save();
-      ctx.shadowColor = levelGlow[lv - 1]; ctx.shadowBlur = 6 + lv * 3;
+      ctx.shadowColor = levelGlow[lv - 1]; ctx.shadowBlur = performanceLow() ? 0 : 6 + lv * 3;
       ctx.strokeStyle = levelGlow[lv - 1]; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(tw.x, tw.y, baseR + 2, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
@@ -2222,11 +2229,11 @@
       const sz = b.projectile === "cannonball" ? 22 : 26;
       ctx.save();
       ctx.translate(b.x, b.y); ctx.rotate(ang);
-      ctx.shadowColor = b.color; ctx.shadowBlur = 6;
+      ctx.shadowColor = b.color; ctx.shadowBlur = performanceLow() ? 0 : 6;
       ctx.drawImage(im, -sz / 2, -sz / 2, sz, sz);
       ctx.restore();
     } else {
-      ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+      ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = performanceLow() ? 0 : 8;
       ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
     }
   }
@@ -2262,7 +2269,7 @@
       ctx.globalAlpha = Math.max(0, 0.9 - prog * 0.9);
       ctx.fillStyle = p.color;
       ctx.shadowColor = p.color;
-      ctx.shadowBlur = 14;
+      ctx.shadowBlur = performanceLow() ? 0 : 14;
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo((p.r || 14) * (1 - prog * 0.35), -6);
@@ -2282,7 +2289,7 @@
       ctx.restore();
     } else {
       // glow 圓點：發光 + 大小隨機
-      ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 8;
+      ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = performanceLow() ? 0 : 8;
       ctx.beginPath(); ctx.arc(p.x, p.y, (p.r || 2) * a, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
     }
@@ -2293,6 +2300,14 @@
   function canvasPos(clientX, clientY) {
     const r = canvas.getBoundingClientRect();
     return { x: (clientX - r.left) * (W / r.width), y: (clientY - r.top) * (H / r.height) };
+  }
+  function revealCanvasPoint(x, y) {
+    const host = document.getElementById("battlefieldScroll");
+    if (!host || host.scrollWidth <= host.clientWidth + 2) return;
+    const scaleX = canvas.clientWidth / W;
+    const scaleY = canvas.clientHeight / H;
+    host.scrollLeft = Math.max(0, Math.min(host.scrollWidth - host.clientWidth, x * scaleX - host.clientWidth / 2));
+    host.scrollTop = Math.max(0, Math.min(host.scrollHeight - host.clientHeight, y * scaleY - host.clientHeight / 2));
   }
   // 點擊/觸控的共用處理（座標已換算，RWD 縮放下也正確）
   function handleBuildTap(p, isTouch) {
@@ -2365,14 +2380,27 @@
   canvas.addEventListener("mousemove", (ev) => { state.mouse = canvasPos(ev.clientX, ev.clientY); });
   canvas.addEventListener("click", (ev) => { handleTap(canvasPos(ev.clientX, ev.clientY), false); });
   // 觸控支援：tap 建塔/選塔/放技能
+  let touchGesture = null;
   canvas.addEventListener("touchstart", (ev) => {
-    if (ev.touches.length) { const t = ev.touches[0]; state.mouse = canvasPos(t.clientX, t.clientY); }
+    if (ev.touches.length) {
+      const t = ev.touches[0];
+      touchGesture = { x: t.clientX, y: t.clientY, moved: false };
+      state.mouse = canvasPos(t.clientX, t.clientY);
+    }
+  }, { passive: true });
+  canvas.addEventListener("touchmove", (ev) => {
+    if (!touchGesture || !ev.touches.length) return;
+    const t = ev.touches[0];
+    if (Math.hypot(t.clientX - touchGesture.x, t.clientY - touchGesture.y) > 10) touchGesture.moved = true;
   }, { passive: true });
   canvas.addEventListener("touchend", (ev) => {
     ev.preventDefault(); // 避免觸發後續的合成 click（重複觸發）
     const t = ev.changedTouches[0];
-    if (t) handleTap(canvasPos(t.clientX, t.clientY), true);
+    const moved = touchGesture && touchGesture.moved;
+    touchGesture = null;
+    if (t && !moved) handleTap(canvasPos(t.clientX, t.clientY), true);
   }, { passive: false });
+  canvas.addEventListener("touchcancel", () => { touchGesture = null; }, { passive: true });
 
   function previewAdvisorAction(action) {
     if (!action || state.over) return false;
@@ -2406,6 +2434,7 @@
       state.advisorBuildConfirm = true;
       state.buildGhost = { x: preview.x, y: preview.y, cx: preview.cx, cy: preview.cy, advisor: true };
       state.mouse = { x: preview.x, y: preview.y };
+      revealCanvasPoint(preview.x, preview.y);
       canvas.style.cursor = "crosshair";
       flashText(preview.x, preview.y - 18, "再點一次確認建造", { color: "#fde047", size: 13, big: true });
       render();

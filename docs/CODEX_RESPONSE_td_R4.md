@@ -2,7 +2,7 @@
 
 | 項目 | 回應 |
 |---|---|
-| 版本 | `td-r54-v1` / `0.5.4` |
+| 版本 | `td-r55-v1` / `0.5.5` |
 | 結論 | 採納 Grok R4 的 P0/P1。Boss slow-mo 已改為純表現；粒子補硬上限；reduced 擴大到 burst/ring/傷害浮字/紅暈；WebAudio 改為確認 running 後才 unlocked，並加 master gain、同類音效節流、active voice cap、ended disconnect。 |
 
 ## 逐條回應

@@ -1056,6 +1056,34 @@ async function run() {
       }
       const particleCap = st.particles.length;
       const ringCap = st.particles.filter((p) => p.ring).length;
+      st.particles = [];
+      for (let i = 0; i < 220; i++) {
+        window.TD.debug.pushParticle({ x: 10 + i, y: 10, vx: 0, vy: 0, life: 1, color: "#94a3b8", r: 2, muzzle: true, fxKind: "decor-fill" });
+      }
+      const warningLeakEnemy = window.TD.debug.spawnEnemy("slime", {
+        x: st.goddess.x, y: st.goddess.y, wp: st.path.length, hp: 40, maxHp: 40, speed: 0, reward: 0,
+      });
+      window.TD.debug.step(0.016);
+      const leakCriticalFx = warningLeakEnemy._leaked && st.particles.some((p) => p.criticalFx && p.fxKind === "leak-warning");
+      const leakDecorEvicted = st.particles.filter((p) => p.fxKind === "decor-fill").length < 220;
+      const leakCapAfterEviction = st.particles.length;
+      const criticalAfterLeak = st.particles.filter((p) => p.criticalFx && p.fxKind === "leak-warning").length;
+      window.TD.debug.pushParticle({ x: 12, y: 12, vx: 0, vy: 0, life: 1, color: "#94a3b8", r: 2, muzzle: true, fxKind: "post-warning-decor" });
+      const leakCriticalSurvivesDecor = st.particles.filter((p) => p.criticalFx && p.fxKind === "leak-warning").length === criticalAfterLeak;
+
+      st.particles = [];
+      for (let i = 0; i < 220; i++) {
+        window.TD.debug.pushParticle({ x: 20 + i, y: 20, vx: 0, vy: 0, life: 1, color: "#94a3b8", r: 2, muzzle: true, fxKind: "decor-fill" });
+      }
+      const capBoss = window.TD.debug.spawnEnemy("boss", { x: 300, y: 300, wp: 1, hp: 1, maxHp: 1, speed: 0, reward: 1 });
+      st.towers = [fxTower]; st.enemies = [capBoss]; st.bullets = [];
+      window.TD.debug.fireTower(fxTower, capBoss);
+      window.TD.debug.step(0.25);
+      const bossCriticalFx = capBoss._dead && st.particles.some((p) => p.criticalFx && p.fxKind === "boss");
+      const bossDecorEvicted = st.particles.filter((p) => p.fxKind === "decor-fill").length < 220;
+      const bossCapAfterEviction = st.particles.length;
+      const sfxWarningEvictsKill = window.TD.debug.simulateSfxEviction(Array(10).fill("kill"), "leak");
+      const sfxKillCannotEvictWarning = window.TD.debug.simulateSfxEviction(Array(10).fill("leak"), "kill");
 
       const captureSpawnTimeline = (reduced) => {
         window.TD.setReducedEffects(reduced);
@@ -1134,7 +1162,10 @@ async function run() {
         r53Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
         r54Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
         reducedMuzzle, reducedCoin, reducedBeam, reducedSlowMo, reducedParticles, reducedRedVignette, juiceSettings,
-        slowMoLogic, particleCap, ringCap, normalTimeline, reducedTimeline, spawnTimelineStable,
+        slowMoLogic, particleCap, ringCap,
+        leakCriticalFx, leakDecorEvicted, leakCapAfterEviction, leakCriticalSurvivesDecor,
+        bossCriticalFx, bossDecorEvicted, bossCapAfterEviction, sfxWarningEvictsKill, sfxKillCannotEvictWarning,
+        normalTimeline, reducedTimeline, spawnTimelineStable,
       };
     });
     assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
@@ -1174,6 +1205,13 @@ async function run() {
       `Boss slow-mo 只縮放 fxTimeScale，不縮放 logic dt/clock/位移（${JSON.stringify(stage4Combat.slowMoLogic)}）`);
     assert(stage4Combat.particleCap <= 220 && stage4Combat.ringCap <= 14,
       `粒子有全域硬上限與 ring cap（particles=${stage4Combat.particleCap}, rings=${stage4Combat.ringCap}）`);
+    assert(stage4Combat.leakCriticalFx && stage4Combat.leakDecorEvicted && stage4Combat.leakCapAfterEviction <= 220 && stage4Combat.leakCriticalSurvivesDecor,
+      `cap 滿時漏怪警示粒子仍出現且不被裝飾粒子擠掉（particles=${stage4Combat.leakCapAfterEviction}）`);
+    assert(stage4Combat.bossCriticalFx && stage4Combat.bossDecorEvicted && stage4Combat.bossCapAfterEviction <= 220,
+      `cap 滿時 Boss 關鍵特效優先保留並擠掉裝飾粒子（particles=${stage4Combat.bossCapAfterEviction}）`);
+    assert(stage4Combat.sfxWarningEvictsKill.accepted && stage4Combat.sfxWarningEvictsKill.evicted === "kill" &&
+      !stage4Combat.sfxKillCannotEvictWarning.accepted,
+      `SFX cap 滿時警告音優先於擊殺音（${JSON.stringify({ leak: stage4Combat.sfxWarningEvictsKill, kill: stage4Combat.sfxKillCannotEvictWarning })}）`);
     assert(stage4Combat.spawnTimelineStable && stage4Combat.normalTimeline.timeline.length > 0,
       `同 runSeed 出怪時序在 reduced 開/關一致（${JSON.stringify(stage4Combat.normalTimeline.timeline.slice(0, 5))}）`);
 

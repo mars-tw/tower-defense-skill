@@ -82,6 +82,8 @@
   const MAX_RING_PARTICLES = 14;
   const MAX_ACTIVE_SFX = 10;
   const SFX_MIN_GAP = { fire: 0.024, hit: 0.018, kill: 0.035, wave: 0.12, boss: 0.22, leak: 0.12 };
+  const SFX_PRIORITY = { fire: 0, hit: 0, kill: 0, wave: 2, boss: 3, leak: 3 };
+  const PARTICLE_PRIORITY = { decor: 0, text: 1, warning: 3 };
   function reducedFlashEnabled() {
     if (reducedFlashCache !== undefined) return reducedFlashCache;
     try {
@@ -130,7 +132,7 @@
   function getJuiceSettings() {
     return { reducedEffects: reducedEffectsEnabled(), audioMuted: audioMuted(), audioUnlocked: !!audioState.unlocked };
   }
-  const audioState = { ctx: null, master: null, unlocked: false, active: 0, lastByKind: {} };
+  const audioState = { ctx: null, master: null, unlocked: false, active: 0, activeVoices: [], lastByKind: {} };
   function markAudioUnlockState() {
     audioState.unlocked = !!(audioState.ctx && audioState.ctx.state === "running");
     return audioState.unlocked;
@@ -155,6 +157,68 @@
       markAudioUnlockState();
     } catch {}
   }
+  function sfxPriority(kind) {
+    return SFX_PRIORITY[kind] == null ? 0 : SFX_PRIORITY[kind];
+  }
+  function cleanupSfxVoices() {
+    audioState.activeVoices = (audioState.activeVoices || []).filter((voice) => voice && !voice.ended);
+    audioState.active = audioState.activeVoices.length;
+  }
+  function releaseSfxVoice(voice) {
+    if (!voice || voice.ended) return;
+    voice.ended = true;
+    try { if (voice.osc) voice.osc.disconnect(); } catch {}
+    try { if (voice.gain) voice.gain.disconnect(); } catch {}
+    cleanupSfxVoices();
+  }
+  function evictSfxVoice(voice) {
+    if (!voice || voice.ended) return;
+    try { if (voice.osc && voice.osc.stop) voice.osc.stop(audioState.ctx ? audioState.ctx.currentTime : 0); } catch {}
+    releaseSfxVoice(voice);
+  }
+  function reserveSfxVoice(kind) {
+    cleanupSfxVoices();
+    if (audioState.activeVoices.length < MAX_ACTIVE_SFX) return { ok: true, evicted: null };
+    const incomingPriority = sfxPriority(kind);
+    let evictIndex = -1;
+    let evictPriority = Infinity;
+    for (let i = 0; i < audioState.activeVoices.length; i++) {
+      const voice = audioState.activeVoices[i];
+      const priority = voice.priority == null ? sfxPriority(voice.kind) : voice.priority;
+      if (priority < incomingPriority && priority < evictPriority) {
+        evictPriority = priority;
+        evictIndex = i;
+      }
+    }
+    if (evictIndex < 0) return { ok: false, evicted: null };
+    const evicted = audioState.activeVoices[evictIndex];
+    evictSfxVoice(evicted);
+    return { ok: true, evicted: evicted.kind };
+  }
+  function simulateSfxEviction(activeKinds, incomingKind) {
+    const savedVoices = audioState.activeVoices;
+    const savedActive = audioState.active;
+    audioState.activeVoices = (activeKinds || []).map((kind, i) => ({
+      kind,
+      priority: sfxPriority(kind),
+      ended: false,
+      fakeId: i,
+    }));
+    audioState.active = audioState.activeVoices.length;
+    const result = reserveSfxVoice(incomingKind);
+    if (result.ok) {
+      audioState.activeVoices.push({ kind: incomingKind, priority: sfxPriority(incomingKind), ended: false, fakeId: "incoming" });
+      cleanupSfxVoices();
+    }
+    const snapshot = {
+      accepted: result.ok,
+      evicted: result.evicted,
+      kept: audioState.activeVoices.map((voice) => voice.kind),
+    };
+    audioState.activeVoices = savedVoices;
+    audioState.active = savedActive;
+    return snapshot;
+  }
   ["pointerdown", "keydown", "touchstart"].forEach((ev) => {
     document.addEventListener(ev, unlockAudio, { once: true, passive: true });
   });
@@ -175,12 +239,14 @@
     if (!spec) return;
     try {
       const now = ac.currentTime;
-      if (audioState.active >= MAX_ACTIVE_SFX) return;
       const minGap = SFX_MIN_GAP[kind] || 0.02;
       if (audioState.lastByKind[kind] && now - audioState.lastByKind[kind] < minGap) return;
+      const reservation = reserveSfxVoice(kind);
+      if (!reservation.ok) return;
       audioState.lastByKind[kind] = now;
       const osc = ac.createOscillator();
       const gain = ac.createGain();
+      const voice = { kind, priority: sfxPriority(kind), osc, gain, ended: false };
       osc.type = spec[2];
       osc.frequency.setValueAtTime(spec[0], now);
       if (kind === "boss") osc.frequency.exponentialRampToValueAtTime(38, now + spec[1]);
@@ -190,12 +256,9 @@
       gain.gain.exponentialRampToValueAtTime(0.0001, now + spec[1]);
       osc.connect(gain);
       gain.connect(audioState.master || ac.destination);
-      audioState.active++;
-      osc.onended = () => {
-        audioState.active = Math.max(0, audioState.active - 1);
-        try { osc.disconnect(); } catch {}
-        try { gain.disconnect(); } catch {}
-      };
+      audioState.activeVoices.push(voice);
+      cleanupSfxVoices();
+      osc.onended = () => releaseSfxVoice(voice);
       osc.start(now);
       osc.stop(now + spec[1] + 0.03);
     } catch {}
@@ -1017,7 +1080,7 @@
     state.goddess.hp -= dmg;
     state.goddess.hitFlash = reducedEffectsEnabled() ? 0 : 0.4;
     state.redVignette = reducedEffectsEnabled() ? 0 : Math.max(state.redVignette || 0, 0.55);
-    burst(state.goddess.x, state.goddess.y, "#ef4444", 14);
+    burst(state.goddess.x, state.goddess.y, "#ef4444", 14, { criticalFx: true, fxKind: "leak-warning" });
     playSfx("leak");
     log(`${e.name} 攻擊了${GODDESS.name}！-${dmg} 生命`, "bad");
     if (state.goddess.hp <= 0) { state.goddess.hp = 0; gameOver(); }
@@ -1199,7 +1262,7 @@
     const reward = Math.round(e.reward * comboMul);
     state.gold += reward;
     state.score += reward;
-    burst(e.x, e.y, e.color, e.boss ? 30 : 12);
+    burst(e.x, e.y, e.color, e.boss ? 30 : 12, e.boss ? { criticalFx: true, fxKind: "boss" } : null);
     deathBurst(e);
     coinFloat(e.x, e.y, reward);
     playSfx(e.boss ? "boss" : "kill");
@@ -1207,7 +1270,7 @@
       state.bossKills = (state.bossKills || 0) + 1;
       state.slowMoLeft = reducedEffectsEnabled() ? 0 : 0.2;
       state.slowMoScale = 0.35;
-      ring(e.x, e.y, "#fde047", 70);
+      ring(e.x, e.y, "#fde047", 70, { criticalFx: true, fxKind: "boss" });
       screenShake();
     }
     // combo 達門檻時畫面跳大數字
@@ -1459,45 +1522,72 @@
 
   // ===== 粒子 =====
   // 粒子爆裂（V2：初速差異化 + 重力 + 大小隨機，更有打擊感）
+  function particlePriority(p) {
+    if (!p) return PARTICLE_PRIORITY.decor;
+    if (p.criticalFx) return PARTICLE_PRIORITY.warning;
+    if (p.text && p.toX == null) return PARTICLE_PRIORITY.text;
+    return PARTICLE_PRIORITY.decor;
+  }
+  function evictParticle(predicate, incomingPriority) {
+    let evictIndex = -1;
+    let evictPriority = Infinity;
+    for (let i = 0; i < state.particles.length; i++) {
+      const candidate = state.particles[i];
+      if (!candidate || candidate.criticalFx || (predicate && !predicate(candidate))) continue;
+      const priority = particlePriority(candidate);
+      if (priority <= incomingPriority && priority < evictPriority) {
+        evictPriority = priority;
+        evictIndex = i;
+      }
+    }
+    if (evictIndex < 0) return false;
+    state.particles.splice(evictIndex, 1);
+    return true;
+  }
   function pushParticle(p, allowReduced) {
     if (!state || (reducedEffectsEnabled() && !allowReduced)) return false;
+    const priority = particlePriority(p);
     if (p.text) {
       const textCount = state.particles.filter((x) => x.text).length;
-      if (textCount >= MAX_TEXT_PARTICLES) return false;
+      if (textCount >= MAX_TEXT_PARTICLES && !(p.criticalFx && evictParticle((x) => x.text, priority))) return false;
       if (p.toX != null) {
         const coinCount = state.particles.filter((x) => x.toX != null).length;
-        if (coinCount >= MAX_COIN_PARTICLES) return false;
+        if (coinCount >= MAX_COIN_PARTICLES && !(p.criticalFx && evictParticle((x) => x.toX != null, priority))) return false;
       }
     }
     if (p.ring) {
       const ringCount = state.particles.filter((x) => x.ring).length;
-      if (ringCount >= MAX_RING_PARTICLES) return false;
+      if (ringCount >= MAX_RING_PARTICLES && !(p.criticalFx && evictParticle((x) => x.ring, priority))) return false;
     }
-    while (state.particles.length >= MAX_PARTICLES) state.particles.shift();
+    while (state.particles.length >= MAX_PARTICLES) {
+      if (!evictParticle(null, priority)) return false;
+    }
     state.particles.push(p);
     return true;
   }
-  function burst(x, y, color, n) {
+  function burst(x, y, color, n, opts) {
     if (reducedEffectsEnabled()) return;
+    opts = opts || {};
     const count = performanceLow() ? Math.max(1, Math.round((n || 1) * 0.45)) : n;
     for (let i = 0; i < count; i++) {
       const a = effectRand() * Math.PI * 2, sp = 50 + effectRand() * 160;
       pushParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
-        life: 0.35 + effectRand() * 0.35, color, r: 1.5 + effectRand() * 2 });
+        life: 0.35 + effectRand() * 0.35, color, r: 1.5 + effectRand() * 2,
+        criticalFx: !!opts.criticalFx, fxKind: opts.fxKind || null });
     }
   }
   function deathBurst(e) {
     if (!e || reducedEffectsEnabled()) return;
     const color = e.color || "#fde047";
-    burst(e.x, e.y, color, e.boss ? 72 : 22);
-    ring(e.x, e.y, color, e.boss ? 135 : 42);
-    if (e.boss) ring(e.x, e.y, "#fff7ed", 190);
+    burst(e.x, e.y, color, e.boss ? 72 : 22, e.boss ? { criticalFx: true, fxKind: "boss" } : null);
+    ring(e.x, e.y, color, e.boss ? 135 : 42, e.boss ? { criticalFx: true, fxKind: "boss" } : null);
+    if (e.boss) ring(e.x, e.y, "#fff7ed", 190, { criticalFx: true, fxKind: "boss" });
   }
   function coinFloat(x, y, amount) {
     if (reducedEffectsEnabled()) return;
     pushParticle({
       x, y: y - 16, vx: 0, vy: 0, life: 0.92, color: "#facc15", text: `+${amount}G`,
-      size: 16, big: true, toX: 42, toY: 18, flySpeed: 3.8,
+      size: 16, big: true, toX: 42, toY: 18, flySpeed: 3.8, fxKind: "coin",
     });
   }
   function muzzleFlash(tw, target) {
@@ -1505,11 +1595,11 @@
     const a = target ? Math.atan2(target.y - tw.y, target.x - tw.x) : -Math.PI / 2;
     pushParticle({ x: tw.x + Math.cos(a) * 18, y: tw.y + Math.sin(a) * 18,
       vx: 0, vy: 0, life: 0.12, color: (TOWERS[tw.type] && TOWERS[tw.type].color) || "#fde047",
-      muzzle: true, angle: a, r: tw.type === "mortar" ? 22 : 14 });
+      muzzle: true, angle: a, r: tw.type === "mortar" ? 22 : 14, fxKind: "muzzle" });
   }
   function upgradeBeam(x, y, color) {
     if (reducedEffectsEnabled()) return;
-    pushParticle({ x, y, vx: 0, vy: 0, life: 0.48, color: color || "#fde047", beam: true, maxR: 58, r0: 10 });
+    pushParticle({ x, y, vx: 0, vy: 0, life: 0.48, color: color || "#fde047", beam: true, maxR: 58, r0: 10, fxKind: "upgrade" });
     ring(x, y, color || "#fde047", 56);
   }
   function impactShake(strong) {
@@ -1517,10 +1607,12 @@
     screenShake(strong ? 360 : 180);
   }
   // 擴張環特效（技能命中、Boss 死亡等）
-  function ring(x, y, color, maxR) {
+  function ring(x, y, color, maxR, opts) {
     if (reducedEffectsEnabled()) return;
+    opts = opts || {};
     if (performanceLow() && state.particles.length > 24) return;
-    pushParticle({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: (maxR || 60) * (performanceLow() ? 0.78 : 1), r0: 6 });
+    pushParticle({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: (maxR || 60) * (performanceLow() ? 0.78 : 1), r0: 6,
+      criticalFx: !!opts.criticalFx, fxKind: opts.fxKind || null });
   }
   // 螢幕震動（Boss 擊殺、清場技等強回饋）— 對 canvas 加 CSS 震動 class
   function screenShake() {
@@ -1535,7 +1627,7 @@
     if (reducedEffectsEnabled() && !opts.forceReducedText) return;
     pushParticle({ x, y, vx: (effectRand() - 0.5) * 20, vy: -55,
       life: opts.big ? 1.0 : 0.8, color: opts.color || "#fde047", text,
-      size: opts.size || 13, big: opts.big }, !!opts.forceReducedText);
+      size: opts.size || 13, big: opts.big, criticalFx: !!opts.criticalFx, fxKind: opts.fxKind || null }, !!opts.forceReducedText);
   }
   // 傷害數字（克制時放大變紅 + 擴張環）
   function damageNumber(x, y, amount, mult) {
@@ -2403,6 +2495,8 @@
       applyDamage: (enemy, amount, opts) => applyDamage(enemy, amount, opts),
       castSkill: (id, x, y) => castSkill(id, x, y),
       playSfx,
+      pushParticle: (p, allowReduced) => pushParticle(p, allowReduced),
+      simulateSfxEviction,
       celebrateWaveClear: (wave, bonus, clean) => celebrateWaveClear(wave || state.wave || 1, bonus || 0, !!clean),
       forcePerformanceSample: (fps) => { handlePerformanceSample(fps); return getPerformanceStatus(); },
     },

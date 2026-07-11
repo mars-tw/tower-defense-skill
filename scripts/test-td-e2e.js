@@ -836,7 +836,11 @@ async function run() {
         bullets: st.bullets,
         spawnQueue: st.spawnQueue,
         particles: st.particles,
+        clock: st.clock,
         wave: st.wave,
+        runSeed: st.runSeed,
+        affixSeed: st.affixSeed,
+        waveSeeds: st.waveSeeds,
         runLeaks: st.runLeaks,
         clearedWave: st.clearedWave,
         betweenWaves: st.betweenWaves,
@@ -847,6 +851,8 @@ async function run() {
         waveLeaks: st.waveLeaks,
         redVignette: st.redVignette,
         slowMoLeft: st.slowMoLeft,
+        slowMoScale: st.slowMoScale,
+        fxTimeScale: st.fxTimeScale,
         gold: st.gold,
         score: st.score,
         kills: st.kills,
@@ -888,7 +894,7 @@ async function run() {
       const leakEnemy = window.TD.debug.spawnEnemy("slime", { x: 0, y: 0, wp: st.path.length, hp: 40, maxHp: 40, speed: 0 });
       const leakEnemyType = leakEnemy.type;
       window.TD.debug.step(0.05);
-      const leakByType = ((st.runLeaks.byWave || {})["1"] || {}).byType || {};
+      const leakByType = Object.assign({}, ((st.runLeaks.byWave || {})["1"] || {}).byType || {});
       const leakWarningFx = st.redVignette > 0 && st.cleanStreak === 0 && st.waveLeaks === 1;
 
       const arrow = { type: "arrow", level: 1, x: 200, y: 200, cx: 4, cy: 4, cd: 0 };
@@ -1022,7 +1028,62 @@ async function run() {
       window.TD.debug.fireTower(fxTower, reducedBoss);
       window.TD.debug.step(0.25);
       const reducedSlowMo = st.slowMoLeft > 0;
+      const reducedParticles = st.particles.length;
+      st.redVignette = 0.55;
+      window.TD.setReducedEffects(true);
+      const reducedRedVignette = st.redVignette;
       const juiceSettings = window.TD.getJuiceSettings();
+      window.TD.setReducedEffects(false);
+
+      st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      st.clock = 0; st.slowMoLeft = 0.2; st.slowMoScale = 0.35; st.fxTimeScale = 1;
+      const movingSlowMo = window.TD.debug.spawnEnemy("slime", {
+        x: st.path[0].x, y: st.path[0].y, wp: 1, hp: 999, maxHp: 999, speed: 100, reward: 0,
+      });
+      window.TD.debug.step(0.05);
+      const slowMoLogic = {
+        clock: Number(st.clock.toFixed(3)),
+        walkDist: Number((movingSlowMo.walkDist || 0).toFixed(3)),
+        left: Number((st.slowMoLeft || 0).toFixed(3)),
+        fxTimeScale: Number((st.fxTimeScale || 1).toFixed(3)),
+      };
+
+      st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      st.skillCooldowns.meteor = 0;
+      for (let i = 0; i < 60; i++) {
+        window.TD.debug.castSkill("meteor", 240, 240);
+        st.skillCooldowns.meteor = 0;
+      }
+      const particleCap = st.particles.length;
+      const ringCap = st.particles.filter((p) => p.ring).length;
+
+      const captureSpawnTimeline = (reduced) => {
+        window.TD.setReducedEffects(reduced);
+        st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+        st.running = false; st.over = false; st.betweenWaves = true;
+        st.clock = 0; st.wave = 8; st.runSeed = 111111; st.affixSeed = 777; st.waveSeeds = {};
+        const preview = window.TD.previewNextWave();
+        const expectedTypes = preview.queue.map((spec) => spec.type);
+        window.TD.startWave();
+        st.running = false;
+        const timeline = [];
+        let lastRemaining = st.spawnQueue.length;
+        for (let i = 0; i < 500 && timeline.length < expectedTypes.length; i++) {
+          window.TD.debug.step(0.05);
+          const remaining = st.spawnQueue.length;
+          if (remaining < lastRemaining) {
+            for (let left = lastRemaining; left > remaining; left--) {
+              const idx = expectedTypes.length - left;
+              timeline.push({ t: Number(st.clock.toFixed(3)), type: expectedTypes[idx] });
+            }
+            lastRemaining = remaining;
+          }
+        }
+        return { previewTypes: expectedTypes, timeline };
+      };
+      const normalTimeline = captureSpawnTimeline(false);
+      const reducedTimeline = captureSpawnTimeline(true);
+      const spawnTimelineStable = JSON.stringify(normalTimeline) === JSON.stringify(reducedTimeline);
       window.TD.setReducedEffects(false);
 
       st.towers = saved.towers;
@@ -1030,7 +1091,11 @@ async function run() {
       st.bullets = saved.bullets;
       st.spawnQueue = saved.spawnQueue;
       st.particles = saved.particles;
+      st.clock = saved.clock;
       st.wave = saved.wave;
+      st.runSeed = saved.runSeed;
+      st.affixSeed = saved.affixSeed;
+      st.waveSeeds = saved.waveSeeds;
       st.runLeaks = saved.runLeaks;
       st.clearedWave = saved.clearedWave;
       st.betweenWaves = saved.betweenWaves;
@@ -1041,6 +1106,8 @@ async function run() {
       st.waveLeaks = saved.waveLeaks;
       st.redVignette = saved.redVignette;
       st.slowMoLeft = saved.slowMoLeft;
+      st.slowMoScale = saved.slowMoScale;
+      st.fxTimeScale = saved.fxTimeScale;
       st.gold = saved.gold;
       st.score = saved.score;
       st.kills = saved.kills;
@@ -1065,7 +1132,9 @@ async function run() {
         armoredDealt, armoredFlag, unarmoredDealt,
         muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo,
         r53Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
-        reducedMuzzle, reducedCoin, reducedBeam, reducedSlowMo, juiceSettings,
+        r54Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
+        reducedMuzzle, reducedCoin, reducedBeam, reducedSlowMo, reducedParticles, reducedRedVignette, juiceSettings,
+        slowMoLogic, particleCap, ringCap, normalTimeline, reducedTimeline, spawnTimelineStable,
       };
     });
     assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
@@ -1096,9 +1165,17 @@ async function run() {
     assert(Math.abs(stage4Combat.armoredDealt - 30) < 0.01 && stage4Combat.armoredFlag && Math.abs(stage4Combat.unarmoredDealt - 40) < 0.01,
       `裂界守門人 auraArmor 讓友軍受擊 ×0.75（${stage4Combat.armoredDealt} / ${stage4Combat.unarmoredDealt}）`);
     assert(stage4Combat.muzzleFx && stage4Combat.coinFx && stage4Combat.deathFx && stage4Combat.upgradeFx && stage4Combat.streakFx && stage4Combat.bossSlowMo,
-      `R53 爽度特效觸發：砲口、金幣飛字、死亡爆散、升級光柱、無漏 streak、Boss slow-mo（${JSON.stringify(stage4Combat.r53Fx)}）`);
-    assert(!stage4Combat.reducedMuzzle && !stage4Combat.reducedCoin && !stage4Combat.reducedBeam && !stage4Combat.reducedSlowMo && stage4Combat.juiceSettings.reducedEffects,
-      "R53 reduced guard 會關閉新增強特效與 Boss slow-mo");
+      `R54 爽度特效觸發：砲口、金幣飛字、死亡爆散、升級光柱、無漏 streak、Boss slow-mo（${JSON.stringify(stage4Combat.r54Fx)}）`);
+    assert(!stage4Combat.reducedMuzzle && !stage4Combat.reducedCoin && !stage4Combat.reducedBeam && !stage4Combat.reducedSlowMo &&
+      stage4Combat.reducedParticles === 0 && stage4Combat.reducedRedVignette === 0 && stage4Combat.juiceSettings.reducedEffects,
+      `R54 reduced guard 會關閉新增強特效、傷害浮字/burst/ring/紅暈與 Boss slow-mo（particles=${stage4Combat.reducedParticles}, red=${stage4Combat.reducedRedVignette}）`);
+    assert(stage4Combat.slowMoLogic.clock === 0.05 && Math.abs(stage4Combat.slowMoLogic.walkDist - 5) < 0.01 &&
+      stage4Combat.slowMoLogic.left < 0.2 && stage4Combat.slowMoLogic.fxTimeScale < 1,
+      `Boss slow-mo 只縮放 fxTimeScale，不縮放 logic dt/clock/位移（${JSON.stringify(stage4Combat.slowMoLogic)}）`);
+    assert(stage4Combat.particleCap <= 220 && stage4Combat.ringCap <= 14,
+      `粒子有全域硬上限與 ring cap（particles=${stage4Combat.particleCap}, rings=${stage4Combat.ringCap}）`);
+    assert(stage4Combat.spawnTimelineStable && stage4Combat.normalTimeline.timeline.length > 0,
+      `同 runSeed 出怪時序在 reduced 開/關一致（${JSON.stringify(stage4Combat.normalTimeline.timeline.slice(0, 5))}）`);
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");

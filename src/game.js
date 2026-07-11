@@ -76,6 +76,12 @@
   let reducedFlashCache;
   let reducedEffectsCache;
   let audioMutedCache;
+  const MAX_PARTICLES = 220;
+  const MAX_TEXT_PARTICLES = 42;
+  const MAX_COIN_PARTICLES = 8;
+  const MAX_RING_PARTICLES = 14;
+  const MAX_ACTIVE_SFX = 10;
+  const SFX_MIN_GAP = { fire: 0.024, hit: 0.018, kill: 0.035, wave: 0.12, boss: 0.22, leak: 0.12 };
   function reducedFlashEnabled() {
     if (reducedFlashCache !== undefined) return reducedFlashCache;
     try {
@@ -98,6 +104,12 @@
   function setReducedEffects(v) {
     reducedEffectsCache = !!v;
     reducedFlashCache = !!v;
+    if (v && state) {
+      state.particles = [];
+      state.redVignette = 0;
+      state.slowMoLeft = 0;
+      state.fxTimeScale = 1;
+    }
     try {
       localStorage.setItem("td_reduced_effects", v ? "1" : "0");
       localStorage.setItem("td_reduced_flash", v ? "1" : "0");
@@ -118,16 +130,29 @@
   function getJuiceSettings() {
     return { reducedEffects: reducedEffectsEnabled(), audioMuted: audioMuted(), audioUnlocked: !!audioState.unlocked };
   }
-  const audioState = { ctx: null, unlocked: false };
+  const audioState = { ctx: null, master: null, unlocked: false, active: 0, lastByKind: {} };
+  function markAudioUnlockState() {
+    audioState.unlocked = !!(audioState.ctx && audioState.ctx.state === "running");
+    return audioState.unlocked;
+  }
   function unlockAudio() {
-    if (audioMuted() || audioState.unlocked) return;
+    if (audioMuted()) return;
+    if (markAudioUnlockState()) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try {
       audioState.ctx = audioState.ctx || new AC();
       const ctx2 = audioState.ctx;
-      if (ctx2.state === "suspended" && ctx2.resume) ctx2.resume();
-      audioState.unlocked = true;
+      if (!audioState.master) {
+        audioState.master = ctx2.createGain();
+        audioState.master.gain.value = 0.8;
+        audioState.master.connect(ctx2.destination);
+      }
+      if (ctx2.state === "suspended" && ctx2.resume) {
+        const resumed = ctx2.resume();
+        if (resumed && typeof resumed.then === "function") resumed.then(markAudioUnlockState).catch(() => { audioState.unlocked = false; });
+      }
+      markAudioUnlockState();
     } catch {}
   }
   ["pointerdown", "keydown", "touchstart"].forEach((ev) => {
@@ -150,6 +175,10 @@
     if (!spec) return;
     try {
       const now = ac.currentTime;
+      if (audioState.active >= MAX_ACTIVE_SFX) return;
+      const minGap = SFX_MIN_GAP[kind] || 0.02;
+      if (audioState.lastByKind[kind] && now - audioState.lastByKind[kind] < minGap) return;
+      audioState.lastByKind[kind] = now;
       const osc = ac.createOscillator();
       const gain = ac.createGain();
       osc.type = spec[2];
@@ -160,7 +189,13 @@
       gain.gain.exponentialRampToValueAtTime(spec[3], now + 0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + spec[1]);
       osc.connect(gain);
-      gain.connect(ac.destination);
+      gain.connect(audioState.master || ac.destination);
+      audioState.active++;
+      osc.onended = () => {
+        audioState.active = Math.max(0, audioState.active - 1);
+        try { osc.disconnect(); } catch {}
+        try { gain.disconnect(); } catch {}
+      };
       osc.start(now);
       osc.stop(now + spec[1] + 0.03);
     } catch {}
@@ -372,7 +407,7 @@
       waveSeeds: {}, backgroundCache: null, buildableReachCache: null,
       performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
-      cleanStreak: 0, waveLeaks: 0, redVignette: 0, slowMoLeft: 0, slowMoScale: 1,
+      cleanStreak: 0, waveLeaks: 0, redVignette: 0, slowMoLeft: 0, slowMoScale: 1, fxTimeScale: 1,
       effectSeed: ((runSeed ^ (affixSeed << 1) ^ 0x9e3779b9) >>> 0) || 1,
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
       runLeaks: { total: 0, byWave: {} },
@@ -810,10 +845,14 @@
     if (state.slowMoLeft > 0 && !reducedEffectsEnabled()) {
       const scale = Math.max(0.15, Math.min(1, state.slowMoScale || 0.35));
       state.slowMoLeft = Math.max(0, state.slowMoLeft - rawDt);
-      dt *= scale;
+      state.fxTimeScale = scale;
     } else if (state.slowMoLeft > 0) {
       state.slowMoLeft = 0;
+      state.fxTimeScale = 1;
+    } else {
+      state.fxTimeScale = 1;
     }
+    const fxDt = rawDt * (state.fxTimeScale || 1);
     // 生成本波敵人
     if (state.spawnQueue.length > 0) {
       state.spawnTimer -= dt;
@@ -911,15 +950,15 @@
 
     // 粒子（擴張環不移動；爆裂粒子受重力；文字往上飄不受重力）
     for (const p of state.particles) {
-      p.life -= dt;
+      p.life -= fxDt;
       if (p.toX != null && p.toY != null) {
-        const k = Math.min(1, dt * (p.flySpeed || 4.5));
+        const k = Math.min(1, fxDt * (p.flySpeed || 4.5));
         p.x += (p.toX - p.x) * k;
         p.y += (p.toY - p.y) * k;
       } else if (!p.ring && !p.beam) {
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        if (!p.text && !p.muzzle) p.vy += 220 * dt;
+        p.x += p.vx * fxDt;
+        p.y += p.vy * fxDt;
+        if (!p.text && !p.muzzle) p.vy += 220 * fxDt;
       }
     }
     state.particles = state.particles.filter((p) => p.life > 0);
@@ -976,8 +1015,8 @@
     state.waveLeaks = (state.waveLeaks || 0) + 1;
     state.cleanStreak = 0;
     state.goddess.hp -= dmg;
-    state.goddess.hitFlash = 0.4;
-    state.redVignette = Math.max(state.redVignette || 0, reducedEffectsEnabled() ? 0.24 : 0.55);
+    state.goddess.hitFlash = reducedEffectsEnabled() ? 0 : 0.4;
+    state.redVignette = reducedEffectsEnabled() ? 0 : Math.max(state.redVignette || 0, 0.55);
     burst(state.goddess.x, state.goddess.y, "#ef4444", 14);
     playSfx("leak");
     log(`${e.name} 攻擊了${GODDESS.name}！-${dmg} 生命`, "bad");
@@ -1420,12 +1459,30 @@
 
   // ===== 粒子 =====
   // 粒子爆裂（V2：初速差異化 + 重力 + 大小隨機，更有打擊感）
+  function pushParticle(p, allowReduced) {
+    if (!state || (reducedEffectsEnabled() && !allowReduced)) return false;
+    if (p.text) {
+      const textCount = state.particles.filter((x) => x.text).length;
+      if (textCount >= MAX_TEXT_PARTICLES) return false;
+      if (p.toX != null) {
+        const coinCount = state.particles.filter((x) => x.toX != null).length;
+        if (coinCount >= MAX_COIN_PARTICLES) return false;
+      }
+    }
+    if (p.ring) {
+      const ringCount = state.particles.filter((x) => x.ring).length;
+      if (ringCount >= MAX_RING_PARTICLES) return false;
+    }
+    while (state.particles.length >= MAX_PARTICLES) state.particles.shift();
+    state.particles.push(p);
+    return true;
+  }
   function burst(x, y, color, n) {
-    if (reducedEffectsEnabled() && n > 14) n = 8;
+    if (reducedEffectsEnabled()) return;
     const count = performanceLow() ? Math.max(1, Math.round((n || 1) * 0.45)) : n;
     for (let i = 0; i < count; i++) {
       const a = effectRand() * Math.PI * 2, sp = 50 + effectRand() * 160;
-      state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
+      pushParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
         life: 0.35 + effectRand() * 0.35, color, r: 1.5 + effectRand() * 2 });
     }
   }
@@ -1438,7 +1495,7 @@
   }
   function coinFloat(x, y, amount) {
     if (reducedEffectsEnabled()) return;
-    state.particles.push({
+    pushParticle({
       x, y: y - 16, vx: 0, vy: 0, life: 0.92, color: "#facc15", text: `+${amount}G`,
       size: 16, big: true, toX: 42, toY: 18, flySpeed: 3.8,
     });
@@ -1446,13 +1503,13 @@
   function muzzleFlash(tw, target) {
     if (!tw || reducedEffectsEnabled()) return;
     const a = target ? Math.atan2(target.y - tw.y, target.x - tw.x) : -Math.PI / 2;
-    state.particles.push({ x: tw.x + Math.cos(a) * 18, y: tw.y + Math.sin(a) * 18,
+    pushParticle({ x: tw.x + Math.cos(a) * 18, y: tw.y + Math.sin(a) * 18,
       vx: 0, vy: 0, life: 0.12, color: (TOWERS[tw.type] && TOWERS[tw.type].color) || "#fde047",
       muzzle: true, angle: a, r: tw.type === "mortar" ? 22 : 14 });
   }
   function upgradeBeam(x, y, color) {
     if (reducedEffectsEnabled()) return;
-    state.particles.push({ x, y, vx: 0, vy: 0, life: 0.48, color: color || "#fde047", beam: true, maxR: 58, r0: 10 });
+    pushParticle({ x, y, vx: 0, vy: 0, life: 0.48, color: color || "#fde047", beam: true, maxR: 58, r0: 10 });
     ring(x, y, color || "#fde047", 56);
   }
   function impactShake(strong) {
@@ -1461,8 +1518,9 @@
   }
   // 擴張環特效（技能命中、Boss 死亡等）
   function ring(x, y, color, maxR) {
+    if (reducedEffectsEnabled()) return;
     if (performanceLow() && state.particles.length > 24) return;
-    state.particles.push({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: (maxR || 60) * (performanceLow() ? 0.78 : 1), r0: 6 });
+    pushParticle({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: (maxR || 60) * (performanceLow() ? 0.78 : 1), r0: 6 });
   }
   // 螢幕震動（Boss 擊殺、清場技等強回饋）— 對 canvas 加 CSS 震動 class
   function screenShake() {
@@ -1474,9 +1532,10 @@
   // 浮動文字（升級/傷害數字）；opts: {color, size, big}
   function flashText(x, y, text, opts) {
     opts = opts || {};
-    state.particles.push({ x, y, vx: (effectRand() - 0.5) * 20, vy: -55,
+    if (reducedEffectsEnabled() && !opts.forceReducedText) return;
+    pushParticle({ x, y, vx: (effectRand() - 0.5) * 20, vy: -55,
       life: opts.big ? 1.0 : 0.8, color: opts.color || "#fde047", text,
-      size: opts.size || 13, big: opts.big });
+      size: opts.size || 13, big: opts.big }, !!opts.forceReducedText);
   }
   // 傷害數字（克制時放大變紅 + 擴張環）
   function damageNumber(x, y, amount, mult) {
@@ -1605,6 +1664,7 @@
     ctx.restore();
   }
   function drawRedVignette() {
+    if (reducedEffectsEnabled()) return;
     const a = Math.max(0, Math.min(1, state.redVignette || 0));
     if (a <= 0) return;
     ctx.save();

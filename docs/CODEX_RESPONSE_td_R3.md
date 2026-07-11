@@ -3,7 +3,7 @@
 | 項目 | 結論 |
 |------|------|
 | 回應對象 | `docs/GROK_REVIEW_td_R3.md` |
-| 入版版本 | `td-r53-v1` / `0.5.3` |
+| 入版版本 | `td-r54-v1` / `0.5.4` |
 | 必修 | 採納 R3-D1 事件波 runSeed salt；採納 R3-B1/3.4 臼砲盲區交互修正 |
 | 決定性契約 | 預告與實波仍共用 `wavePlanFor()`；出怪 queue 與事件標籤同源；局中不引入 `Math.random` 決定出怪 |
 | Git | 未 commit，未 push |
@@ -36,8 +36,8 @@
   - 補遊戲預告路徑的事件表 runSeed 差異測試。
   - 補 Lv10 mortar 只擴外圈、不放大盲區，且距離 100px 目標仍可被高等臼砲選取。
 - 版本同步
-  - `package.json` / `package-lock.json`：`0.5.3`
-  - `index.html` / `sw.js`：`td-r53-v1`
+  - `package.json` / `package-lock.json`：`0.5.4`
+  - `index.html` / `sw.js`：`td-r54-v1`
 
 ## 驗證
 
@@ -45,7 +45,7 @@
 |------|------|
 | `npm test` | PASS |
 | `npm run test:e2e` | PASS，連跑 3 次 |
-| 版本守門 | PASS，PWA/SW/index 皆為 `td-r53-v1` |
+| 版本守門 | PASS，PWA/SW/index 皆為 `td-r54-v1` |
 | 文案守門 | PASS，無 mojibake / U+FFFD / 連續問號 |
 
 ## 版本 grep

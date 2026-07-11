@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>無盡塔防 · Endless Tower Defense</title>
 <meta name="theme-color" content="#16241b" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r52-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r53-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -470,11 +470,15 @@
   .settings-section { display: grid; gap: 8px; padding: 11px; border: 1px solid var(--border-soft);
     border-radius: 12px; background: rgba(255,255,255,.04); font-size: 12px; line-height: 1.45; }
   .settings-section h3 { color: var(--ink); font-size: 14px; margin: 0; }
-  .perf-segment, .save-actions, .text-size-segment, .update-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .perf-segment, .save-actions, .text-size-segment, .update-actions, .juice-toggles { display: flex; gap: 6px; flex-wrap: wrap; }
   .perf-segment button, .save-actions button, .text-size-segment button, .update-actions button { flex: 1; min-width: 120px; border: 1px solid var(--border-hi);
     border-radius: 10px; background: var(--surface-2); color: var(--ink); padding: 9px 10px;
     font: inherit; font-weight: 900; cursor: pointer; }
   .perf-segment button.active, .text-size-segment button.active { background: var(--accent); color: #06210f; border-color: var(--accent); }
+  .juice-toggle { flex: 1; min-width: 160px; display: flex; align-items: center; gap: 9px;
+    border: 1px solid var(--border-hi); border-radius: 10px; background: var(--surface-2);
+    color: var(--ink); padding: 9px 10px; font-weight: 900; cursor: pointer; }
+  .juice-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
   .save-code { width: 100%; min-height: 96px; resize: vertical; border-radius: 10px;
     border: 1px solid var(--border-hi); background: rgba(6,10,8,.8); color: var(--ink);
     padding: 9px; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; user-select: text; }
@@ -828,6 +832,14 @@
         <div class="settings-status" id="textSizeStatus"></div>
       </section>
       <section class="settings-section">
+        <h3>爽度回饋</h3>
+        <div class="juice-toggles">
+          <label class="juice-toggle"><input type="checkbox" id="reducedEffectsToggle"> 減少特效</label>
+          <label class="juice-toggle"><input type="checkbox" id="audioMuteToggle"> 靜音</label>
+        </div>
+        <div class="settings-status" id="juiceStatus"></div>
+      </section>
+      <section class="settings-section">
         <h3>版本與更新</h3>
         <div class="version-line" id="pwaVersion">版本：讀取中</div>
         <div class="update-actions">
@@ -912,16 +924,16 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r52-v1"></script>
-  <script src="src/heroes.js?v=td-r52-v1"></script>
-  <script src="src/rules.js?v=td-r52-v1"></script>
-  <script src="src/lore.js?v=td-r52-v1"></script>
-  <script src="src/game.js?v=td-r52-v1"></script>
-  <script src="src/ui.js?v=td-r52-v1"></script>
+  <script src="src/config.js?v=td-r53-v1"></script>
+  <script src="src/heroes.js?v=td-r53-v1"></script>
+  <script src="src/rules.js?v=td-r53-v1"></script>
+  <script src="src/lore.js?v=td-r53-v1"></script>
+  <script src="src/game.js?v=td-r53-v1"></script>
+  <script src="src/ui.js?v=td-r53-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r52-v1";
+      const PWA_VERSION = "td-r53-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

@@ -1237,6 +1237,18 @@
     }
   }
 
+  function renderJuiceSettings() {
+    const status = TD.getJuiceSettings ? TD.getJuiceSettings() : { reducedEffects: false, audioMuted: false, audioUnlocked: false };
+    const reduced = $("reducedEffectsToggle");
+    const mute = $("audioMuteToggle");
+    if (reduced) reduced.checked = !!status.reducedEffects;
+    if (mute) mute.checked = !!status.audioMuted;
+    const box = $("juiceStatus");
+    if (box) {
+      box.textContent = `特效 ${status.reducedEffects ? "減量" : "完整"}，音效 ${status.audioMuted ? "靜音" : (status.audioUnlocked ? "已解鎖" : "首次操作後啟用")}`;
+    }
+  }
+
   function openSettingsOverlay() {
     if ($("settingsOverlay").classList.contains("show")) return;
     settingsWasPaused = !!TD.state().paused;
@@ -1244,6 +1256,7 @@
     syncPauseButton(true);
     renderPerformanceSettings();
     renderTextSizeSettings();
+    renderJuiceSettings();
     renderPwaSettings();
     setSaveStatus("", true);
     $("settingsOverlay").classList.add("show");
@@ -1558,6 +1571,18 @@
   document.querySelectorAll("[data-text-size]").forEach((btn) => {
     btn.onclick = () => setTextSize(btn.dataset.textSize);
   });
+  if ($("reducedEffectsToggle")) {
+    $("reducedEffectsToggle").onchange = (ev) => {
+      if (TD.setReducedEffects) TD.setReducedEffects(!!ev.target.checked);
+      renderJuiceSettings();
+    };
+  }
+  if ($("audioMuteToggle")) {
+    $("audioMuteToggle").onchange = (ev) => {
+      if (TD.setAudioMuted) TD.setAudioMuted(!!ev.target.checked);
+      renderJuiceSettings();
+    };
+  }
   if ($("checkUpdateBtn")) $("checkUpdateBtn").onclick = () => { checkPwaUpdate(); };
   document.querySelectorAll(".speed").forEach((b) => {
     b.onclick = () => {

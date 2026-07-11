@@ -843,6 +843,20 @@ async function run() {
         running: st.running,
         skillCooldowns: Object.assign({}, st.skillCooldowns),
         currentEvent: st.currentEvent,
+        cleanStreak: st.cleanStreak,
+        waveLeaks: st.waveLeaks,
+        redVignette: st.redVignette,
+        slowMoLeft: st.slowMoLeft,
+        gold: st.gold,
+        score: st.score,
+        kills: st.kills,
+        combo: st.combo,
+        comboTimer: st.comboTimer,
+        towerUpgrades: st.towerUpgrades,
+        bossKills: st.bossKills,
+        selectedTower: st.selectedTower,
+        metaRaw: localStorage.getItem("td_meta_v1"),
+        heroesRaw: localStorage.getItem("td_heroes_owned_v1"),
       };
       st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
 
@@ -875,6 +889,7 @@ async function run() {
       const leakEnemyType = leakEnemy.type;
       window.TD.debug.step(0.05);
       const leakByType = ((st.runLeaks.byWave || {})["1"] || {}).byType || {};
+      const leakWarningFx = st.redVignette > 0 && st.cleanStreak === 0 && st.waveLeaks === 1;
 
       const arrow = { type: "arrow", level: 1, x: 200, y: 200, cx: 4, cy: 4, cd: 0 };
       const support = { type: "support", level: 1, x: 230, y: 200, cx: 5, cy: 4, cd: 0 };
@@ -968,6 +983,48 @@ async function run() {
       st.enemies = [ally];
       const unarmoredDealt = window.TD.debug.applyDamage(ally, 40, { source: "tower" });
 
+      window.TD.setReducedEffects(false);
+      window.TD.setAudioMuted(true);
+      st.towers = []; st.enemies = []; st.bullets = []; st.spawnQueue = []; st.particles = [];
+      st.gold = 9999;
+      const fxTower = { type: "arrow", level: 1, x: 260, y: 260, cx: 5, cy: 5, cd: 999, order: 0 };
+      const fxEnemy = window.TD.debug.spawnEnemy("slime", { x: 260, y: 260, wp: 1, hp: 1, maxHp: 1, speed: 0, reward: 7 });
+      st.towers = [fxTower];
+      window.TD.debug.fireTower(fxTower, fxEnemy);
+      const muzzleFx = st.particles.some((p) => p.muzzle);
+      window.TD.debug.step(0.05);
+      const coinFx = st.particles.some((p) => p.toX != null && String(p.text || "").includes("G"));
+      const deathFx = st.particles.filter((p) => p.ring).length >= 1;
+      st.selectedTower = fxTower;
+      window.TD.upgradeSelected();
+      const upgradeFx = st.particles.some((p) => p.beam);
+      st.cleanStreak = 2;
+      window.TD.debug.celebrateWaveClear(3, 55, true);
+      const streakFx = st.cleanStreak >= 2 && st.banner && /CLEAR/.test(st.banner.text || "");
+      const bossFx = window.TD.debug.spawnEnemy("boss", { x: 300, y: 300, wp: 1, hp: 1, maxHp: 1, speed: 0, reward: 1 });
+      st.towers = [fxTower]; st.enemies = [bossFx]; st.bullets = [];
+      window.TD.debug.fireTower(fxTower, bossFx);
+      window.TD.debug.step(0.25);
+      const bossSlowMo = st.slowMoLeft > 0;
+
+      window.TD.setReducedEffects(true);
+      st.particles = []; st.bullets = []; st.enemies = []; st.slowMoLeft = 0;
+      const reducedEnemy = window.TD.debug.spawnEnemy("slime", { x: 260, y: 260, wp: 1, hp: 1, maxHp: 1, speed: 0, reward: 7 });
+      window.TD.debug.fireTower(fxTower, reducedEnemy);
+      const reducedMuzzle = st.particles.some((p) => p.muzzle);
+      window.TD.debug.step(0.05);
+      const reducedCoin = st.particles.some((p) => p.toX != null);
+      st.selectedTower = fxTower;
+      window.TD.upgradeSelected();
+      const reducedBeam = st.particles.some((p) => p.beam);
+      const reducedBoss = window.TD.debug.spawnEnemy("boss", { x: 300, y: 300, wp: 1, hp: 1, maxHp: 1, speed: 0, reward: 1 });
+      st.enemies = [reducedBoss]; st.bullets = [];
+      window.TD.debug.fireTower(fxTower, reducedBoss);
+      window.TD.debug.step(0.25);
+      const reducedSlowMo = st.slowMoLeft > 0;
+      const juiceSettings = window.TD.getJuiceSettings();
+      window.TD.setReducedEffects(false);
+
       st.towers = saved.towers;
       st.enemies = saved.enemies;
       st.bullets = saved.bullets;
@@ -980,8 +1037,25 @@ async function run() {
       st.running = saved.running;
       st.skillCooldowns = saved.skillCooldowns;
       st.currentEvent = saved.currentEvent;
+      st.cleanStreak = saved.cleanStreak;
+      st.waveLeaks = saved.waveLeaks;
+      st.redVignette = saved.redVignette;
+      st.slowMoLeft = saved.slowMoLeft;
+      st.gold = saved.gold;
+      st.score = saved.score;
+      st.kills = saved.kills;
+      st.combo = saved.combo;
+      st.comboTimer = saved.comboTimer;
+      st.towerUpgrades = saved.towerUpgrades;
+      st.bossKills = saved.bossKills;
+      st.selectedTower = saved.selectedTower;
+      if (saved.metaRaw == null) localStorage.removeItem("td_meta_v1");
+      else localStorage.setItem("td_meta_v1", saved.metaRaw);
+      if (saved.heroesRaw == null) localStorage.removeItem("td_heroes_owned_v1");
+      else localStorage.setItem("td_heroes_owned_v1", saved.heroesRaw);
+      window.__tdUI();
       return {
-        afterHit, afterDot, stacks, poisonDps1, poisonDps4, highStackDps, leakEnemyType, leakByType, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB, goblinDodged, orcRaged, splitChildren,
+        afterHit, afterDot, stacks, poisonDps1, poisonDps4, highStackDps, leakEnemyType, leakByType, leakWarningFx, base, buff, effective, singleSupportGain, poisonGain, poisonExpectedGain, duplicateGainA, duplicateGainB, goblinDodged, orcRaged, splitChildren,
         beaconSlowFactor, beaconRevealed, combinedSlowFactor,
         mortarTargetIsFar: mortarTarget === farMortarEnemy,
         mortarNearOnlyNull: mortarNearOnly === null,
@@ -989,6 +1063,9 @@ async function run() {
         mutedByOrder,
         mirrorAfterReflect, mirrorReflected, mirrorAfterSecondSkill,
         armoredDealt, armoredFlag, unarmoredDealt,
+        muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo,
+        r53Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
+        reducedMuzzle, reducedCoin, reducedBeam, reducedSlowMo, juiceSettings,
       };
     });
     assert(stage4Combat.stacks > 0 && stage4Combat.afterDot < stage4Combat.afterHit,
@@ -997,6 +1074,7 @@ async function run() {
       `毒霧塔 DoT 隨等級成長並寫入彈體（${stage4Combat.poisonDps1.toFixed(1)} → ${stage4Combat.poisonDps4.toFixed(1)}）`);
     assert(stage4Combat.leakEnemyType === "slime" && stage4Combat.leakByType.slime === 1 && !Object.prototype.hasOwnProperty.call(stage4Combat.leakByType, "undefined"),
       `漏怪 byType 使用真實敵種（${JSON.stringify(stage4Combat.leakByType)}）`);
+    assert(stage4Combat.leakWarningFx, "漏怪會觸發女神紅暈警示並歸零無漏 streak");
     assert(stage4Combat.buff >= 0.20 && stage4Combat.effective > stage4Combat.base,
       `聖光塔 buff 生效（base ${stage4Combat.base}，buff ${stage4Combat.buff}，effective ${stage4Combat.effective}）`);
     assert(Math.abs(stage4Combat.poisonGain - stage4Combat.poisonExpectedGain) < 0.05,
@@ -1017,6 +1095,10 @@ async function run() {
       `裂鏡童反射第一次技能傷害，第二次技能才生效（${stage4Combat.mirrorAfterReflect} → ${stage4Combat.mirrorAfterSecondSkill}）`);
     assert(Math.abs(stage4Combat.armoredDealt - 30) < 0.01 && stage4Combat.armoredFlag && Math.abs(stage4Combat.unarmoredDealt - 40) < 0.01,
       `裂界守門人 auraArmor 讓友軍受擊 ×0.75（${stage4Combat.armoredDealt} / ${stage4Combat.unarmoredDealt}）`);
+    assert(stage4Combat.muzzleFx && stage4Combat.coinFx && stage4Combat.deathFx && stage4Combat.upgradeFx && stage4Combat.streakFx && stage4Combat.bossSlowMo,
+      `R53 爽度特效觸發：砲口、金幣飛字、死亡爆散、升級光柱、無漏 streak、Boss slow-mo（${JSON.stringify(stage4Combat.r53Fx)}）`);
+    assert(!stage4Combat.reducedMuzzle && !stage4Combat.reducedCoin && !stage4Combat.reducedBeam && !stage4Combat.reducedSlowMo && stage4Combat.juiceSettings.reducedEffects,
+      "R53 reduced guard 會關閉新增強特效與 Boss slow-mo");
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");

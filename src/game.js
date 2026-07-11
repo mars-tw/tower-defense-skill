@@ -74,15 +74,106 @@
   let loopToken = 0;
   let uiRefreshScheduled = false;
   let reducedFlashCache;
+  let reducedEffectsCache;
+  let audioMutedCache;
   function reducedFlashEnabled() {
     if (reducedFlashCache !== undefined) return reducedFlashCache;
     try {
       reducedFlashCache = localStorage.getItem("td_reduced_flash") === "1" ||
+        localStorage.getItem("td_reduced_effects") === "1" ||
         localStorage.getItem("td_reducedFlash") === "1" ||
         localStorage.getItem("reducedFlash") === "1" ||
         (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     } catch { reducedFlashCache = false; }
     return reducedFlashCache;
+  }
+  function reducedEffectsEnabled() {
+    if (reducedEffectsCache !== undefined) return reducedEffectsCache;
+    try {
+      reducedEffectsCache = localStorage.getItem("td_reduced_effects") === "1" ||
+        (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch { reducedEffectsCache = false; }
+    return reducedEffectsCache;
+  }
+  function setReducedEffects(v) {
+    reducedEffectsCache = !!v;
+    reducedFlashCache = !!v;
+    try {
+      localStorage.setItem("td_reduced_effects", v ? "1" : "0");
+      localStorage.setItem("td_reduced_flash", v ? "1" : "0");
+    } catch {}
+    return getJuiceSettings();
+  }
+  function audioMuted() {
+    if (audioMutedCache !== undefined) return audioMutedCache;
+    try { audioMutedCache = localStorage.getItem("td_audio_muted") === "1"; }
+    catch { audioMutedCache = false; }
+    return audioMutedCache;
+  }
+  function setAudioMuted(v) {
+    audioMutedCache = !!v;
+    try { localStorage.setItem("td_audio_muted", v ? "1" : "0"); } catch {}
+    return getJuiceSettings();
+  }
+  function getJuiceSettings() {
+    return { reducedEffects: reducedEffectsEnabled(), audioMuted: audioMuted(), audioUnlocked: !!audioState.unlocked };
+  }
+  const audioState = { ctx: null, unlocked: false };
+  function unlockAudio() {
+    if (audioMuted() || audioState.unlocked) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      audioState.ctx = audioState.ctx || new AC();
+      const ctx2 = audioState.ctx;
+      if (ctx2.state === "suspended" && ctx2.resume) ctx2.resume();
+      audioState.unlocked = true;
+    } catch {}
+  }
+  ["pointerdown", "keydown", "touchstart"].forEach((ev) => {
+    document.addEventListener(ev, unlockAudio, { once: true, passive: true });
+  });
+  function playSfx(kind) {
+    if (audioMuted()) return;
+    unlockAudio();
+    const ac = audioState.ctx;
+    if (!ac || !audioState.unlocked) return;
+    const map = {
+      fire: [520, 0.035, "square", 0.025],
+      hit: [180, 0.045, "triangle", 0.03],
+      kill: [420, 0.09, "sawtooth", 0.045],
+      wave: [660, 0.16, "sine", 0.055],
+      boss: [90, 0.34, "sawtooth", 0.075],
+      leak: [140, 0.20, "square", 0.06],
+    };
+    const spec = map[kind];
+    if (!spec) return;
+    try {
+      const now = ac.currentTime;
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = spec[2];
+      osc.frequency.setValueAtTime(spec[0], now);
+      if (kind === "boss") osc.frequency.exponentialRampToValueAtTime(38, now + spec[1]);
+      else osc.frequency.exponentialRampToValueAtTime(Math.max(40, spec[0] * 0.62), now + spec[1]);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(spec[3], now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + spec[1]);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start(now);
+      osc.stop(now + spec[1] + 0.03);
+    } catch {}
+  }
+  function effectRand() {
+    if (!state) return 0.5;
+    let x = (state.effectSeed || 1) >>> 0;
+    x = (x + 0x6D2B79F5) >>> 0;
+    let t = x;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    state.effectSeed = x || 1;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
   function flushUIRefresh() {
     uiRefreshScheduled = false;
@@ -281,6 +372,8 @@
       waveSeeds: {}, backgroundCache: null, buildableReachCache: null,
       performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
+      cleanStreak: 0, waveLeaks: 0, redVignette: 0, slowMoLeft: 0, slowMoScale: 1,
+      effectSeed: ((runSeed ^ (affixSeed << 1) ^ 0x9e3779b9) >>> 0) || 1,
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
       runLeaks: { total: 0, byWave: {} },
       towersBuilt: 0, towerUpgrades: 0, skillCasts: 0, bossKills: 0, clearedWave: 0,
@@ -372,6 +465,7 @@
     }
     state.wave++;
     state.betweenWaves = false;
+    state.waveLeaks = 0;
     const w = state.wave;
     const plan = wavePlanFor(w);
     const isBoss = plan.isBoss;
@@ -407,6 +501,14 @@
   // 事件波橫幅提示（畫面中央短暫顯示）
   function flashBanner(text, color) {
     state.banner = { text, color, life: 2.0 };
+  }
+  function celebrateWaveClear(wave, bonus, clean) {
+    playSfx("wave");
+    if (reducedEffectsEnabled()) return;
+    flashBanner(`WAVE ${wave} CLEAR`, clean && state.cleanStreak >= 2 ? "#4ade80" : "#fde047");
+    flashText(W / 2, H * 0.30, `+${bonus}G`, { color: "#facc15", size: 24, big: true });
+    if (clean) flashText(W / 2, H * 0.37, `NO LEAK x${state.cleanStreak}`, { color: "#4ade80", size: 18, big: true });
+    ring(W / 2, H * 0.36, "#fde047", 120);
   }
 
   function affixMul(key) {
@@ -704,6 +806,14 @@
   }
 
   function update(dt) {
+    const rawDt = dt;
+    if (state.slowMoLeft > 0 && !reducedEffectsEnabled()) {
+      const scale = Math.max(0.15, Math.min(1, state.slowMoScale || 0.35));
+      state.slowMoLeft = Math.max(0, state.slowMoLeft - rawDt);
+      dt *= scale;
+    } else if (state.slowMoLeft > 0) {
+      state.slowMoLeft = 0;
+    }
     // 生成本波敵人
     if (state.spawnQueue.length > 0) {
       state.spawnTimer -= dt;
@@ -729,6 +839,7 @@
     // 女神聖光反擊（2 級起解鎖）：定期攻擊終點附近的敵人
     const gd = state.goddess;
     if (gd.hitFlash > 0) gd.hitFlash = Math.max(0, gd.hitFlash - dt);
+    if (state.redVignette > 0) state.redVignette = Math.max(0, state.redVignette - rawDt * 1.7);
     if (gd.level >= GODDESS.smiteUnlockLevel) {
       gd.smiteCd -= dt;
       if (gd.smiteCd <= 0) {
@@ -801,7 +912,15 @@
     // 粒子（擴張環不移動；爆裂粒子受重力；文字往上飄不受重力）
     for (const p of state.particles) {
       p.life -= dt;
-      if (!p.ring) { p.x += p.vx * dt; p.y += p.vy * dt; if (!p.text) p.vy += 220 * dt; }
+      if (p.toX != null && p.toY != null) {
+        const k = Math.min(1, dt * (p.flySpeed || 4.5));
+        p.x += (p.toX - p.x) * k;
+        p.y += (p.toY - p.y) * k;
+      } else if (!p.ring && !p.beam) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (!p.text && !p.muzzle) p.vy += 220 * dt;
+      }
     }
     state.particles = state.particles.filter((p) => p.life > 0);
 
@@ -814,6 +933,8 @@
       const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1) * affixMul("waveGoldMul")); // 指數成長獎勵（D2）
       state.gold += bonus;
       state.score += state.wave * 10;
+      const clean = (state.waveLeaks || 0) === 0;
+      state.cleanStreak = clean ? (state.cleanStreak || 0) + 1 : 0;
       let soulReward = 0;
       if (!state.soulRewardedWaves.has(state.wave)) {
         soulReward = TDRules.waveSoulReward(state.wave, getDifficulty().id);
@@ -834,6 +955,7 @@
       } else {
         log(`第 ${state.wave} 波清空！+${bonus} 金`);
       }
+      celebrateWaveClear(state.wave, bonus, clean);
       notifyUI();
     }
   }
@@ -851,9 +973,13 @@
     waveEntry.byType[type] = (waveEntry.byType[type] || 0) + 1;
     state.runLeaks.byWave[waveKey] = waveEntry;
     state.runLeaks.total += 1;
+    state.waveLeaks = (state.waveLeaks || 0) + 1;
+    state.cleanStreak = 0;
     state.goddess.hp -= dmg;
     state.goddess.hitFlash = 0.4;
+    state.redVignette = Math.max(state.redVignette || 0, reducedEffectsEnabled() ? 0.24 : 0.55);
     burst(state.goddess.x, state.goddess.y, "#ef4444", 14);
+    playSfx("leak");
     log(`${e.name} 攻擊了${GODDESS.name}！-${dmg} 生命`, "bad");
     if (state.goddess.hp <= 0) { state.goddess.hp = 0; gameOver(); }
     notifyUI();
@@ -1035,7 +1161,16 @@
     state.gold += reward;
     state.score += reward;
     burst(e.x, e.y, e.color, e.boss ? 30 : 12);
-    if (e.boss) { state.bossKills = (state.bossKills || 0) + 1; ring(e.x, e.y, "#fde047", 70); screenShake(); }
+    deathBurst(e);
+    coinFloat(e.x, e.y, reward);
+    playSfx(e.boss ? "boss" : "kill");
+    if (e.boss) {
+      state.bossKills = (state.bossKills || 0) + 1;
+      state.slowMoLeft = reducedEffectsEnabled() ? 0 : 0.2;
+      state.slowMoScale = 0.35;
+      ring(e.x, e.y, "#fde047", 70);
+      screenShake();
+    }
     // combo 達門檻時畫面跳大數字
     if (state.combo >= 3) flashText(e.x, e.y - 12, `COMBO x${state.combo}`, { color: "#fde047", size: 14 + Math.min(state.combo, 10), big: true });
     notifyUI();
@@ -1114,6 +1249,8 @@
   function fire(tw, target) {
     const def = TOWERS[tw.type];
     const poisonDps = towerStat(tw, "poisonDps");
+    muzzleFlash(tw, target);
+    playSfx("fire");
     state.bullets.push({
       x: tw.x, y: tw.y, target, speed: def.id === "mortar" ? 250 : 320, color: def.color,
       damage: effectiveTowerDamage(tw), element: def.element,
@@ -1131,6 +1268,11 @@
         if (Math.hypot(e.x - b.target.x, e.y - b.target.y) <= b.splash) dealDamage(e, b);
       }
       burst(b.target.x, b.target.y, b.color, 12);
+      if (b.type === "mortar") {
+        burst(b.target.x, b.target.y, b.color, 28);
+        ring(b.target.x, b.target.y, b.color, Math.max(58, b.splash + 20));
+        impactShake(false);
+      }
     } else if (b.pierce) {
       // 穿透：主目標一定要吃到傷害，其餘依「距主目標的距離」排序取最近的——
       // 原本取 filter 後的前 N 個（＝生成順序），被瞄準的敵人可能反而完全沒受傷
@@ -1153,6 +1295,7 @@
     const dmg = b.damage * mult * synergy;
     const dealt = applyDamage(e, dmg, { source: b._heroOwner ? "hero" : "tower", element: b.element });
     if (e._dodgedLastHit) return;
+    if (dealt > 0) playSfx("hit");
     damageNumber(e.x, e.y, dealt || dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
     if (b.poison) applyPoison(e, b.poison);
     if (b.vuln) markVulnerable(e, b.vuln.mult, b.vuln.duration);
@@ -1242,6 +1385,7 @@
     state.gold -= cost;
     tw.level++;
     state.towerUpgrades = (state.towerUpgrades || 0) + 1;
+    upgradeBeam(tw.x, tw.y, (TOWERS[tw.type] && TOWERS[tw.type].color) || "#fde047");
     log(`${TOWERS[tw.type].name} 升到 ${tw.level} 級！`);
     notifyUI();
   }
@@ -1277,12 +1421,43 @@
   // ===== 粒子 =====
   // 粒子爆裂（V2：初速差異化 + 重力 + 大小隨機，更有打擊感）
   function burst(x, y, color, n) {
+    if (reducedEffectsEnabled() && n > 14) n = 8;
     const count = performanceLow() ? Math.max(1, Math.round((n || 1) * 0.45)) : n;
     for (let i = 0; i < count; i++) {
-      const a = Math.random() * Math.PI * 2, sp = 50 + Math.random() * 160;
+      const a = effectRand() * Math.PI * 2, sp = 50 + effectRand() * 160;
       state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
-        life: 0.35 + Math.random() * 0.35, color, r: 1.5 + Math.random() * 2 });
+        life: 0.35 + effectRand() * 0.35, color, r: 1.5 + effectRand() * 2 });
     }
+  }
+  function deathBurst(e) {
+    if (!e || reducedEffectsEnabled()) return;
+    const color = e.color || "#fde047";
+    burst(e.x, e.y, color, e.boss ? 72 : 22);
+    ring(e.x, e.y, color, e.boss ? 135 : 42);
+    if (e.boss) ring(e.x, e.y, "#fff7ed", 190);
+  }
+  function coinFloat(x, y, amount) {
+    if (reducedEffectsEnabled()) return;
+    state.particles.push({
+      x, y: y - 16, vx: 0, vy: 0, life: 0.92, color: "#facc15", text: `+${amount}G`,
+      size: 16, big: true, toX: 42, toY: 18, flySpeed: 3.8,
+    });
+  }
+  function muzzleFlash(tw, target) {
+    if (!tw || reducedEffectsEnabled()) return;
+    const a = target ? Math.atan2(target.y - tw.y, target.x - tw.x) : -Math.PI / 2;
+    state.particles.push({ x: tw.x + Math.cos(a) * 18, y: tw.y + Math.sin(a) * 18,
+      vx: 0, vy: 0, life: 0.12, color: (TOWERS[tw.type] && TOWERS[tw.type].color) || "#fde047",
+      muzzle: true, angle: a, r: tw.type === "mortar" ? 22 : 14 });
+  }
+  function upgradeBeam(x, y, color) {
+    if (reducedEffectsEnabled()) return;
+    state.particles.push({ x, y, vx: 0, vy: 0, life: 0.48, color: color || "#fde047", beam: true, maxR: 58, r0: 10 });
+    ring(x, y, color || "#fde047", 56);
+  }
+  function impactShake(strong) {
+    if (reducedEffectsEnabled()) return;
+    screenShake(strong ? 360 : 180);
   }
   // 擴張環特效（技能命中、Boss 死亡等）
   function ring(x, y, color, maxR) {
@@ -1292,13 +1467,14 @@
   // 螢幕震動（Boss 擊殺、清場技等強回饋）— 對 canvas 加 CSS 震動 class
   function screenShake() {
     if (!canvas) return;
+    if (reducedEffectsEnabled()) return;
     canvas.classList.add("shake");
     setTimeout(() => canvas.classList.remove("shake"), 300);
   }
   // 浮動文字（升級/傷害數字）；opts: {color, size, big}
   function flashText(x, y, text, opts) {
     opts = opts || {};
-    state.particles.push({ x, y, vx: (Math.random() - 0.5) * 20, vy: -55,
+    state.particles.push({ x, y, vx: (effectRand() - 0.5) * 20, vy: -55,
       life: opts.big ? 1.0 : 0.8, color: opts.color || "#fde047", text,
       size: opts.size || 13, big: opts.big });
   }
@@ -1348,7 +1524,9 @@
     drawAdvisorHighlight();
     drawGuardPoints();
     drawComboHud();
+    drawStreakHud();
     drawBanner();
+    drawRedVignette();
   }
 
   // D9 駐守點視覺（旗標 + 範圍圈）
@@ -1407,6 +1585,34 @@
     const mul = 1 + Math.min(state.combo - 1, 20) * 0.05;
     ctx.font = '700 13px "Segoe UI", sans-serif';
     ctx.fillStyle = "#4ade80"; ctx.fillText(`金錢 x${mul.toFixed(2)}`, x, y + 30 * scale);
+    ctx.restore();
+  }
+  function drawStreakHud() {
+    if (!state.cleanStreak || state.cleanStreak < 2) return;
+    const x = W - 18, y = 28;
+    const pulse = 1 + Math.sin(state.clock * 7) * 0.04;
+    ctx.save();
+    ctx.textAlign = "right"; ctx.textBaseline = "top";
+    ctx.font = `900 ${Math.round(21 * pulse)}px "Segoe UI", sans-serif`;
+    ctx.strokeStyle = "rgba(0,0,0,.82)"; ctx.lineWidth = 4;
+    const text = `NO LEAK x${state.cleanStreak}`;
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = "#4ade80";
+    ctx.fillText(text, x, y);
+    ctx.font = '800 12px "Segoe UI", sans-serif';
+    ctx.fillStyle = "#bbf7d0";
+    ctx.fillText("STREAK", x, y + 25);
+    ctx.restore();
+  }
+  function drawRedVignette() {
+    const a = Math.max(0, Math.min(1, state.redVignette || 0));
+    if (a <= 0) return;
+    ctx.save();
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.22, W / 2, H / 2, H * 0.75);
+    g.addColorStop(0, "rgba(239,68,68,0)");
+    g.addColorStop(1, `rgba(239,68,68,${0.42 * a})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
     ctx.restore();
   }
 
@@ -1881,6 +2087,38 @@
       const r = p.r0 + (p.maxR - p.r0) * prog;
       ctx.strokeStyle = p.color; ctx.lineWidth = 4 * (1 - prog) + 0.5;
       ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+    } else if (p.beam) {
+      const prog = 1 - p.life / 0.48;
+      const h = 96 * (1 - Math.min(0.65, prog * 0.45));
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 0.8 - prog * 0.8);
+      const g = ctx.createLinearGradient(p.x, p.y - h, p.x, p.y + 12);
+      g.addColorStop(0, "rgba(255,255,255,0)");
+      g.addColorStop(0.42, p.color);
+      g.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(p.x - 7, p.y - h, 14, h + 18);
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r0 + (p.maxR - p.r0) * prog, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    } else if (p.muzzle) {
+      const prog = 1 - p.life / 0.12;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle || 0);
+      ctx.globalAlpha = Math.max(0, 0.9 - prog * 0.9);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 14;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo((p.r || 14) * (1 - prog * 0.35), -6);
+      ctx.lineTo((p.r || 14) * 0.72, 0);
+      ctx.lineTo((p.r || 14) * (1 - prog * 0.35), 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     } else if (p.text) {
       // 傷害/升級數字：剛出現時 scale-in
       const age = (p.big ? 1.0 : 0.8) - p.life;
@@ -2081,6 +2319,9 @@
     setAdvisorMode: (mode) => { state.advisorMode = (TDRules.ADVISOR_MODES && TDRules.ADVISOR_MODES[mode]) ? mode : "control"; },
     setPerformanceMode,
     getPerformanceStatus,
+    setReducedEffects,
+    setAudioMuted,
+    getJuiceSettings,
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
     cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },
@@ -2101,6 +2342,8 @@
       acquireTarget: (tw) => acquireTarget(tw),
       applyDamage: (enemy, amount, opts) => applyDamage(enemy, amount, opts),
       castSkill: (id, x, y) => castSkill(id, x, y),
+      playSfx,
+      celebrateWaveClear: (wave, bonus, clean) => celebrateWaveClear(wave || state.wave || 1, bonus || 0, !!clean),
       forcePerformanceSample: (fps) => { handlePerformanceSample(fps); return getPerformanceStatus(); },
     },
     config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, MAP_AFFIXES, EVENT_WAVES, ACHIEVEMENTS, BEGINNER_MISSIONS },

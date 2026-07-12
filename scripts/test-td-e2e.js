@@ -1296,11 +1296,17 @@ async function run() {
       const reducedClass = document.documentElement.classList.contains("reduced-effects");
       const visual = window.TD.debug.visualSnapshot();
       const towerLevels = Array.from({ length: window.TD.config.UPGRADE.maxLevel }, (_, i) => window.TD.debug.towerVisualStyle(i + 1));
+      const denseGlow = Array.from({ length: 18 }, (_, i) => window.TD.debug.towerGlowPolicy(18, i, false, 8, 10, false, false));
+      const lowGlow = window.TD.debug.towerGlowPolicy(4, 0, true, 10, 10, true, false);
+      const reducedGlow = window.TD.debug.towerGlowPolicy(4, 0, true, 10, 10, false, true);
+      const cannonMass = window.TD.debug.towerMaterialStyle("cannon", "fire");
+      const mortarMass = window.TD.debug.towerMaterialStyle("mortar", "fire");
+      const arrowMass = window.TD.debug.towerMaterialStyle("arrow", "physical");
       const lv1 = towerLevels[0];
       const lvMax = towerLevels[towerLevels.length - 1];
       window.TD.setReducedEffects(reduced);
       Object.assign(st, saved); window.__tdUI();
-      return { progress, reducedClass, visual, towerLevels, lv1, lvMax };
+      return { progress, reducedClass, visual, towerLevels, lv1, lvMax, denseGlow, lowGlow, reducedGlow, cannonMass, mortarMass, arrowMass };
     });
     const themeValues = Object.values(r57VisualGuard.visual.themes);
     assert(r57VisualGuard.progress.width === "40%" && r57VisualGuard.progress.aria === "40" && r57VisualGuard.progress.text === "4/10" && /hud-gain/.test(r57VisualGuard.progress.goldClass),
@@ -1315,6 +1321,15 @@ async function run() {
       `R58 Lv1–10 連續辨識階梯 guard（${JSON.stringify(ladderSignatures)}）`);
     assert(/rgba\(16,185,129,\.12\)/.test(r57VisualGuard.visual.themes.plains.tint),
       `R58 平原 tint 已提升至宣傳可讀量級（${r57VisualGuard.visual.themes.plains.tint}）`);
+    assert(r57VisualGuard.denseGlow.filter((v) => v.enabled).length === 4 &&
+      r57VisualGuard.denseGlow.slice(4).every((v) => !v.enabled && v.baseBlur === 0 && v.gemBlur === 0) &&
+      !r57VisualGuard.lowGlow.enabled && !r57VisualGuard.reducedGlow.enabled,
+      `R59 多塔光暈固定預算且 low/reduced 零 blur（${JSON.stringify(r57VisualGuard.denseGlow)}）`);
+    assert(r57VisualGuard.arrowMass.metal && r57VisualGuard.cannonMass.metal &&
+      r57VisualGuard.cannonMass.mass > r57VisualGuard.arrowMass.mass &&
+      r57VisualGuard.mortarMass.mass > r57VisualGuard.cannonMass.mass &&
+      r57VisualGuard.mortarMass.rim > r57VisualGuard.cannonMass.rim,
+      `R59 物理／加農厚度階級 guard（${JSON.stringify({ arrow: r57VisualGuard.arrowMass, cannon: r57VisualGuard.cannonMass, mortar: r57VisualGuard.mortarMass })}）`);
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");

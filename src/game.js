@@ -1803,7 +1803,7 @@
     drawMapAtmosphere();
     if (state.selectedTowerType) drawBuildPreview();
     drawGoddess();
-    for (const tw of state.towers) drawTower(tw);
+    for (let i = 0; i < state.towers.length; i++) drawTower(state.towers[i], i, state.towers.length);
     for (const h of state.heroes) drawHero(h);
     for (const e of state.enemies) drawEnemy(e);
     for (const b of state.bullets) drawBullet(b);
@@ -2294,6 +2294,35 @@
       gemSides: lv >= max ? 5 : tier >= 3 ? 6 : 4,
     };
   }
+  function towerGlowPolicy(towerCount, drawIndex, selected, level, maxLevel, low, reduced) {
+    const count = Math.max(0, Math.floor(Number(towerCount) || 0));
+    const index = Math.max(0, Math.floor(Number(drawIndex) || 0));
+    if (low || reduced) return { enabled: false, budget: 0, baseBlur: 0, gemBlur: 0 };
+    const budget = count >= 16 ? 4 : count >= 10 ? 6 : 8;
+    // 固定使用繪製順序分配名額，不按 frame 輪替；選取塔可額外取得一個穩定焦點。
+    const enabled = count <= budget || index < budget || !!selected;
+    if (!enabled) return { enabled: false, budget, baseBlur: 0, gemBlur: 0 };
+    const dense = count > 12;
+    const maxed = Number(level) >= Number(maxLevel);
+    return {
+      enabled: true,
+      budget,
+      baseBlur: selected ? 8 : dense ? 3 : maxed ? 7 : 5,
+      gemBlur: selected ? 10 : dense ? 4 : maxed ? 9 : 7,
+    };
+  }
+  function towerMaterialStyle(type, element) {
+    const profiles = {
+      cannon: { mass: 1.08, rim: 3.4, rivets: 4, metal: true },
+      mortar: { mass: 1.16, rim: 4.4, rivets: 6, metal: true },
+      sniper: { mass: 1.02, rim: 3.0, rivets: 4, metal: true },
+      arrow: { mass: 0.98, rim: 2.6, rivets: 4, metal: true },
+      poison: { mass: 0.96, rim: 2.4, rivets: 3, metal: true },
+    };
+    if (profiles[type]) return profiles[type];
+    if (element === "physical") return { mass: 0.94, rim: 2.2, rivets: 3, metal: true };
+    return { mass: 0.91, rim: 1.8, rivets: 0, metal: false };
+  }
   function polygonPath(drawCtx, radius, sides, rotation) {
     drawCtx.beginPath();
     for (let i = 0; i < sides; i++) {
@@ -2303,28 +2332,47 @@
     }
     drawCtx.closePath();
   }
-  function drawTower(tw) {
+  function drawTower(tw, drawIndex, towerCount) {
     const def = TOWERS[tw.type];
     const lv = tw.level;
     const { max, progress, tier, auraColor, baseR, spriteSize, ringCount, ringDash, baseSides, gemSize, gemSides } = towerVisualStyle(lv);
     const animated = !reducedEffectsEnabled();
+    const reduced = reducedEffectsEnabled();
+    const glow = towerGlowPolicy(towerCount, drawIndex, state.selectedTower === tw, lv, max, performanceLow(), reduced);
+    const material = towerMaterialStyle(tw.type, def.element);
     const pulse = animated ? 1 + Math.sin(state.clock * 3.2 + (tw.order || 0)) * (0.012 + progress * 0.025) : 1;
     ctx.save();
     ctx.translate(tw.x, tw.y);
     ctx.scale(pulse, pulse);
-    ctx.shadowColor = auraColor;
-    ctx.shadowBlur = performanceLow() ? 0 : 5 + tier * 3;
+    // 元素色負責塔種辨識；升級彩虹只做外階刻度與寶石色錨。
+    ctx.shadowColor = def.color;
+    ctx.shadowBlur = glow.baseBlur;
+    ctx.fillStyle = material.metal ? "rgba(15,23,42,.88)" : "rgba(2,6,23,.62)";
+    ctx.strokeStyle = material.metal ? "rgba(203,213,225,.78)" : def.color;
+    ctx.lineWidth = material.rim;
+    polygonPath(ctx, baseR * material.mass, baseSides, -Math.PI / 2); ctx.fill(); ctx.stroke();
+    if (material.rivets) {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(226,232,240,.9)";
+      for (let i = 0; i < material.rivets; i++) {
+        const a = -Math.PI / 2 + i * Math.PI * 2 / material.rivets;
+        ctx.beginPath(); ctx.arc(Math.cos(a) * baseR * material.mass * 0.78, Math.sin(a) * baseR * material.mass * 0.78, 1.25, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.shadowColor = def.color; ctx.shadowBlur = glow.baseBlur;
+    }
     for (let i = 0; i < ringCount; i++) {
-      ctx.globalAlpha = Math.max(0.2, 0.72 - i * 0.1);
-      ctx.strokeStyle = auraColor;
+      ctx.globalAlpha = Math.max(0.18, 0.68 - i * 0.1);
+      ctx.strokeStyle = i === ringCount - 1 ? auraColor : def.color;
       ctx.lineWidth = 1.35 + progress * 1.45 - i * 0.1;
       ctx.setLineDash(i === ringCount - 1 ? ringDash : []);
       ctx.beginPath(); ctx.arc(0, 0, baseR + 2 + i * 3.1, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.setLineDash([]);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = tier === 0 ? "rgba(2,6,23,.48)" : `${auraColor}${tier >= 3 ? "52" : "38"}`;
+    ctx.fillStyle = def.color;
+    ctx.globalAlpha = tier === 0 ? 0.16 : tier >= 3 ? 0.30 : 0.22;
     polygonPath(ctx, baseR, baseSides, -Math.PI / 2); ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = def.color; ctx.lineWidth = 1.5 + progress * 3; ctx.stroke();
     ctx.restore();
     drawSprite(`assets/towers/${tw.type}.png`, def.emoji, tw.x, tw.y, spriteSize);
@@ -2334,7 +2382,7 @@
     ctx.save();
     ctx.translate(tw.x, gemY);
     ctx.rotate(gemSides === 4 ? Math.PI / 4 : -Math.PI / 2);
-    ctx.shadowColor = auraColor; ctx.shadowBlur = performanceLow() ? 0 : 5 + progress * 13;
+    ctx.shadowColor = auraColor; ctx.shadowBlur = glow.gemBlur;
     ctx.fillStyle = lv === 1 ? "rgba(226,232,240,.72)" : auraColor;
     polygonPath(ctx, gemSize * 0.72, gemSides, 0); ctx.fill();
     if (tier >= 2) {
@@ -2833,6 +2881,8 @@
       texturedImpact: (kind, x, y, color, opts) => texturedImpact(kind, x, y, color, opts),
       fxCacheStats,
       towerVisualStyle,
+      towerGlowPolicy,
+      towerMaterialStyle,
       visualSnapshot: () => ({
         mapId: state.mapId,
         themes: Object.fromEntries(Object.entries(MAP_VISUALS).map(([id, item]) => [id, { tint: item.tint, breath: item.breath, detail: item.detail }])),

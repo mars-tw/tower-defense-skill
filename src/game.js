@@ -93,7 +93,7 @@
     ice: "assets/particles/kenney-ice-ring.png",
   };
   const MAP_VISUALS = {
-    plains: { ground: "#0e1a14", tint: "rgba(16,185,129,.035)", breath: "rgba(110,231,183,.12)", detail: "footprints" },
+    plains: { ground: "#0e1a14", tint: "rgba(16,185,129,.12)", breath: "rgba(110,231,183,.12)", detail: "footprints" },
     canyon: { ground: "#221912", tint: "rgba(180,83,9,.24)", breath: "rgba(251,191,36,.11)", detail: "slabs" },
     lava: { ground: "#1d1014", tint: "rgba(153,27,27,.32)", breath: "rgba(251,113,133,.12)", detail: "cracks" },
   };
@@ -1404,6 +1404,9 @@
         if (Math.hypot(e.x - b.target.x, e.y - b.target.y) <= b.splash) dealDamage(e, b);
       }
       burst(b.target.x, b.target.y, b.color, 12);
+      if (b.type === "cannon") {
+        texturedImpact("fire", b.target.x, b.target.y, b.color || "#fb923c", { fxKind: "cannon-impact" });
+      }
       if (b.type === "mortar") {
         burst(b.target.x, b.target.y, b.color, 28);
         texturedImpact("mortar", b.target.x, b.target.y, b.color, { fxKind: "mortar-impact" });
@@ -1437,7 +1440,8 @@
     if (b.poison) applyPoison(e, b.poison);
     if (b.vuln) markVulnerable(e, b.vuln.mult, b.vuln.duration);
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
-    if (b.type !== "mortar") {
+    // Splash 紋理只在爆心合成一次，避免命中 N 隻怪時疊成同色霧牆。
+    if (b.type !== "mortar" && !(b.type === "cannon" && b.splash)) {
       if (b.poison) texturedImpact("poison", e.x, e.y, "#4ade80", { fxKind: "poison-hit" });
       else if (b.element === "ice") texturedImpact("ice", e.x, e.y, "#7dd3fc", { fxKind: "ice-hit" });
       else if (b.element === "thunder") texturedImpact("thunder", e.x, e.y, "#fde047", { fxKind: "thunder-hit" });
@@ -1566,35 +1570,35 @@
   const fxTintCache = {};
   const FX_PROFILES = {
     mortar: [
-      { texture: "flash", size: 92, life: 0.28, blend: "lighter" },
-      { texture: "fire", size: 118, life: 0.52, blend: "lighter" },
-      { texture: "smoke", size: 126, life: 0.78, driftY: -22 },
+      { texture: "flash", size: 92, life: 0.32, blend: "lighter", curve: "flash" },
+      { texture: "fire", size: 118, life: 0.52, blend: "lighter", curve: "body" },
+      { texture: "smoke", size: 126, life: 0.78, driftY: -22, curve: "smoke" },
     ],
     death: [
-      { texture: "flash", size: 50, life: 0.22, blend: "lighter" },
-      { texture: "smoke", size: 60, life: 0.52, driftY: -16 },
+      { texture: "flash", size: 50, life: 0.28, blend: "lighter", curve: "flash" },
+      { texture: "smoke", size: 60, life: 0.52, driftY: -16, curve: "smoke" },
     ],
     boss: [
-      { texture: "flash", size: 210, life: 0.42, blend: "lighter" },
-      { texture: "fire", size: 176, life: 0.72, blend: "lighter" },
-      { texture: "smoke", size: 230, life: 1.0, driftY: -30 },
-      { texture: "magic", size: 190, life: 0.86, blend: "lighter", spin: 1.4 },
+      { texture: "flash", size: 210, life: 0.42, blend: "lighter", curve: "flash" },
+      { texture: "fire", size: 176, life: 0.72, blend: "lighter", curve: "body" },
+      { texture: "smoke", size: 230, life: 1.0, driftY: -30, curve: "smoke" },
+      { texture: "magic", size: 190, life: 0.86, blend: "lighter", spin: 1.4, curve: "body" },
     ],
     poison: [
-      { texture: "magic", size: 58, life: 0.46, blend: "lighter", spin: 1.8 },
-      { texture: "smoke", size: 48, life: 0.56, driftY: -14 },
+      { texture: "magic", size: 58, life: 0.48, blend: "lighter", spin: 1.8, curve: "body" },
+      { texture: "smoke", size: 48, life: 0.58, driftY: -14, curve: "smoke" },
     ],
     ice: [
-      { texture: "ice", size: 66, life: 0.42, blend: "lighter", spin: -1.1 },
-      { texture: "flash", size: 44, life: 0.22, blend: "lighter" },
+      { texture: "ice", size: 66, life: 0.46, blend: "lighter", spin: -1.1, curve: "body" },
+      { texture: "flash", size: 48, life: 0.30, blend: "lighter", curve: "flash" },
     ],
     thunder: [
-      { texture: "spark", size: 72, life: 0.34, blend: "lighter", spin: 2.4 },
-      { texture: "flash", size: 38, life: 0.18, blend: "lighter" },
+      { texture: "spark", size: 72, life: 0.38, blend: "lighter", spin: 2.4, curve: "body" },
+      { texture: "flash", size: 44, life: 0.28, blend: "lighter", curve: "flash" },
     ],
     fire: [
-      { texture: "fire", size: 62, life: 0.42, blend: "lighter" },
-      { texture: "flash", size: 42, life: 0.2, blend: "lighter" },
+      { texture: "fire", size: 64, life: 0.46, blend: "lighter", curve: "body" },
+      { texture: "flash", size: 48, life: 0.28, blend: "lighter", curve: "flash" },
     ],
   };
   function tintedFxSprite(texture, color) {
@@ -1611,6 +1615,13 @@
     cx.globalCompositeOperation = "source-in";
     cx.fillStyle = color || "#ffffff";
     cx.fillRect(0, 0, c.width, c.height);
+    // 把原圖灰階亮暗重新乘回 tint，再輕量 screen 高光；保留 Kenney 的體積而非單色剪影。
+    cx.globalCompositeOperation = "multiply";
+    cx.drawImage(im, 0, 0, c.width, c.height);
+    cx.globalCompositeOperation = "screen";
+    cx.globalAlpha = 0.28;
+    cx.drawImage(im, 0, 0, c.width, c.height);
+    cx.globalAlpha = 1;
     cx.globalCompositeOperation = "source-over";
     fxTintCache[key] = c;
     return c;
@@ -1623,12 +1634,14 @@
     let added = 0;
     for (const layer of layers) {
       const scale = performanceLow() ? 0.78 : 1;
-      const life = layer.life * (0.92 + effectRand() * 0.16);
+      const jitteredLife = layer.life * (0.92 + effectRand() * 0.16);
+      const life = layer.curve === "flash" ? Math.max(0.28, jitteredLife) : jitteredLife;
       const accepted = pushParticle({
         x, y, vx: 0, vy: layer.driftY || 0, life, startLife: life,
         color: color || "#ffffff", texture: layer.texture, size: layer.size * scale,
         rotation: effectRand() * Math.PI * 2, spin: layer.spin || (effectRand() - 0.5) * 1.2,
-        blend: layer.blend || "source-over", textureAlpha: layer.texture === "smoke" ? 0.66 : 0.9,
+        blend: layer.blend || "source-over", textureAlpha: layer.texture === "flash" ? 1 : layer.texture === "smoke" ? 0.66 : 0.9,
+        impactCurve: layer.curve || "body",
         criticalFx: !!opts.criticalFx, fxKind: opts.fxKind || `texture-${kind}`,
       });
       if (accepted) added++;
@@ -2061,9 +2074,12 @@
     ctx.save();
     ctx.fillStyle = visual.tint;
     ctx.fillRect(0, 0, W, H);
-    if (state.betweenWaves && !state.over && !reducedEffectsEnabled() && !performanceLow()) {
+    if (!state.over && !reducedEffectsEnabled() && !performanceLow()) {
       const now = (window.performance && performance.now ? performance.now() : Date.now()) / 1000;
-      const strength = 0.48 + (Math.sin(now * 1.25) + 1) * 0.16;
+      // 波間呼吸仍是主光；戰鬥只留極弱 ambient，讓宣傳混戰畫面保有地圖氣氛。
+      const strength = state.betweenWaves
+        ? 0.48 + (Math.sin(now * 1.25) + 1) * 0.16
+        : 0.20 + (Math.sin(now * 0.8) + 1) * 0.025;
       const glow = ctx.createRadialGradient(W * 0.52, H * 0.48, H * 0.08, W * 0.52, H * 0.48, H * 0.72);
       glow.addColorStop(0, visual.breath.replace(/\.[0-9]+\)$/, `${(0.16 * strength).toFixed(3)})`));
       glow.addColorStop(1, "rgba(0,0,0,0)");
@@ -2086,11 +2102,11 @@
         const x = a.x + dx * (d / len), y = a.y + dy * (d / len);
         px.save(); px.translate(x, y); px.rotate(angle);
         if (visual.detail === "footprints") {
-          px.fillStyle = "rgba(31,41,32,.22)";
+          px.fillStyle = "rgba(31,41,32,.32)";
           px.beginPath(); px.ellipse(-6, -7, 4.5, 8, -.18, 0, Math.PI * 2); px.fill();
           px.beginPath(); px.ellipse(8, 7, 4.5, 8, .18, 0, Math.PI * 2); px.fill();
         } else if (visual.detail === "slabs") {
-          px.strokeStyle = "rgba(45,31,22,.28)"; px.lineWidth = 3;
+          px.strokeStyle = "rgba(45,31,22,.36)"; px.lineWidth = 3;
           px.beginPath(); px.moveTo(0, -CELL * .34); px.lineTo(0, CELL * .34); px.stroke();
           px.strokeStyle = "rgba(255,237,213,.07)"; px.lineWidth = 1;
           px.strokeRect(-19, -CELL * .31, 38, CELL * .62);
@@ -2262,38 +2278,53 @@
     const lv = Math.max(1, Math.floor(Number(level) || 1));
     const max = Math.max(2, UPGRADE.maxLevel || 10);
     const progress = Math.max(0, Math.min(1, (lv - 1) / (max - 1)));
-    const tierColors = ["#64748b", "#38bdf8", "#a78bfa", "#facc15", "#fb7185"];
-    const tier = lv <= 1 ? 0 : Math.min(tierColors.length - 1, 1 + Math.floor(progress * (tierColors.length - 1)));
+    const levelColors = ["#94a3b8", "#38bdf8", "#22d3ee", "#a78bfa", "#c084fc", "#facc15", "#fb923c", "#fb7185", "#f43f5e", "#fef3c7"];
+    const index = Math.min(levelColors.length - 1, Math.max(0, lv - 1));
+    const tier = lv >= max ? 5 : lv >= 8 ? 4 : lv >= 6 ? 3 : lv >= 4 ? 2 : lv >= 2 ? 1 : 0;
+    const ringSteps = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5];
+    const baseSides = [4, 6, 6, 8, 8, 10, 10, 12, 12, 14];
     return {
-      level: lv, max, progress, tier, auraColor: tierColors[tier],
+      level: lv, max, progress, tier, auraColor: levelColors[index],
       baseR: CELL * (0.41 + progress * 0.11),
       spriteSize: CELL * (0.70 + progress * 0.18),
-      ringCount: 1 + Math.floor(progress * 3),
-      gemSize: 3.5 + progress * 6.5,
+      ringCount: ringSteps[index],
+      ringDash: lv % 2 === 0 ? [] : [2.5 + tier * 0.5, 2.5],
+      baseSides: baseSides[index],
+      gemSize: 4 + index * 0.8,
+      gemSides: lv >= max ? 5 : tier >= 3 ? 6 : 4,
     };
+  }
+  function polygonPath(drawCtx, radius, sides, rotation) {
+    drawCtx.beginPath();
+    for (let i = 0; i < sides; i++) {
+      const angle = (rotation || 0) + i * Math.PI * 2 / sides;
+      const x = Math.cos(angle) * radius, y = Math.sin(angle) * radius;
+      if (i === 0) drawCtx.moveTo(x, y); else drawCtx.lineTo(x, y);
+    }
+    drawCtx.closePath();
   }
   function drawTower(tw) {
     const def = TOWERS[tw.type];
     const lv = tw.level;
-    const { max, progress, tier, auraColor, baseR, spriteSize, ringCount, gemSize } = towerVisualStyle(lv);
+    const { max, progress, tier, auraColor, baseR, spriteSize, ringCount, ringDash, baseSides, gemSize, gemSides } = towerVisualStyle(lv);
     const animated = !reducedEffectsEnabled();
     const pulse = animated ? 1 + Math.sin(state.clock * 3.2 + (tw.order || 0)) * (0.012 + progress * 0.025) : 1;
     ctx.save();
     ctx.translate(tw.x, tw.y);
     ctx.scale(pulse, pulse);
-    if (lv >= 2) {
-      ctx.shadowColor = auraColor;
-      ctx.shadowBlur = performanceLow() ? 0 : 7 + tier * 4;
-      for (let i = 0; i < ringCount; i++) {
-        ctx.globalAlpha = 0.72 - i * 0.13;
-        ctx.strokeStyle = auraColor;
-        ctx.lineWidth = 1.5 + progress * 1.6 - i * 0.2;
-        ctx.beginPath(); ctx.arc(0, 0, baseR + 2 + i * 4, 0, Math.PI * 2); ctx.stroke();
-      }
+    ctx.shadowColor = auraColor;
+    ctx.shadowBlur = performanceLow() ? 0 : 5 + tier * 3;
+    for (let i = 0; i < ringCount; i++) {
+      ctx.globalAlpha = Math.max(0.2, 0.72 - i * 0.1);
+      ctx.strokeStyle = auraColor;
+      ctx.lineWidth = 1.35 + progress * 1.45 - i * 0.1;
+      ctx.setLineDash(i === ringCount - 1 ? ringDash : []);
+      ctx.beginPath(); ctx.arc(0, 0, baseR + 2 + i * 3.1, 0, Math.PI * 2); ctx.stroke();
     }
+    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
     ctx.fillStyle = tier === 0 ? "rgba(2,6,23,.48)" : `${auraColor}${tier >= 3 ? "52" : "38"}`;
-    ctx.beginPath(); ctx.arc(0, 0, baseR, 0, Math.PI * 2); ctx.fill();
+    polygonPath(ctx, baseR, baseSides, -Math.PI / 2); ctx.fill();
     ctx.strokeStyle = def.color; ctx.lineWidth = 1.5 + progress * 3; ctx.stroke();
     ctx.restore();
     drawSprite(`assets/towers/${tw.type}.png`, def.emoji, tw.x, tw.y, spriteSize);
@@ -2302,13 +2333,13 @@
     const gemY = tw.y - spriteSize * 0.27;
     ctx.save();
     ctx.translate(tw.x, gemY);
-    ctx.rotate(Math.PI / 4);
+    ctx.rotate(gemSides === 4 ? Math.PI / 4 : -Math.PI / 2);
     ctx.shadowColor = auraColor; ctx.shadowBlur = performanceLow() ? 0 : 5 + progress * 13;
     ctx.fillStyle = lv === 1 ? "rgba(226,232,240,.72)" : auraColor;
-    ctx.fillRect(-gemSize / 2, -gemSize / 2, gemSize, gemSize);
+    polygonPath(ctx, gemSize * 0.72, gemSides, 0); ctx.fill();
     if (tier >= 2) {
       ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1;
-      ctx.strokeRect(-gemSize * .68, -gemSize * .68, gemSize * 1.36, gemSize * 1.36);
+      polygonPath(ctx, gemSize, gemSides, 0); ctx.stroke();
     }
     ctx.restore();
 
@@ -2492,13 +2523,19 @@
       const sprite = tintedFxSprite(p.texture, p.color);
       if (sprite) {
         const ratio = Math.max(0, Math.min(1, p.life / (p.startLife || p.life || 1)));
-        const scale = 0.72 + (1 - ratio) * 0.42;
+        const age = 1 - ratio;
+        const curve = p.impactCurve || "body";
+        const scaleFrom = curve === "flash" ? 1.15 : curve === "smoke" ? 0.82 : 0.94;
+        const scaleTo = curve === "flash" ? 0.85 : curve === "smoke" ? 1.18 : 1.06;
+        const scale = scaleFrom + (scaleTo - scaleFrom) * age;
+        const hold = curve === "flash" ? 0.22 : curve === "smoke" ? 0.06 : 0.14;
+        const textureFade = age <= hold ? 1 : Math.max(0, (1 - age) / (1 - hold));
         const size = (p.size || 64) * scale;
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rotation || 0);
         ctx.globalCompositeOperation = p.blend || "source-over";
-        ctx.globalAlpha = a * (p.textureAlpha == null ? 0.9 : p.textureAlpha);
+        ctx.globalAlpha = textureFade * (p.textureAlpha == null ? 0.9 : p.textureAlpha);
         ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
         ctx.restore();
       }

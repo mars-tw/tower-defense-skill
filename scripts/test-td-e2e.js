@@ -1022,6 +1022,7 @@ async function run() {
       const bossTextureCritical = st.particles.some((p) => p.texture && p.criticalFx && p.fxKind === "boss");
 
       const textureKinds = {};
+      window.TD.setPerformanceMode("high");
       for (const [towerType, expectedKind] of [["poison", "poison-hit"], ["frost", "ice-hit"], ["tesla", "thunder-hit"], ["mortar", "mortar-impact"]]) {
         st.particles = []; st.bullets = []; st.enemies = [];
         const textureEnemy = window.TD.debug.spawnEnemy("slime", { x: 280, y: 280, wp: 1, hp: 9999, maxHp: 9999, speed: 0, _dodgeRoll: 1 });
@@ -1029,9 +1030,22 @@ async function run() {
         st.towers = [textureTower];
         window.TD.debug.fireTower(textureTower, textureEnemy);
         window.TD.debug.step(0.05);
-        textureKinds[towerType] = st.particles.filter((p) => p.texture).map((p) => ({ texture: p.texture, kind: p.fxKind }));
+        textureKinds[towerType] = st.particles.filter((p) => p.texture).map((p) => ({
+          texture: p.texture, kind: p.fxKind, curve: p.impactCurve, startLife: p.startLife,
+        }));
         textureKinds[towerType].expected = expectedKind;
       }
+      st.particles = []; st.bullets = []; st.enemies = [];
+      const cannonTarget = window.TD.debug.spawnEnemy("slime", { x: 280, y: 280, wp: 1, hp: 9999, maxHp: 9999, speed: 0, _dodgeRoll: 1 });
+      window.TD.debug.spawnEnemy("slime", { x: 292, y: 280, wp: 1, hp: 9999, maxHp: 9999, speed: 0, _dodgeRoll: 1 });
+      window.TD.debug.spawnEnemy("slime", { x: 268, y: 280, wp: 1, hp: 9999, maxHp: 9999, speed: 0, _dodgeRoll: 1 });
+      const cannonTower = { type: "cannon", level: 3, x: 280, y: 280, cx: 5, cy: 5, cd: 999, order: 0 };
+      st.towers = [cannonTower];
+      window.TD.debug.fireTower(cannonTower, cannonTarget);
+      window.TD.debug.step(0.05);
+      const cannonTextureFx = st.particles.filter((p) => p.texture).map((p) => ({
+        kind: p.fxKind, x: p.x, y: p.y, curve: p.impactCurve, startLife: p.startLife,
+      }));
       window.TD.setPerformanceMode("low");
       st.particles = [];
       window.TD.debug.texturedImpact("mortar", 240, 240, "#fb923c");
@@ -1199,7 +1213,7 @@ async function run() {
         muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo, bossTextureCritical,
         r53Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
         r54Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
-        textureKinds, lowTextureLayers, fxCacheStats, particleAssetLoads,
+        textureKinds, cannonTextureFx, lowTextureLayers, fxCacheStats, particleAssetLoads,
         reducedMuzzle, reducedCoin, reducedBeam, reducedSlowMo, reducedParticles, reducedTextureLayers, reducedRedVignette, juiceSettings,
         slowMoLogic, particleCap, ringCap,
         leakCriticalFx, leakDecorEvicted, leakCapAfterEviction, leakCriticalSurvivesDecor,
@@ -1240,6 +1254,10 @@ async function run() {
       layers.length > 0 && layers.some((p) => p.kind === ({ poison: "poison-hit", frost: "ice-hit", tesla: "thunder-hit", mortar: "mortar-impact" })[towerType]));
     assert(textureKindsOk && stage4Combat.bossTextureCritical && stage4Combat.particleAssetLoads.every(Boolean) && stage4Combat.fxCacheStats.tinted > 0,
       `R57 Kenney 紋理接線：毒/冰/雷/臼砲專屬、Boss critical、6 素材可載入、離屏 tint cache 生效（cache=${JSON.stringify(stage4Combat.fxCacheStats)}）`);
+    const flashLayers = Object.values(stage4Combat.textureKinds).flat().filter((p) => p.texture === "flash");
+    assert(flashLayers.every((p) => p.curve === "flash" && p.startLife >= 0.28) &&
+      stage4Combat.cannonTextureFx.length === 2 && stage4Combat.cannonTextureFx.every((p) => p.kind === "cannon-impact" && p.x === 280 && p.y === 280),
+      `R58 命中 punch 曲線與加農爆心單次合成 guard（flash=${JSON.stringify(flashLayers)}, cannon=${JSON.stringify(stage4Combat.cannonTextureFx)}）`);
     assert(stage4Combat.lowTextureLayers === 1,
       `R57 low 檔紋理合成降為單層（layers=${stage4Combat.lowTextureLayers}）`);
     assert(!stage4Combat.reducedMuzzle && !stage4Combat.reducedCoin && !stage4Combat.reducedBeam && !stage4Combat.reducedSlowMo &&
@@ -1277,11 +1295,12 @@ async function run() {
       window.TD.setReducedEffects(true); window.__tdUI();
       const reducedClass = document.documentElement.classList.contains("reduced-effects");
       const visual = window.TD.debug.visualSnapshot();
-      const lv1 = window.TD.debug.towerVisualStyle(1);
-      const lvMax = window.TD.debug.towerVisualStyle(window.TD.config.UPGRADE.maxLevel);
+      const towerLevels = Array.from({ length: window.TD.config.UPGRADE.maxLevel }, (_, i) => window.TD.debug.towerVisualStyle(i + 1));
+      const lv1 = towerLevels[0];
+      const lvMax = towerLevels[towerLevels.length - 1];
       window.TD.setReducedEffects(reduced);
       Object.assign(st, saved); window.__tdUI();
-      return { progress, reducedClass, visual, lv1, lvMax };
+      return { progress, reducedClass, visual, towerLevels, lv1, lvMax };
     });
     const themeValues = Object.values(r57VisualGuard.visual.themes);
     assert(r57VisualGuard.progress.width === "40%" && r57VisualGuard.progress.aria === "40" && r57VisualGuard.progress.text === "4/10" && /hud-gain/.test(r57VisualGuard.progress.goldClass),
@@ -1290,6 +1309,12 @@ async function run() {
       `R57 reduced class 與三地圖氛圍/路紋差異 guard（${JSON.stringify(r57VisualGuard.visual.themes)}）`);
     assert(r57VisualGuard.lvMax.gemSize > r57VisualGuard.lv1.gemSize && r57VisualGuard.lvMax.ringCount > r57VisualGuard.lv1.ringCount && r57VisualGuard.lvMax.tier > r57VisualGuard.lv1.tier,
       `R57 塔升級外觀級差 guard（Lv1 ${JSON.stringify(r57VisualGuard.lv1)} / LvMax ${JSON.stringify(r57VisualGuard.lvMax)}）`);
+    const ladderSignatures = r57VisualGuard.towerLevels.map((v) => `${v.auraColor}:${v.ringCount}:${v.ringDash.join(",")}:${v.baseSides}:${v.gemSize}:${v.gemSides}`);
+    assert(r57VisualGuard.lv1.ringCount === 1 && new Set(ladderSignatures).size === r57VisualGuard.towerLevels.length &&
+      r57VisualGuard.towerLevels.every((v, i, all) => i === 0 || v.gemSize > all[i - 1].gemSize),
+      `R58 Lv1–10 連續辨識階梯 guard（${JSON.stringify(ladderSignatures)}）`);
+    assert(/rgba\(16,185,129,\.12\)/.test(r57VisualGuard.visual.themes.plains.tint),
+      `R58 平原 tint 已提升至宣傳可讀量級（${r57VisualGuard.visual.themes.plains.tint}）`);
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");

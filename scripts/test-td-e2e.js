@@ -606,15 +606,18 @@ async function run() {
       bossState.betweenWaves = true;
       window.TD.startWave();
       const bossText = document.getElementById("log").innerText;
+      const bossBanner = Object.assign({}, bossState.banner);
 
       window.TD.newGame({ runSeed: 13579, affixSeed: 24680 });
       window.__tdUI();
-      return { waveText, eventText, bossText, eventWave };
+      return { waveText, eventText, bossText, bossBanner, eventWave };
     });
     assert(p0Narration.waveText.includes("神火初燃") && p0Narration.eventWave &&
       (p0Narration.eventText.includes("連風都在逃") || p0Narration.eventText.includes("裂界") || p0Narration.eventText.includes("金光") || p0Narration.eventText.includes("神火被陰影") || p0Narration.eventText.includes("提燈") || p0Narration.eventText.includes("硬骨頭") || p0Narration.eventText.includes("翅聲")) &&
       (p0Narration.bossText.includes("魔王低聲笑了") || p0Narration.bossText.includes("夜叉王舉刃")),
       `波次節點、事件波與 Boss 旁白會在 startWave 投放（event wave ${p0Narration.eventWave || "none"}）`);
+    assert(p0Narration.bossBanner.boss === true && p0Narration.bossBanner.duration >= 2.5 && /裂界警報/.test(p0Narration.bossBanner.subtitle || ""),
+      `R57 Boss 波接上全屏警示狀態（${JSON.stringify(p0Narration.bossBanner)}）`);
 
     if (vp.w === 1280) {
       const badges = await page.evaluate(() => ({
@@ -828,7 +831,7 @@ async function run() {
       `建塔後新手任務立即領獎（魂晶 ${missionAfterBuild.crystal}）`);
 
     // Stage 4：毒霧塔 DoT 與聖光塔 buff
-    const stage4Combat = await page.evaluate(() => {
+    const stage4Combat = await page.evaluate(async () => {
       const st = window.TD.state();
       const saved = {
         towers: st.towers,
@@ -861,6 +864,10 @@ async function run() {
         towerUpgrades: st.towerUpgrades,
         bossKills: st.bossKills,
         selectedTower: st.selectedTower,
+        waveTotal: st.waveTotal,
+        waveResolved: st.waveResolved,
+        performanceMode: window.TD.getPerformanceStatus().mode,
+        performanceQuality: window.TD.getPerformanceStatus().quality,
         metaRaw: localStorage.getItem("td_meta_v1"),
         heroesRaw: localStorage.getItem("td_heroes_owned_v1"),
       };
@@ -1012,6 +1019,34 @@ async function run() {
       window.TD.debug.fireTower(fxTower, bossFx);
       window.TD.debug.step(0.25);
       const bossSlowMo = st.slowMoLeft > 0;
+      const bossTextureCritical = st.particles.some((p) => p.texture && p.criticalFx && p.fxKind === "boss");
+
+      const textureKinds = {};
+      for (const [towerType, expectedKind] of [["poison", "poison-hit"], ["frost", "ice-hit"], ["tesla", "thunder-hit"], ["mortar", "mortar-impact"]]) {
+        st.particles = []; st.bullets = []; st.enemies = [];
+        const textureEnemy = window.TD.debug.spawnEnemy("slime", { x: 280, y: 280, wp: 1, hp: 9999, maxHp: 9999, speed: 0, _dodgeRoll: 1 });
+        const textureTower = { type: towerType, level: 3, x: 280, y: 280, cx: 5, cy: 5, cd: 999, order: 0 };
+        st.towers = [textureTower];
+        window.TD.debug.fireTower(textureTower, textureEnemy);
+        window.TD.debug.step(0.05);
+        textureKinds[towerType] = st.particles.filter((p) => p.texture).map((p) => ({ texture: p.texture, kind: p.fxKind }));
+        textureKinds[towerType].expected = expectedKind;
+      }
+      window.TD.setPerformanceMode("low");
+      st.particles = [];
+      window.TD.debug.texturedImpact("mortar", 240, 240, "#fb923c");
+      const lowTextureLayers = st.particles.filter((p) => p.texture).length;
+      window.TD.setPerformanceMode(saved.performanceQuality === "low" ? "low" : "high");
+      window.TD.setPerformanceMode(saved.performanceMode);
+      window.TD.debug.step(0.016);
+      const fxCacheStats = window.TD.debug.fxCacheStats();
+      const particleAssetLoads = await Promise.all([
+        "kenney-fire.png", "kenney-smoke.png", "kenney-flash.png", "kenney-magic.png", "kenney-spark.png", "kenney-ice-ring.png",
+      ].map((name) => new Promise((resolve) => {
+        const im = new Image();
+        im.onload = () => resolve(true); im.onerror = () => resolve(false);
+        im.src = `assets/particles/${name}`;
+      })));
 
       window.TD.setReducedEffects(true);
       st.particles = []; st.bullets = []; st.enemies = []; st.slowMoLeft = 0;
@@ -1029,6 +1064,7 @@ async function run() {
       window.TD.debug.step(0.25);
       const reducedSlowMo = st.slowMoLeft > 0;
       const reducedParticles = st.particles.length;
+      const reducedTextureLayers = st.particles.filter((p) => p.texture).length;
       st.redVignette = 0.55;
       window.TD.setReducedEffects(true);
       const reducedRedVignette = st.redVignette;
@@ -1144,6 +1180,8 @@ async function run() {
       st.towerUpgrades = saved.towerUpgrades;
       st.bossKills = saved.bossKills;
       st.selectedTower = saved.selectedTower;
+      st.waveTotal = saved.waveTotal;
+      st.waveResolved = saved.waveResolved;
       if (saved.metaRaw == null) localStorage.removeItem("td_meta_v1");
       else localStorage.setItem("td_meta_v1", saved.metaRaw);
       if (saved.heroesRaw == null) localStorage.removeItem("td_heroes_owned_v1");
@@ -1158,10 +1196,11 @@ async function run() {
         mutedByOrder,
         mirrorAfterReflect, mirrorReflected, mirrorAfterSecondSkill,
         armoredDealt, armoredFlag, unarmoredDealt,
-        muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo,
+        muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo, bossTextureCritical,
         r53Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
         r54Fx: { muzzleFx, coinFx, deathFx, upgradeFx, streakFx, bossSlowMo },
-        reducedMuzzle, reducedCoin, reducedBeam, reducedSlowMo, reducedParticles, reducedRedVignette, juiceSettings,
+        textureKinds, lowTextureLayers, fxCacheStats, particleAssetLoads,
+        reducedMuzzle, reducedCoin, reducedBeam, reducedSlowMo, reducedParticles, reducedTextureLayers, reducedRedVignette, juiceSettings,
         slowMoLogic, particleCap, ringCap,
         leakCriticalFx, leakDecorEvicted, leakCapAfterEviction, leakCriticalSurvivesDecor,
         bossCriticalFx, bossDecorEvicted, bossCapAfterEviction, sfxWarningEvictsKill, sfxKillCannotEvictWarning,
@@ -1197,8 +1236,14 @@ async function run() {
       `裂界守門人 auraArmor 讓友軍受擊 ×0.75（${stage4Combat.armoredDealt} / ${stage4Combat.unarmoredDealt}）`);
     assert(stage4Combat.muzzleFx && stage4Combat.coinFx && stage4Combat.deathFx && stage4Combat.upgradeFx && stage4Combat.streakFx && stage4Combat.bossSlowMo,
       `R54 爽度特效觸發：砲口、金幣飛字、死亡爆散、升級光柱、無漏 streak、Boss slow-mo（${JSON.stringify(stage4Combat.r54Fx)}）`);
+    const textureKindsOk = Object.entries(stage4Combat.textureKinds).every(([towerType, layers]) =>
+      layers.length > 0 && layers.some((p) => p.kind === ({ poison: "poison-hit", frost: "ice-hit", tesla: "thunder-hit", mortar: "mortar-impact" })[towerType]));
+    assert(textureKindsOk && stage4Combat.bossTextureCritical && stage4Combat.particleAssetLoads.every(Boolean) && stage4Combat.fxCacheStats.tinted > 0,
+      `R57 Kenney 紋理接線：毒/冰/雷/臼砲專屬、Boss critical、6 素材可載入、離屏 tint cache 生效（cache=${JSON.stringify(stage4Combat.fxCacheStats)}）`);
+    assert(stage4Combat.lowTextureLayers === 1,
+      `R57 low 檔紋理合成降為單層（layers=${stage4Combat.lowTextureLayers}）`);
     assert(!stage4Combat.reducedMuzzle && !stage4Combat.reducedCoin && !stage4Combat.reducedBeam && !stage4Combat.reducedSlowMo &&
-      stage4Combat.reducedParticles === 0 && stage4Combat.reducedRedVignette === 0 && stage4Combat.juiceSettings.reducedEffects,
+      stage4Combat.reducedParticles === 0 && stage4Combat.reducedTextureLayers === 0 && stage4Combat.reducedRedVignette === 0 && stage4Combat.juiceSettings.reducedEffects,
       `R54 reduced guard 會關閉新增強特效、傷害浮字/burst/ring/紅暈與 Boss slow-mo（particles=${stage4Combat.reducedParticles}, red=${stage4Combat.reducedRedVignette}）`);
     assert(stage4Combat.slowMoLogic.clock === 0.05 && Math.abs(stage4Combat.slowMoLogic.walkDist - 5) < 0.01 &&
       stage4Combat.slowMoLogic.left < 0.2 && stage4Combat.slowMoLogic.fxTimeScale < 1,
@@ -1214,6 +1259,37 @@ async function run() {
       `SFX cap 滿時警告音優先於擊殺音（${JSON.stringify({ leak: stage4Combat.sfxWarningEvictsKill, kill: stage4Combat.sfxKillCannotEvictWarning })}）`);
     assert(stage4Combat.spawnTimelineStable && stage4Combat.normalTimeline.timeline.length > 0,
       `同 runSeed 出怪時序在 reduced 開/關一致（${JSON.stringify(stage4Combat.normalTimeline.timeline.slice(0, 5))}）`);
+
+    const r57VisualGuard = await page.evaluate(() => {
+      const st = window.TD.state();
+      const saved = { gold: st.gold, wave: st.wave, waveTotal: st.waveTotal, waveResolved: st.waveResolved, betweenWaves: st.betweenWaves };
+      const reduced = window.TD.getJuiceSettings().reducedEffects;
+      st.wave = Math.max(1, st.wave); st.waveTotal = 10; st.waveResolved = 4; st.betweenWaves = false;
+      st.gold += 7;
+      window.__tdUI();
+      const meter = document.getElementById("waveMeter");
+      const progress = {
+        width: document.getElementById("waveMeterFill").style.width,
+        aria: meter.getAttribute("aria-valuenow"),
+        text: document.getElementById("waveMeterText").textContent,
+        goldClass: document.getElementById("gold").className,
+      };
+      window.TD.setReducedEffects(true); window.__tdUI();
+      const reducedClass = document.documentElement.classList.contains("reduced-effects");
+      const visual = window.TD.debug.visualSnapshot();
+      const lv1 = window.TD.debug.towerVisualStyle(1);
+      const lvMax = window.TD.debug.towerVisualStyle(window.TD.config.UPGRADE.maxLevel);
+      window.TD.setReducedEffects(reduced);
+      Object.assign(st, saved); window.__tdUI();
+      return { progress, reducedClass, visual, lv1, lvMax };
+    });
+    const themeValues = Object.values(r57VisualGuard.visual.themes);
+    assert(r57VisualGuard.progress.width === "40%" && r57VisualGuard.progress.aria === "40" && r57VisualGuard.progress.text === "4/10" && /hud-gain/.test(r57VisualGuard.progress.goldClass),
+      `R57 HUD 金幣跳動與波次漸層進度 guard（${JSON.stringify(r57VisualGuard.progress)}）`);
+    assert(r57VisualGuard.reducedClass && themeValues.length === 3 && new Set(themeValues.map((v) => `${v.tint}:${v.detail}`)).size === 3,
+      `R57 reduced class 與三地圖氛圍/路紋差異 guard（${JSON.stringify(r57VisualGuard.visual.themes)}）`);
+    assert(r57VisualGuard.lvMax.gemSize > r57VisualGuard.lv1.gemSize && r57VisualGuard.lvMax.ringCount > r57VisualGuard.lv1.ringCount && r57VisualGuard.lvMax.tier > r57VisualGuard.lv1.tier,
+      `R57 塔升級外觀級差 guard（Lv1 ${JSON.stringify(r57VisualGuard.lv1)} / LvMax ${JSON.stringify(r57VisualGuard.lvMax)}）`);
 
     // 2. 抽卡經濟：首抽免費、花魂晶不花金錢、重複退魂晶、魂晶不足被擋
     const gachaMetaText = await page.textContent("#gachaMeta");

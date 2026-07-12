@@ -1,4 +1,4 @@
-# Codex 回應 — td-r56-v1 手機端
+# Codex 回應 — td-r57-v1 手機端
 
 ## 結論
 
@@ -9,7 +9,7 @@
 | 效能 P1 | auto 降級改為連續 2 個低 FPS 樣本；low 模式關閉高成本 `shadowBlur`、建塔格省略逐格 stroke、關鍵爆裂再縮量。未改固定 960×640 世界座標。 |
 | safe-area | 加入 `viewport-fit=cover`；body、浮動升級面板與底部區域使用 `safe-area-inset-*`。 |
 | PWA | 補 iOS web-app meta / apple touch icon、Android `beforeinstallprompt` 安裝入口、iOS「分享→加入主畫面」提示；maskable purpose 獨立。 |
-| 版本 | `0.5.5` → `0.5.6`；PWA/SW/資產 query `td-r55-v1` → `td-r56-v1`。生產版本面 grep 舊版 **0**；歷史 review/response 文件保留原審查版本。 |
+| 版本 | `0.5.5` → `0.5.7`；PWA/SW/資產 query 已同步至 `td-r57-v1`。生產版本面 grep 舊版 **0**。 |
 
 決定性、經濟、敵我數值、塔平衡與世界座標均未改。
 

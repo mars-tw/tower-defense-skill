@@ -32,6 +32,21 @@
   const notifiedCodexKeys = new Set();
   let textSize = loadTextSize();
   let drainedIntroCount = 0;
+  const hudLast = { gold: null, goddessHp: null };
+
+  function updateHudNumber(id, value) {
+    const el = $(id);
+    if (!el) return;
+    const numeric = Number(value) || 0;
+    const previous = hudLast[id];
+    el.textContent = value;
+    if (previous != null && numeric !== previous && !(TD.getJuiceSettings && TD.getJuiceSettings().reducedEffects)) {
+      el.classList.remove("hud-gain", "hud-loss");
+      void el.offsetWidth;
+      el.classList.add(numeric > previous ? "hud-gain" : "hud-loss");
+    }
+    hudLast[id] = numeric;
+  }
 
   function normalizeTextSize(value) {
     return hasOwn(TEXT_SIZE_LABELS, value) ? value : "medium";
@@ -951,14 +966,25 @@
   // ===== HUD 與整體刷新 =====
   function refreshUI() {
     const st = TD.state();
-    $("gold").textContent = st.gold;
-    $("goddessHp").textContent = Math.max(0, Math.round(st.goddess.hp));
+    const juice = TD.getJuiceSettings ? TD.getJuiceSettings() : { reducedEffects: false };
+    document.documentElement.classList.toggle("reduced-effects", !!juice.reducedEffects);
+    updateHudNumber("gold", st.gold);
+    updateHudNumber("goddessHp", Math.max(0, Math.round(st.goddess.hp)));
     $("goddessMax").textContent = st.goddess.maxHp;
     // D11 女神低血告警：低於 30% 閃紅
     const livesStat = document.querySelector(".hud .lives");
     if (livesStat) livesStat.classList.toggle("danger", st.goddess.hp / st.goddess.maxHp < 0.3 && st.goddess.hp > 0);
     $("wave").textContent = st.wave;
     $("score").textContent = st.score;
+    const waveTotal = Math.max(0, Number(st.waveTotal) || 0);
+    const waveResolved = Math.max(0, Math.min(waveTotal, Number(st.waveResolved) || 0));
+    const wavePct = st.wave <= 0 ? 0 : st.betweenWaves ? 100 : waveTotal ? Math.round(waveResolved / waveTotal * 100) : 0;
+    const waveFill = $("waveMeterFill");
+    const waveMeter = $("waveMeter");
+    const waveText = $("waveMeterText");
+    if (waveFill) waveFill.style.width = `${wavePct}%`;
+    if (waveMeter) waveMeter.setAttribute("aria-valuenow", String(wavePct));
+    if (waveText) waveText.textContent = st.betweenWaves ? (st.wave > 0 ? "CLEAR" : "就緒") : `${waveResolved}/${waveTotal}`;
 
     // 女神升級按鈕
     const gBtn = $("goddessBtn");
@@ -1241,6 +1267,7 @@
     const status = TD.getJuiceSettings ? TD.getJuiceSettings() : { reducedEffects: false, audioMuted: false, audioUnlocked: false };
     const reduced = $("reducedEffectsToggle");
     const mute = $("audioMuteToggle");
+    document.documentElement.classList.toggle("reduced-effects", !!status.reducedEffects);
     if (reduced) reduced.checked = !!status.reducedEffects;
     if (mute) mute.checked = !!status.audioMuted;
     const box = $("juiceStatus");

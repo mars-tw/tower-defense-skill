@@ -84,6 +84,19 @@
   const SFX_MIN_GAP = { fire: 0.024, hit: 0.018, kill: 0.035, wave: 0.12, boss: 0.22, leak: 0.12 };
   const SFX_PRIORITY = { fire: 0, hit: 0, kill: 0, wave: 2, boss: 3, leak: 3 };
   const PARTICLE_PRIORITY = { decor: 0, text: 1, warning: 3 };
+  const FX_TEXTURES = {
+    fire: "assets/particles/kenney-fire.png",
+    smoke: "assets/particles/kenney-smoke.png",
+    flash: "assets/particles/kenney-flash.png",
+    magic: "assets/particles/kenney-magic.png",
+    spark: "assets/particles/kenney-spark.png",
+    ice: "assets/particles/kenney-ice-ring.png",
+  };
+  const MAP_VISUALS = {
+    plains: { ground: "#0e1a14", tint: "rgba(16,185,129,.035)", breath: "rgba(110,231,183,.12)", detail: "footprints" },
+    canyon: { ground: "#221912", tint: "rgba(180,83,9,.24)", breath: "rgba(251,191,36,.11)", detail: "slabs" },
+    lava: { ground: "#1d1014", tint: "rgba(153,27,27,.32)", breath: "rgba(251,113,133,.12)", detail: "cracks" },
+  };
   function reducedFlashEnabled() {
     if (reducedFlashCache !== undefined) return reducedFlashCache;
     try {
@@ -116,6 +129,7 @@
       localStorage.setItem("td_reduced_effects", v ? "1" : "0");
       localStorage.setItem("td_reduced_flash", v ? "1" : "0");
     } catch {}
+    document.documentElement.classList.toggle("reduced-effects", !!v);
     return getJuiceSettings();
   }
   function audioMuted() {
@@ -467,7 +481,7 @@
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
       mapId: mapDef.id, mapDef, path, runSeed, affixSeed, affix,
       pathTotalLength: pathLength(path),
-      waveSeeds: {}, backgroundCache: null, buildableReachCache: null,
+      waveSeeds: {}, backgroundCache: null, pathDetailCache: null, buildableReachCache: null,
       performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
       cleanStreak: 0, waveLeaks: 0, redVignette: 0, slowMoLeft: 0, slowMoScale: 1, fxTimeScale: 1,
@@ -475,7 +489,7 @@
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
       runLeaks: { total: 0, byWave: {} },
       towersBuilt: 0, towerUpgrades: 0, skillCasts: 0, bossKills: 0, clearedWave: 0,
-      running: false, over: false, betweenWaves: true,
+      running: false, over: false, betweenWaves: true, waveTotal: 0, waveResolved: 0,
       selectedTowerType: null,   // 準備建造的塔
       selectedTower: null,        // 已選中的塔（看升級）
       pendingSkill: null,         // 準備施放的技能
@@ -578,6 +592,8 @@
     applyAffixWaveStart(w);
 
     state.spawnQueue = plan.queue;
+    state.waveTotal = plan.queue.length;
+    state.waveResolved = 0;
     state.spawnTimer = 0;
     startLoop();
     const lore = getLore();
@@ -596,15 +612,17 @@
         const bossSpec = plan.queue.find((spec) => ENEMIES[spec.type] && ENEMIES[spec.type].boss);
         const bossLine = bossSpec && lore.bossIntroFor ? lore.bossIntroFor(bossSpec.type) : "";
         if (bossLine) log(bossLine, "bad");
-        flashBanner("⚠️ BOSS 來襲", "#dc2626");
+        flashBanner("BOSS 來襲", "#ef4444", { boss: true, subtitle: "裂界警報 · 守住神火", duration: 2.6 });
       }
     }
     if (w === 1 && state.affix) log(`${state.affix.emoji} 本局詞綴：${state.affix.label}｜${state.affix.desc}`);
     notifyUI();
   }
   // 事件波橫幅提示（畫面中央短暫顯示）
-  function flashBanner(text, color) {
-    state.banner = { text, color, life: 2.0 };
+  function flashBanner(text, color, opts) {
+    opts = opts || {};
+    const duration = opts.duration || 2.0;
+    state.banner = { text, color, life: duration, duration, boss: !!opts.boss, subtitle: opts.subtitle || "" };
   }
   function celebrateWaveClear(wave, bonus, clean) {
     playSfx("wave");
@@ -656,6 +674,7 @@
 
   function spawnEnemy(spec) {
     const enemy = createEnemy(spec);
+    enemy._waveTracked = true;
     state.enemies.push(enemy);
     return enemy;
   }
@@ -1027,7 +1046,8 @@
       } else if (!p.ring && !p.beam) {
         p.x += p.vx * fxDt;
         p.y += p.vy * fxDt;
-        if (!p.text && !p.muzzle) p.vy += 220 * fxDt;
+        if (p.texture) p.rotation = (p.rotation || 0) + (p.spin || 0) * fxDt;
+        if (!p.text && !p.muzzle && !p.texture) p.vy += 220 * fxDt;
       }
     }
     state.particles = state.particles.filter((p) => p.life > 0);
@@ -1071,6 +1091,10 @@
   function leak(e) {
     if (e._leaked || e._dead) return;
     e._leaked = true;
+    if (e._waveTracked) {
+      state.waveResolved = Math.min(state.waveTotal || Infinity, (state.waveResolved || 0) + 1);
+      e._waveTracked = false;
+    }
     const dmg = Math.round(e.leak * (e.boss ? 4 : 3) * affixMul("leakDamageMul")); // 漏過對女神造成的傷害
     state.runLeaks = state.runLeaks || { total: 0, byWave: {} };
     const waveKey = String(Math.max(1, state.wave || 1));
@@ -1259,6 +1283,10 @@
   function killEnemy(e) {
     if (e._dead) return;
     e._dead = true;
+    if (e._waveTracked) {
+      state.waveResolved = Math.min(state.waveTotal || Infinity, (state.waveResolved || 0) + 1);
+      e._waveTracked = false;
+    }
     spawnSplitBat(e);
     // D5 連殺：累積 combo，倍率提升金錢/分數
     state.combo++;
@@ -1378,6 +1406,7 @@
       burst(b.target.x, b.target.y, b.color, 12);
       if (b.type === "mortar") {
         burst(b.target.x, b.target.y, b.color, 28);
+        texturedImpact("mortar", b.target.x, b.target.y, b.color, { fxKind: "mortar-impact" });
         ring(b.target.x, b.target.y, b.color, Math.max(58, b.splash + 20));
         impactShake(false);
       }
@@ -1408,6 +1437,12 @@
     if (b.poison) applyPoison(e, b.poison);
     if (b.vuln) markVulnerable(e, b.vuln.mult, b.vuln.duration);
     if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
+    if (b.type !== "mortar") {
+      if (b.poison) texturedImpact("poison", e.x, e.y, "#4ade80", { fxKind: "poison-hit" });
+      else if (b.element === "ice") texturedImpact("ice", e.x, e.y, "#7dd3fc", { fxKind: "ice-hit" });
+      else if (b.element === "thunder") texturedImpact("thunder", e.x, e.y, "#fde047", { fxKind: "thunder-hit" });
+      else if (b.element === "fire") texturedImpact("fire", e.x, e.y, b.color || "#fb923c", { fxKind: "fire-hit" });
+    }
     if (e.hp <= 0) { killEnemy(e); if (b._heroOwner && state.heroes.includes(b._heroOwner)) grantXp(b._heroOwner, e); }
   }
 
@@ -1429,6 +1464,7 @@
         if (e.hp <= 0) killEnemy(e);
       }
     }
+    if (FX_PROFILES[sk.element]) texturedImpact(sk.element, x, y, sk.color, { fxKind: `skill-${sk.element}` });
     burst(x, y, sk.color, 40); ring(x, y, sk.color, sk.radius > 200 ? 180 : sk.radius + 30); // V2：技能擴張環
     log(`施放 ${sk.name}！`);
     notifyUI();
@@ -1527,6 +1563,84 @@
   }
 
   // ===== 粒子 =====
+  const fxTintCache = {};
+  const FX_PROFILES = {
+    mortar: [
+      { texture: "flash", size: 92, life: 0.28, blend: "lighter" },
+      { texture: "fire", size: 118, life: 0.52, blend: "lighter" },
+      { texture: "smoke", size: 126, life: 0.78, driftY: -22 },
+    ],
+    death: [
+      { texture: "flash", size: 50, life: 0.22, blend: "lighter" },
+      { texture: "smoke", size: 60, life: 0.52, driftY: -16 },
+    ],
+    boss: [
+      { texture: "flash", size: 210, life: 0.42, blend: "lighter" },
+      { texture: "fire", size: 176, life: 0.72, blend: "lighter" },
+      { texture: "smoke", size: 230, life: 1.0, driftY: -30 },
+      { texture: "magic", size: 190, life: 0.86, blend: "lighter", spin: 1.4 },
+    ],
+    poison: [
+      { texture: "magic", size: 58, life: 0.46, blend: "lighter", spin: 1.8 },
+      { texture: "smoke", size: 48, life: 0.56, driftY: -14 },
+    ],
+    ice: [
+      { texture: "ice", size: 66, life: 0.42, blend: "lighter", spin: -1.1 },
+      { texture: "flash", size: 44, life: 0.22, blend: "lighter" },
+    ],
+    thunder: [
+      { texture: "spark", size: 72, life: 0.34, blend: "lighter", spin: 2.4 },
+      { texture: "flash", size: 38, life: 0.18, blend: "lighter" },
+    ],
+    fire: [
+      { texture: "fire", size: 62, life: 0.42, blend: "lighter" },
+      { texture: "flash", size: 42, life: 0.2, blend: "lighter" },
+    ],
+  };
+  function tintedFxSprite(texture, color) {
+    const path = FX_TEXTURES[texture];
+    if (!path) return null;
+    const im = getImg(path, true);
+    if (!im || !im.complete || !(im.naturalWidth || im.width)) return null;
+    const key = `${texture}:${color || "#ffffff"}`;
+    if (fxTintCache[key]) return fxTintCache[key];
+    const c = document.createElement("canvas");
+    c.width = 192; c.height = 192;
+    const cx = c.getContext("2d");
+    cx.drawImage(im, 0, 0, c.width, c.height);
+    cx.globalCompositeOperation = "source-in";
+    cx.fillStyle = color || "#ffffff";
+    cx.fillRect(0, 0, c.width, c.height);
+    cx.globalCompositeOperation = "source-over";
+    fxTintCache[key] = c;
+    return c;
+  }
+  function texturedImpact(kind, x, y, color, opts) {
+    if (reducedEffectsEnabled()) return 0;
+    opts = opts || {};
+    const profile = FX_PROFILES[kind] || FX_PROFILES.death;
+    const layers = performanceLow() ? profile.slice(0, 1) : profile;
+    let added = 0;
+    for (const layer of layers) {
+      const scale = performanceLow() ? 0.78 : 1;
+      const life = layer.life * (0.92 + effectRand() * 0.16);
+      const accepted = pushParticle({
+        x, y, vx: 0, vy: layer.driftY || 0, life, startLife: life,
+        color: color || "#ffffff", texture: layer.texture, size: layer.size * scale,
+        rotation: effectRand() * Math.PI * 2, spin: layer.spin || (effectRand() - 0.5) * 1.2,
+        blend: layer.blend || "source-over", textureAlpha: layer.texture === "smoke" ? 0.66 : 0.9,
+        criticalFx: !!opts.criticalFx, fxKind: opts.fxKind || `texture-${kind}`,
+      });
+      if (accepted) added++;
+    }
+    return added;
+  }
+  function preloadFxTextures() {
+    Object.values(FX_TEXTURES).forEach((path) => getImg(path, true));
+  }
+  function fxCacheStats() {
+    return { tinted: Object.keys(fxTintCache).length, sources: Object.keys(FX_TEXTURES).length };
+  }
   // 粒子爆裂（V2：初速差異化 + 重力 + 大小隨機，更有打擊感）
   function particlePriority(p) {
     if (!p) return PARTICLE_PRIORITY.decor;
@@ -1586,6 +1700,8 @@
   function deathBurst(e) {
     if (!e || reducedEffectsEnabled()) return;
     const color = e.color || "#fde047";
+    texturedImpact(e.boss ? "boss" : "death", e.x, e.y, color,
+      e.boss ? { criticalFx: true, fxKind: "boss" } : { fxKind: "enemy-death" });
     burst(e.x, e.y, color, e.boss ? 72 : 22, e.boss ? { criticalFx: true, fxKind: "boss" } : null);
     ring(e.x, e.y, color, e.boss ? 135 : 42, e.boss ? { criticalFx: true, fxKind: "boss" } : null);
     if (e.boss) ring(e.x, e.y, "#fff7ed", 190, { criticalFx: true, fxKind: "boss" });
@@ -1671,6 +1787,7 @@
     ctx.clearRect(0, 0, W, H);
     drawBackground();
     drawPath();
+    drawMapAtmosphere();
     if (state.selectedTowerType) drawBuildPreview();
     drawGoddess();
     for (const tw of state.towers) drawTower(tw);
@@ -1709,7 +1826,11 @@
   function drawBanner() {
     if (!state.banner || state.banner.life <= 0) return;
     const b = state.banner;
-    const t = b.life / 2.0;
+    if (b.boss) {
+      drawBossWarning(b);
+      return;
+    }
+    const t = b.life / (b.duration || 2.0);
     const alpha = t > 0.7 ? (1 - t) / 0.3 : t < 0.3 ? t / 0.3 : 1; // 淡入→持續→淡出
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
@@ -1721,6 +1842,49 @@
     ctx.font = '900 34px "Segoe UI", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.strokeStyle = "rgba(0,0,0,.8)"; ctx.lineWidth = 5; ctx.strokeText(b.text, W / 2, H * 0.32 + 28);
     ctx.fillStyle = b.color; ctx.fillText(b.text, W / 2, H * 0.32 + 28);
+    ctx.restore();
+  }
+
+  function drawBossWarning(b) {
+    const reduced = reducedEffectsEnabled();
+    const low = performanceLow();
+    const duration = b.duration || 2.6;
+    const age = Math.max(0, duration - b.life);
+    const fade = reduced ? 1 : Math.min(1, age / 0.18, b.life / 0.35);
+    const pulse = reduced ? 1 : 1 + Math.sin(age * 13) * 0.018;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, fade);
+    ctx.fillStyle = low ? "rgba(69,10,10,.68)" : "rgba(45,5,10,.72)";
+    ctx.fillRect(0, 0, W, H);
+    if (!low) {
+      const vignette = ctx.createRadialGradient(W / 2, H / 2, H * 0.08, W / 2, H / 2, H * 0.72);
+      vignette.addColorStop(0, "rgba(239,68,68,.04)");
+      vignette.addColorStop(1, "rgba(127,29,29,.68)");
+      ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H);
+    }
+    if (!reduced && !low) {
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.translate((age * 90) % 56, 0);
+      ctx.strokeStyle = "#fecaca"; ctx.lineWidth = 14;
+      for (let x = -H; x < W + H; x += 56) {
+        ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x + H, 0); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.fillStyle = b.color || "#ef4444";
+    ctx.fillRect(0, H * 0.27, W, 5);
+    ctx.fillRect(0, H * 0.69, W, 5);
+    ctx.translate(W / 2, H * 0.47);
+    ctx.scale(pulse, pulse);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = '1000 64px "Segoe UI", sans-serif';
+    ctx.strokeStyle = "rgba(0,0,0,.92)"; ctx.lineWidth = 11;
+    ctx.strokeText(b.text, 0, 0);
+    ctx.fillStyle = "#fff1f2"; ctx.fillText(b.text, 0, 0);
+    ctx.font = '900 17px "Segoe UI", sans-serif';
+    ctx.letterSpacing = "3px";
+    ctx.fillStyle = "#fecaca"; ctx.fillText(b.subtitle || "裂界警報", 0, 55);
     ctx.restore();
   }
 
@@ -1859,7 +2023,8 @@
     c.height = H;
     const bg = c.getContext("2d");
     let ready = true;
-    bg.fillStyle = "#0e1a14"; bg.fillRect(0, 0, W, H);
+    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
+    bg.fillStyle = visual.ground; bg.fillRect(0, 0, W, H);
     const map = state.map;
     // 用草地磚塊亂數鋪滿（圖未載入時退回純色格）
     if (map) {
@@ -1891,6 +2056,58 @@
     }
     ctx.drawImage(state.backgroundCache.canvas, 0, 0);
   }
+  function drawMapAtmosphere() {
+    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
+    ctx.save();
+    ctx.fillStyle = visual.tint;
+    ctx.fillRect(0, 0, W, H);
+    if (state.betweenWaves && !state.over && !reducedEffectsEnabled() && !performanceLow()) {
+      const now = (window.performance && performance.now ? performance.now() : Date.now()) / 1000;
+      const strength = 0.48 + (Math.sin(now * 1.25) + 1) * 0.16;
+      const glow = ctx.createRadialGradient(W * 0.52, H * 0.48, H * 0.08, W * 0.52, H * 0.48, H * 0.72);
+      glow.addColorStop(0, visual.breath.replace(/\.[0-9]+\)$/, `${(0.16 * strength).toFixed(3)})`));
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
+  }
+  function buildPathDetailCache() {
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const px = c.getContext("2d");
+    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
+    const path = state.path || getMap().path;
+    for (let s = 0; s < path.length - 1; s++) {
+      const a = path[s], b = path[s + 1];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const len = Math.max(1, Math.hypot(dx, dy));
+      const angle = Math.atan2(dy, dx);
+      for (let d = 22; d < len; d += visual.detail === "slabs" ? 48 : 40) {
+        const x = a.x + dx * (d / len), y = a.y + dy * (d / len);
+        px.save(); px.translate(x, y); px.rotate(angle);
+        if (visual.detail === "footprints") {
+          px.fillStyle = "rgba(31,41,32,.22)";
+          px.beginPath(); px.ellipse(-6, -7, 4.5, 8, -.18, 0, Math.PI * 2); px.fill();
+          px.beginPath(); px.ellipse(8, 7, 4.5, 8, .18, 0, Math.PI * 2); px.fill();
+        } else if (visual.detail === "slabs") {
+          px.strokeStyle = "rgba(45,31,22,.28)"; px.lineWidth = 3;
+          px.beginPath(); px.moveTo(0, -CELL * .34); px.lineTo(0, CELL * .34); px.stroke();
+          px.strokeStyle = "rgba(255,237,213,.07)"; px.lineWidth = 1;
+          px.strokeRect(-19, -CELL * .31, 38, CELL * .62);
+        } else {
+          px.strokeStyle = "rgba(46,16,24,.42)"; px.lineWidth = 3;
+          px.beginPath(); px.moveTo(-13, -12); px.lineTo(-3, -3); px.lineTo(-9, 9); px.lineTo(13, 15); px.stroke();
+          px.strokeStyle = "rgba(251,113,133,.09)"; px.lineWidth = 1; px.stroke();
+        }
+        px.restore();
+      }
+    }
+    return c;
+  }
+  function drawPathDetails() {
+    if (!state.pathDetailCache) state.pathDetailCache = buildPathDetailCache();
+    ctx.drawImage(state.pathDetailCache, 0, 0);
+  }
   function drawPath() {
     // 路徑：先畫底色路（保證可見），再用路徑磚平鋪沿線蓋上
     ctx.strokeStyle = "#3b2f1f"; ctx.lineWidth = CELL * 0.9; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -1907,6 +2124,7 @@
         ctx.drawImage(pathImg, cx * CELL, cy * CELL, CELL, CELL);
       }
     }
+    drawPathDetails();
     // 裝飾物（在非路徑格）
     if (state.map) {
       for (const d of state.map.decor) {
@@ -2040,49 +2258,79 @@
     if (im && im.complete && im.naturalWidth > 0) ctx.drawImage(im, x - size / 2, y - size / 2, size, size);
     else { ctx.font = size * 0.8 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(emoji, x, y); }
   }
+  function towerVisualStyle(level) {
+    const lv = Math.max(1, Math.floor(Number(level) || 1));
+    const max = Math.max(2, UPGRADE.maxLevel || 10);
+    const progress = Math.max(0, Math.min(1, (lv - 1) / (max - 1)));
+    const tierColors = ["#64748b", "#38bdf8", "#a78bfa", "#facc15", "#fb7185"];
+    const tier = lv <= 1 ? 0 : Math.min(tierColors.length - 1, 1 + Math.floor(progress * (tierColors.length - 1)));
+    return {
+      level: lv, max, progress, tier, auraColor: tierColors[tier],
+      baseR: CELL * (0.41 + progress * 0.11),
+      spriteSize: CELL * (0.70 + progress * 0.18),
+      ringCount: 1 + Math.floor(progress * 3),
+      gemSize: 3.5 + progress * 6.5,
+    };
+  }
   function drawTower(tw) {
     const def = TOWERS[tw.type];
     const lv = tw.level;
-    // 升級視覺：塔依等級放大、底座顏色與光環隨等級變化
-    const baseR = CELL * (0.42 + (lv - 1) * 0.03);      // 等級越高底座越大
-    const spriteSize = CELL * (0.7 + (lv - 1) * 0.06);  // 塔身放大
-    // 等級對應的底座色（白→藍→紫→金）
-    const levelColors = ["rgba(0,0,0,.4)", "rgba(59,130,246,.35)", "rgba(168,85,247,.4)", "rgba(245,158,11,.45)", "rgba(239,68,68,.45)", "rgba(45,212,191,.5)"];
-    const levelGlow = ["transparent", "#3b82f6", "#a855f7", "#facc15", "#ef4444", "#2dd4bf"];
-
-    // 高等級的外圈發光
+    const { max, progress, tier, auraColor, baseR, spriteSize, ringCount, gemSize } = towerVisualStyle(lv);
+    const animated = !reducedEffectsEnabled();
+    const pulse = animated ? 1 + Math.sin(state.clock * 3.2 + (tw.order || 0)) * (0.012 + progress * 0.025) : 1;
+    ctx.save();
+    ctx.translate(tw.x, tw.y);
+    ctx.scale(pulse, pulse);
     if (lv >= 2) {
-      ctx.save();
-      ctx.shadowColor = levelGlow[lv - 1]; ctx.shadowBlur = performanceLow() ? 0 : 6 + lv * 3;
-      ctx.strokeStyle = levelGlow[lv - 1]; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(tw.x, tw.y, baseR + 2, 0, Math.PI * 2); ctx.stroke();
-      ctx.restore();
-    }
-    // 底座
-    ctx.fillStyle = levelColors[lv - 1] || levelColors[3];
-    ctx.beginPath(); ctx.arc(tw.x, tw.y, baseR, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = def.color; ctx.lineWidth = 1 + lv * 0.5; ctx.stroke();
-
-    // 滿級（4 級）：旋轉光點
-    if (lv >= UPGRADE.maxLevel) {
-      const t = state.clock * 2;
-      for (let i = 0; i < 4; i++) {
-        const a = t + i * Math.PI / 2;
-        ctx.fillStyle = "#facc15";
-        ctx.beginPath(); ctx.arc(tw.x + Math.cos(a) * baseR, tw.y + Math.sin(a) * baseR, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowColor = auraColor;
+      ctx.shadowBlur = performanceLow() ? 0 : 7 + tier * 4;
+      for (let i = 0; i < ringCount; i++) {
+        ctx.globalAlpha = 0.72 - i * 0.13;
+        ctx.strokeStyle = auraColor;
+        ctx.lineWidth = 1.5 + progress * 1.6 - i * 0.2;
+        ctx.beginPath(); ctx.arc(0, 0, baseR + 2 + i * 4, 0, Math.PI * 2); ctx.stroke();
       }
     }
-
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = tier === 0 ? "rgba(2,6,23,.48)" : `${auraColor}${tier >= 3 ? "52" : "38"}`;
+    ctx.beginPath(); ctx.arc(0, 0, baseR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = def.color; ctx.lineWidth = 1.5 + progress * 3; ctx.stroke();
+    ctx.restore();
     drawSprite(`assets/towers/${tw.type}.png`, def.emoji, tw.x, tw.y, spriteSize);
+
+    // 塔頂能量寶石：尺寸、亮度與外框階數同步升級，遠看即可辨認塔級。
+    const gemY = tw.y - spriteSize * 0.27;
+    ctx.save();
+    ctx.translate(tw.x, gemY);
+    ctx.rotate(Math.PI / 4);
+    ctx.shadowColor = auraColor; ctx.shadowBlur = performanceLow() ? 0 : 5 + progress * 13;
+    ctx.fillStyle = lv === 1 ? "rgba(226,232,240,.72)" : auraColor;
+    ctx.fillRect(-gemSize / 2, -gemSize / 2, gemSize, gemSize);
+    if (tier >= 2) {
+      ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 1;
+      ctx.strokeRect(-gemSize * .68, -gemSize * .68, gemSize * 1.36, gemSize * 1.36);
+    }
+    ctx.restore();
+
+    if (lv >= max && animated && !performanceLow()) {
+      const t = state.clock * 2.1;
+      for (let i = 0; i < 4; i++) {
+        const a = t + i * Math.PI / 2;
+        ctx.fillStyle = i % 2 ? "#fff7ed" : "#facc15";
+        ctx.beginPath(); ctx.arc(tw.x + Math.cos(a) * (baseR + 5), tw.y + Math.sin(a) * (baseR + 5), 2.4, 0, Math.PI * 2); ctx.fill();
+      }
+    }
     if ((tw.mutedUntil || 0) > state.clock || (tw.stunnedUntil || 0) > state.clock) {
       const label = (tw.mutedUntil || 0) > state.clock ? "🤐" : "✖";
       ctx.font = "18px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(label, tw.x, tw.y - baseR - 8);
     }
-    // 等級星
+    // 等級徽記
     if (lv > 1) {
-      ctx.fillStyle = "#facc15"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center";
-      ctx.fillText("★".repeat(lv - 1), tw.x, tw.y + baseR + 4);
+      ctx.font = "900 10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.strokeStyle = "rgba(0,0,0,.82)"; ctx.lineWidth = 3;
+      ctx.strokeText(`LV ${lv}`, tw.x, tw.y + baseR + 8);
+      ctx.fillStyle = auraColor; ctx.fillText(`LV ${lv}`, tw.x, tw.y + baseR + 8);
     }
   }
   function drawEnemy(e) {
@@ -2240,7 +2488,21 @@
   function drawParticle(p) {
     const a = Math.max(0, Math.min(1, p.life * 2));
     ctx.globalAlpha = a;
-    if (p.ring) {
+    if (p.texture) {
+      const sprite = tintedFxSprite(p.texture, p.color);
+      if (sprite) {
+        const ratio = Math.max(0, Math.min(1, p.life / (p.startLife || p.life || 1)));
+        const scale = 0.72 + (1 - ratio) * 0.42;
+        const size = (p.size || 64) * scale;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation || 0);
+        ctx.globalCompositeOperation = p.blend || "source-over";
+        ctx.globalAlpha = a * (p.textureAlpha == null ? 0.9 : p.textureAlpha);
+        ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+        ctx.restore();
+      }
+    } else if (p.ring) {
       // 擴張環：半徑隨時間放大、線漸細
       const prog = 1 - p.life / 0.5;
       const r = p.r0 + (p.maxR - p.r0) * prog;
@@ -2464,7 +2726,13 @@
   function log(msg, kind) { if (typeof window.__tdLog === "function") window.__tdLog(msg, kind); }
 
   // 初始化 clock
-  function bootstrap() { newGame(); state.clock = 0; state.mouse = null; render(); }
+  function bootstrap() {
+    newGame();
+    state.clock = 0; state.mouse = null;
+    document.documentElement.classList.toggle("reduced-effects", reducedEffectsEnabled());
+    preloadFxTextures();
+    render();
+  }
   bootstrap();
 
   // 閒置渲染迴圈：主迴圈只在波次進行中跑（startLoop/state.running），
@@ -2525,6 +2793,16 @@
       castSkill: (id, x, y) => castSkill(id, x, y),
       playSfx,
       pushParticle: (p, allowReduced) => pushParticle(p, allowReduced),
+      texturedImpact: (kind, x, y, color, opts) => texturedImpact(kind, x, y, color, opts),
+      fxCacheStats,
+      towerVisualStyle,
+      visualSnapshot: () => ({
+        mapId: state.mapId,
+        themes: Object.fromEntries(Object.entries(MAP_VISUALS).map(([id, item]) => [id, { tint: item.tint, breath: item.breath, detail: item.detail }])),
+        pathDetailReady: !!state.pathDetailCache,
+        reduced: reducedEffectsEnabled(),
+        performance: getPerformanceStatus().quality,
+      }),
       simulateSfxEviction,
       celebrateWaveClear: (wave, bonus, clean) => celebrateWaveClear(wave || state.wave || 1, bonus || 0, !!clean),
       forcePerformanceSample: (fps) => { handlePerformanceSample(fps); return getPerformanceStatus(); },

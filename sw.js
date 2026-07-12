@@ -1,4 +1,4 @@
-const CACHE_VERSION = "td-r56-v1";
+const CACHE_VERSION = "td-r57-v1";
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 
@@ -6,14 +6,14 @@ const APP_SHELL = [
   "./",
   "./index.html",
   "./offline.html",
-  "./manifest.webmanifest?v=td-r56-v1",
+  "./manifest.webmanifest?v=td-r57-v1",
   "./sw.js",
-  "./src/config.js?v=td-r56-v1",
-  "./src/heroes.js?v=td-r56-v1",
-  "./src/rules.js?v=td-r56-v1",
-  "./src/lore.js?v=td-r56-v1",
-  "./src/game.js?v=td-r56-v1",
-  "./src/ui.js?v=td-r56-v1",
+  "./src/config.js?v=td-r57-v1",
+  "./src/heroes.js?v=td-r57-v1",
+  "./src/rules.js?v=td-r57-v1",
+  "./src/lore.js?v=td-r57-v1",
+  "./src/game.js?v=td-r57-v1",
+  "./src/ui.js?v=td-r57-v1",
   "./assets/core/goddess.png",
   "./assets/enemies/bat.png",
   "./assets/enemies/boss.png",
@@ -70,6 +70,12 @@ const APP_SHELL = [
   "./assets/projectiles/fireball.png",
   "./assets/projectiles/iceshard.png",
   "./assets/projectiles/lightning.png",
+  "./assets/particles/kenney-fire.png",
+  "./assets/particles/kenney-smoke.png",
+  "./assets/particles/kenney-flash.png",
+  "./assets/particles/kenney-magic.png",
+  "./assets/particles/kenney-spark.png",
+  "./assets/particles/kenney-ice-ring.png",
   "./assets/skills/freeze.png",
   "./assets/skills/judgment.png",
   "./assets/skills/meteor.png",
@@ -90,7 +96,7 @@ const APP_SHELL = [
   "./assets/towers/tesla.png"
 ];
 
-const ASSET_RE = /\/assets\/(?:heroes|enemies|towers|skills|projectiles|tiles|core)\/.*\.png(?:\?|$)/;
+const ASSET_RE = /\/assets\/(?:heroes|enemies|towers|skills|projectiles|particles|tiles|core)\/.*\.png(?:\?|$)/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

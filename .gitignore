@@ -28,3 +28,6 @@ desktop.ini
 # npm（playwright devDependency 用）
 node_modules/
 package-lock.json
+
+# 下載的原始素材包（遊戲實際使用檔案另放 assets/）
+tools/

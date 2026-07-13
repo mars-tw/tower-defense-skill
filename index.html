@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r59-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r60-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -647,6 +647,7 @@
 
   /* 平板/手機（窄於 900px）：app-shell —— canvas 置頂自適應，面板收進內捲容器 */
   @media (max-width: 900px) {
+    :root { --mobile-hud-reserve: 62px; }
     body { padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right))
       max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); gap: 6px; }
     h1 { font-size: 16px; }
@@ -687,20 +688,25 @@
     #skillList { order: 20; }
     .skill-scroll-hint { order: 21; display: block; }
     .sel-panel { order: 22; position: fixed; left: max(8px, env(safe-area-inset-left));
-      right: max(8px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom));
-      z-index: 42; max-width: 520px; max-height: min(42dvh, 290px); margin: 0 auto;
+      right: max(8px, env(safe-area-inset-right));
+      bottom: calc(var(--mobile-hud-reserve) * 2 + max(8px, env(safe-area-inset-bottom)));
+      z-index: 42; max-width: 520px; max-height: min(30dvh, 210px); margin: 0 auto;
       overflow-y: auto; border-color: rgba(74,222,128,.48); box-shadow: 0 12px 38px rgba(0,0,0,.72); }
     .sel-panel button { min-height: 48px; }
     .panel h3 { margin-top: 4px; }
     .controls { flex-wrap: nowrap; }
     /* HUD 核心（開始/速度/暫停/設定）sticky 常駐面板底部 */
-    .hud-core { order: 90; position: sticky; bottom: 0; z-index: 6;
-      display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch;
+    .hud-core { order: 90; position: sticky; bottom: 0; z-index: 44;
+      display: flex; flex-wrap: nowrap; gap: 5px; align-items: stretch; min-height: var(--mobile-hud-reserve);
       margin-top: 2px; padding: 6px 0 2px;
       background: linear-gradient(180deg, rgba(12,22,32,.9), #0c1620 45%);
       border-top: 1px solid var(--border-soft); }
-    .hud-core .wave-start { flex: 1 1 150px; }
-    .hud-core .wave-speed { flex: 0 1 auto; }
+    .hud-core button.act { min-height: 44px; padding: 8px; font-size: 12px; }
+    .hud-core .wave-start { flex: 1 1 112px; min-width: 0; }
+    .hud-core .wave-start .start { min-width: 0; }
+    .hud-core .wave-speed { flex: 0 0 auto; gap: 4px; }
+    .hud-core .wave-speed .act { padding-inline: 7px; }
+    .hud-core .wave-speed .pause { flex-basis: 42px; }
     .hud-core .settings-btn { width: auto; flex: 0 0 auto; }
   }
 
@@ -714,14 +720,19 @@
       align-self: flex-start; touch-action: pan-x pan-y; }
   }
 
-  /* 橫向手機（矮視口）：canvas 靠左、面板右側內捲 */
+  /* 橫向手機（矮視口）：36px 格位畫布置於雙軸捲動窗，面板右側內捲。 */
   @media (max-width: 900px) and (max-height: 520px) {
     h1 { font-size: 12px; }
     .hud { padding: 4px 10px; gap: 10px; }
     .hud .stat { font-size: 12px; }
     .wrap { flex-direction: row; align-items: flex-start; }
-    canvas { align-self: flex-start; max-height: 100%; max-width: min(62vw, calc(100vw - 208px)); }
+    .battlefield-scroll { justify-content: flex-start; width: min(62vw, calc(100vw - 208px)); height: 100%;
+      flex: 0 0 min(62vw, calc(100vw - 208px)); overflow: auto; overscroll-behavior: contain;
+      border-radius: 14px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+    .battlefield-scroll canvas { width: 724px; min-width: 724px; max-width: none; max-height: none;
+      align-self: flex-start; touch-action: pan-x pan-y; }
     .panel { width: auto; flex: 1 1 auto; min-width: 0; max-height: 100%; }
+    .sel-panel { left: auto; width: min(36vw, 300px); }
   }
 
   /* 手機（窄於 560px）：再縮小字級、HUD 緊湊 */
@@ -979,16 +990,16 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r59-v1"></script>
-  <script src="src/heroes.js?v=td-r59-v1"></script>
-  <script src="src/rules.js?v=td-r59-v1"></script>
-  <script src="src/lore.js?v=td-r59-v1"></script>
-  <script src="src/game.js?v=td-r59-v1"></script>
-  <script src="src/ui.js?v=td-r59-v1"></script>
+  <script src="src/config.js?v=td-r60-v1"></script>
+  <script src="src/heroes.js?v=td-r60-v1"></script>
+  <script src="src/rules.js?v=td-r60-v1"></script>
+  <script src="src/lore.js?v=td-r60-v1"></script>
+  <script src="src/game.js?v=td-r60-v1"></script>
+  <script src="src/ui.js?v=td-r60-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r59-v1";
+      const PWA_VERSION = "td-r60-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

@@ -1803,7 +1803,8 @@
     drawMapAtmosphere();
     if (state.selectedTowerType) drawBuildPreview();
     drawGoddess();
-    for (let i = 0; i < state.towers.length; i++) drawTower(state.towers[i], i, state.towers.length);
+    const towerProfile = towerRenderProfile();
+    for (let i = 0; i < state.towers.length; i++) drawTower(state.towers[i], i, state.towers.length, towerProfile);
     for (const h of state.heroes) drawHero(h);
     for (const e of state.enemies) drawEnemy(e);
     for (const b of state.bullets) drawBullet(b);
@@ -2294,10 +2295,33 @@
       gemSides: lv >= max ? 5 : tier >= 3 ? 6 : 4,
     };
   }
-  function towerGlowPolicy(towerCount, drawIndex, selected, level, maxLevel, low, reduced) {
+  function towerRenderProfile(cellCssOverride) {
+    const measuredCell = Number(cellCssOverride);
+    const rect = Number.isFinite(measuredCell) ? null : canvas.getBoundingClientRect();
+    const cellCss = Number.isFinite(measuredCell)
+      ? measuredCell
+      : rect.width / (canvas.width / CELL);
+    const compact = cellCss > 0 && cellCss <= 40;
+    return {
+      compact,
+      cellCss,
+      maxRings: compact ? 2 : Infinity,
+      showRivets: !compact,
+      ringLineFloor: compact ? 2 : 1.35,
+      levelFont: compact ? 12 : 10,
+      levelStroke: compact ? 4 : 3,
+    };
+  }
+  function towerGlowPolicy(towerCount, drawIndex, selected, level, maxLevel, low, reduced, compact) {
     const count = Math.max(0, Math.floor(Number(towerCount) || 0));
     const index = Math.max(0, Math.floor(Number(drawIndex) || 0));
     if (low || reduced) return { enabled: false, budget: 0, baseBlur: 0, gemBlur: 0 };
+    if (compact) {
+      // 手機等效格位只保留一層等級色焦點光；塔基 halo 在 CSS 縮放後容易糊成一團。
+      const maxed = Number(level) >= Number(maxLevel);
+      const enabled = !!selected || (maxed && index < 2);
+      return { enabled, budget: 2, baseBlur: 0, gemBlur: enabled ? (selected ? 5 : 3) : 0 };
+    }
     const budget = count >= 16 ? 4 : count >= 10 ? 6 : 8;
     // 固定使用繪製順序分配名額，不按 frame 輪替；選取塔可額外取得一個穩定焦點。
     const enabled = count <= budget || index < budget || !!selected;
@@ -2332,13 +2356,14 @@
     }
     drawCtx.closePath();
   }
-  function drawTower(tw, drawIndex, towerCount) {
+  function drawTower(tw, drawIndex, towerCount, renderProfile) {
     const def = TOWERS[tw.type];
     const lv = tw.level;
     const { max, progress, tier, auraColor, baseR, spriteSize, ringCount, ringDash, baseSides, gemSize, gemSides } = towerVisualStyle(lv);
+    const profile = renderProfile || towerRenderProfile();
     const animated = !reducedEffectsEnabled();
     const reduced = reducedEffectsEnabled();
-    const glow = towerGlowPolicy(towerCount, drawIndex, state.selectedTower === tw, lv, max, performanceLow(), reduced);
+    const glow = towerGlowPolicy(towerCount, drawIndex, state.selectedTower === tw, lv, max, performanceLow(), reduced, profile.compact);
     const material = towerMaterialStyle(tw.type, def.element);
     const pulse = animated ? 1 + Math.sin(state.clock * 3.2 + (tw.order || 0)) * (0.012 + progress * 0.025) : 1;
     ctx.save();
@@ -2351,7 +2376,7 @@
     ctx.strokeStyle = material.metal ? "rgba(203,213,225,.78)" : def.color;
     ctx.lineWidth = material.rim;
     polygonPath(ctx, baseR * material.mass, baseSides, -Math.PI / 2); ctx.fill(); ctx.stroke();
-    if (material.rivets) {
+    if (material.rivets && profile.showRivets) {
       ctx.shadowBlur = 0;
       ctx.fillStyle = "rgba(226,232,240,.9)";
       for (let i = 0; i < material.rivets; i++) {
@@ -2360,11 +2385,12 @@
       }
       ctx.shadowColor = def.color; ctx.shadowBlur = glow.baseBlur;
     }
-    for (let i = 0; i < ringCount; i++) {
+    const visibleRingCount = Math.min(ringCount, profile.maxRings);
+    for (let i = 0; i < visibleRingCount; i++) {
       ctx.globalAlpha = Math.max(0.18, 0.68 - i * 0.1);
-      ctx.strokeStyle = i === ringCount - 1 ? auraColor : def.color;
-      ctx.lineWidth = 1.35 + progress * 1.45 - i * 0.1;
-      ctx.setLineDash(i === ringCount - 1 ? ringDash : []);
+      ctx.strokeStyle = i === visibleRingCount - 1 ? auraColor : def.color;
+      ctx.lineWidth = Math.max(profile.ringLineFloor, 1.35 + progress * 1.45 - i * 0.1);
+      ctx.setLineDash(!profile.compact && i === visibleRingCount - 1 ? ringDash : []);
       ctx.beginPath(); ctx.arc(0, 0, baseR + 2 + i * 3.1, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.setLineDash([]);
@@ -2406,8 +2432,8 @@
     }
     // 等級徽記
     if (lv > 1) {
-      ctx.font = "900 10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.strokeStyle = "rgba(0,0,0,.82)"; ctx.lineWidth = 3;
+      ctx.font = `900 ${profile.levelFont}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.strokeStyle = "rgba(0,0,0,.88)"; ctx.lineWidth = profile.levelStroke;
       ctx.strokeText(`LV ${lv}`, tw.x, tw.y + baseR + 8);
       ctx.fillStyle = auraColor; ctx.fillText(`LV ${lv}`, tw.x, tw.y + baseR + 8);
     }
@@ -2881,6 +2907,7 @@
       texturedImpact: (kind, x, y, color, opts) => texturedImpact(kind, x, y, color, opts),
       fxCacheStats,
       towerVisualStyle,
+      towerRenderProfile,
       towerGlowPolicy,
       towerMaterialStyle,
       visualSnapshot: () => ({

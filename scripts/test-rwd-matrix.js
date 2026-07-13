@@ -127,28 +127,45 @@ async function run() {
         if (pg.setup) await page.evaluate(pg.setup).catch((e) => console.error("  setup err:", e.message));
         await page.waitForTimeout(200);
         const res = await page.evaluate(auditInPage);
-        if (pg.name === "td-main" && vp.kind === "mobile") {
+        if (pg.name === "td-main" && (vp.kind === "mobile" || vp.kind === "landscape")) {
           const mobileGuard = await page.evaluate(() => {
             const canvas = document.getElementById("game");
             const host = document.getElementById("battlefieldScroll");
             const panel = document.getElementById("selPanel");
+            const blockers = ["tutorial", "diffOverlay", "mapOverlay"].map((id) => document.getElementById(id)).filter(Boolean);
+            const blockerDisplay = blockers.map((el) => el.style.display);
+            blockers.forEach((el) => { el.style.display = "none"; });
             panel.classList.remove("hidden");
             const panelStyle = getComputedStyle(panel);
+            const hud = document.querySelector(".hud-core");
+            const hudRect = hud.getBoundingClientRect();
+            const panelRect = panel.getBoundingClientRect();
+            const start = document.getElementById("startBtn");
             const targets = [document.getElementById("upgBtn"), document.getElementById("sellBtn")];
             const targetMin = Math.min(...targets.map((el) => el.getBoundingClientRect().height));
             const cellCss = canvas.getBoundingClientRect().width / (canvas.width / 48);
+            const startRect = start.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              Math.max(1, Math.min(innerWidth - 1, startRect.left + startRect.width / 2)),
+              Math.max(1, Math.min(innerHeight - 1, startRect.top + startRect.height / 2))
+            );
             const guard = {
               cellCss,
               scrollable: host.scrollWidth > host.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(host).overflowX),
               floatingUpgrade: panelStyle.position === "fixed" && targetMin >= 44,
+              controlsClear: panelRect.bottom <= hudRect.top + 2 && !!hit && start.contains(hit),
+              panelBottom: Math.round(panelRect.bottom),
+              hudTop: Math.round(hudRect.top),
+              hitId: hit ? (hit.id || hit.tagName) : "none",
             };
             panel.classList.add("hidden");
+            blockers.forEach((el, i) => { el.style.display = blockerDisplay[i]; });
             return guard;
           });
-          if (mobileGuard.cellCss < 36 || !mobileGuard.scrollable || !mobileGuard.floatingUpgrade) {
-            res.violations.push({ label: "手機格位/平移/浮動升級 guard", status: "TOUCH_TARGET",
+          if (mobileGuard.cellCss < 36 || !mobileGuard.scrollable || !mobileGuard.floatingUpgrade || !mobileGuard.controlsClear) {
+            res.violations.push({ label: `手機格位/平移/浮動升級/波控 guard（panel ${mobileGuard.panelBottom} / hud ${mobileGuard.hudTop} / hit ${mobileGuard.hitId}）`, status: "TOUCH_TARGET",
               top: Math.round(mobileGuard.cellCss), bottom: mobileGuard.scrollable ? 1 : 0,
-              left: mobileGuard.floatingUpgrade ? 1 : 0, right: 0 });
+              left: mobileGuard.floatingUpgrade ? 1 : 0, right: mobileGuard.controlsClear ? 1 : 0 });
           }
         }
         const scrollBad = res.pageScrollY > 8;

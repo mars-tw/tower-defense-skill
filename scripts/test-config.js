@@ -135,8 +135,11 @@ console.log("== R41：PWA/可近用性資產 ==");
     "手機殼啟用 viewport-fit 與上下 safe-area 防護");
   assert(index.includes('rel="apple-touch-icon"') && index.includes("apple-mobile-web-app-capable") &&
     index.includes("beforeinstallprompt") && index.includes("installBtn"), "PWA 有 iOS 主畫面 metadata 與產品內安裝入口");
-  assert(index.includes("width: 724px") && index.includes("battlefield-scroll") && index.includes("touch-action: pan-x pan-y"),
-    "手機直式戰場具備 ≥36px 格位與可平移容器");
+  const fortifyCount = (index.match(/\.battlefield-scroll canvas\s*\{\s*width:\s*724px/g) || []).length;
+  assert(fortifyCount >= 2 && index.includes("touch-action: pan-x pan-y"),
+    "手機直式與橫式戰場皆具備 ≥36px 格位與可平移容器");
+  assert(index.includes("--mobile-hud-reserve") && index.includes("z-index: 44") && index.includes("max-height: min(30dvh, 210px)"),
+    "浮動升級面板預留 sticky 波控空間且控制層可及");
 
   // R45：URL 版本化守門 — 根治「新 HTML 配舊 JS」版本錯配
   const swVersion = (sw.match(/const\s+CACHE_VERSION\s*=\s*["']([^"']+)["']/) || [])[1] || "";

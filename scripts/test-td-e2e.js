@@ -1299,6 +1299,9 @@ async function run() {
       const denseGlow = Array.from({ length: 18 }, (_, i) => window.TD.debug.towerGlowPolicy(18, i, false, 8, 10, false, false));
       const lowGlow = window.TD.debug.towerGlowPolicy(4, 0, true, 10, 10, true, false);
       const reducedGlow = window.TD.debug.towerGlowPolicy(4, 0, true, 10, 10, false, true);
+      const compactProfile = window.TD.debug.towerRenderProfile(36);
+      const desktopProfile = window.TD.debug.towerRenderProfile(48);
+      const compactGlow = window.TD.debug.towerGlowPolicy(4, 0, true, 10, 10, false, false, true);
       const cannonMass = window.TD.debug.towerMaterialStyle("cannon", "fire");
       const mortarMass = window.TD.debug.towerMaterialStyle("mortar", "fire");
       const arrowMass = window.TD.debug.towerMaterialStyle("arrow", "physical");
@@ -1306,7 +1309,8 @@ async function run() {
       const lvMax = towerLevels[towerLevels.length - 1];
       window.TD.setReducedEffects(reduced);
       Object.assign(st, saved); window.__tdUI();
-      return { progress, reducedClass, visual, towerLevels, lv1, lvMax, denseGlow, lowGlow, reducedGlow, cannonMass, mortarMass, arrowMass };
+      return { progress, reducedClass, visual, towerLevels, lv1, lvMax, denseGlow, lowGlow, reducedGlow,
+        compactProfile, desktopProfile, compactGlow, cannonMass, mortarMass, arrowMass };
     });
     const themeValues = Object.values(r57VisualGuard.visual.themes);
     assert(r57VisualGuard.progress.width === "40%" && r57VisualGuard.progress.aria === "40" && r57VisualGuard.progress.text === "4/10" && /hud-gain/.test(r57VisualGuard.progress.goldClass),
@@ -1325,6 +1329,10 @@ async function run() {
       r57VisualGuard.denseGlow.slice(4).every((v) => !v.enabled && v.baseBlur === 0 && v.gemBlur === 0) &&
       !r57VisualGuard.lowGlow.enabled && !r57VisualGuard.reducedGlow.enabled,
       `R59 多塔光暈固定預算且 low/reduced 零 blur（${JSON.stringify(r57VisualGuard.denseGlow)}）`);
+    assert(r57VisualGuard.compactProfile.compact && !r57VisualGuard.compactProfile.showRivets &&
+      r57VisualGuard.compactProfile.maxRings === 2 && r57VisualGuard.compactProfile.levelFont > r57VisualGuard.desktopProfile.levelFont &&
+      !r57VisualGuard.desktopProfile.compact && r57VisualGuard.compactGlow.baseBlur === 0 && r57VisualGuard.compactGlow.gemBlur > 0,
+      `R60 手機塔保留粗輪廓/LV 色錨並簡化環、鉚釘與底座光暈（${JSON.stringify({ compact: r57VisualGuard.compactProfile, glow: r57VisualGuard.compactGlow })}）`);
     assert(r57VisualGuard.arrowMass.metal && r57VisualGuard.cannonMass.metal &&
       r57VisualGuard.cannonMass.mass > r57VisualGuard.arrowMass.mass &&
       r57VisualGuard.mortarMass.mass > r57VisualGuard.cannonMass.mass &&

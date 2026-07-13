@@ -1,4 +1,4 @@
-const CACHE_VERSION = "td-r59-v1";
+const CACHE_VERSION = "td-r60-v1";
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 
@@ -6,15 +6,15 @@ const APP_SHELL = [
   "./",
   "./index.html",
   "./offline.html",
-  "./manifest.webmanifest?v=td-r59-v1",
+  "./manifest.webmanifest?v=td-r60-v1",
   "./sw.js",
   "./assets/cover.png",
-  "./src/config.js?v=td-r59-v1",
-  "./src/heroes.js?v=td-r59-v1",
-  "./src/rules.js?v=td-r59-v1",
-  "./src/lore.js?v=td-r59-v1",
-  "./src/game.js?v=td-r59-v1",
-  "./src/ui.js?v=td-r59-v1",
+  "./src/config.js?v=td-r60-v1",
+  "./src/heroes.js?v=td-r60-v1",
+  "./src/rules.js?v=td-r60-v1",
+  "./src/lore.js?v=td-r60-v1",
+  "./src/game.js?v=td-r60-v1",
+  "./src/ui.js?v=td-r60-v1",
   "./assets/core/goddess.png",
   "./assets/enemies/bat.png",
   "./assets/enemies/boss.png",

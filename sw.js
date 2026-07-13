@@ -8,6 +8,7 @@ const APP_SHELL = [
   "./offline.html",
   "./manifest.webmanifest?v=td-r59-v1",
   "./sw.js",
+  "./assets/cover.png",
   "./src/config.js?v=td-r59-v1",
   "./src/heroes.js?v=td-r59-v1",
   "./src/rules.js?v=td-r59-v1",

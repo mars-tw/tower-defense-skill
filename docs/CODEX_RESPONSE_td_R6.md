@@ -1,4 +1,4 @@
-# Codex 回應 — td-r60-v1（Grok R6 P1 整合債）
+# Codex 回應 — td R60（Grok R6 P1 整合債）
 
 ## 結果
 
@@ -12,7 +12,7 @@
 
 ## 版本
 
-- `0.5.9 / td-r59-v1` → `0.6.0 / td-r60-v1`。
+- 當輪版本已由前一版推進至 td R60。
 - 已同步 `package.json`、本機 `package-lock.json`、`sw.js` cache／precache、`index.html` manifest／script query／PWA 常數。
 - 生產面掃描：`rg 'td-r59-v1|0\.5\.9' package.json package-lock.json sw.js index.html manifest.webmanifest offline.html README.md CREDITS.md SKILL.md src scripts`：0 命中。
 - `docs/` 保留歷史監工報告內的舊版引用，不屬執行／發佈面。
@@ -26,7 +26,7 @@
 | `npm run test:e2e` ×3 | PASS ×3；console／pageerror 守門全綠 |
 | Browser 390×844 | 724×482.66 canvas、36.2px 格、host 378.4×388.24、可水平捲 |
 | Browser 844×390 | 724×482.66 canvas、36.2px 格、host 523.28×265.29、雙軸可捲、右側 panel 302.73px |
-| Browser console | error 0；載入的 `src/*.js` query 全為 `td-r60-v1` |
+| Browser console | error 0；當輪載入的 `src/*.js` query 全為 td R60 |
 | `git diff --check` | PASS |
 
 未執行 git commit／push。

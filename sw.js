@@ -1,4 +1,4 @@
-const CACHE_VERSION = "td-r60-v1";
+const CACHE_VERSION = "td-r61-v1";
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 
@@ -6,15 +6,15 @@ const APP_SHELL = [
   "./",
   "./index.html",
   "./offline.html",
-  "./manifest.webmanifest?v=td-r60-v1",
+  "./manifest.webmanifest?v=td-r61-v1",
   "./sw.js",
   "./assets/cover.png",
-  "./src/config.js?v=td-r60-v1",
-  "./src/heroes.js?v=td-r60-v1",
-  "./src/rules.js?v=td-r60-v1",
-  "./src/lore.js?v=td-r60-v1",
-  "./src/game.js?v=td-r60-v1",
-  "./src/ui.js?v=td-r60-v1",
+  "./src/config.js?v=td-r61-v1",
+  "./src/heroes.js?v=td-r61-v1",
+  "./src/rules.js?v=td-r61-v1",
+  "./src/lore.js?v=td-r61-v1",
+  "./src/game.js?v=td-r61-v1",
+  "./src/ui.js?v=td-r61-v1",
   "./assets/core/goddess.png",
   "./assets/enemies/bat.png",
   "./assets/enemies/boss.png",
@@ -25,10 +25,13 @@ const APP_SHELL = [
   "./assets/enemies/imp.png",
   "./assets/enemies/lavagolem.png",
   "./assets/enemies/medic.png",
+  "./assets/enemies/mirrorling.png",
   "./assets/enemies/orc.png",
   "./assets/enemies/shieldman.png",
+  "./assets/enemies/silencer.png",
   "./assets/enemies/slime.png",
   "./assets/enemies/thunderronin.png",
+  "./assets/enemies/warden.png",
   "./assets/enemies/abysshound.png",
   "./assets/enemies/yaksha.png",
   "./assets/heroes/archer/down.png",
@@ -91,9 +94,13 @@ const APP_SHELL = [
   "./assets/tiles/tree.png",
   "./assets/towers/arrow.png",
   "./assets/towers/arcane.png",
+  "./assets/towers/beacon.png",
   "./assets/towers/cannon.png",
   "./assets/towers/frost.png",
+  "./assets/towers/mortar.png",
+  "./assets/towers/poison.png",
   "./assets/towers/sniper.png",
+  "./assets/towers/support.png",
   "./assets/towers/tesla.png"
 ];
 

@@ -63,6 +63,7 @@ function auditInPage() {
   const seen = new Set();
   for (const el of els) {
     if (seen.has(el)) continue; seen.add(el);
+    if (el.closest("details:not([open])")) continue;
     const cs = getComputedStyle(el);
     if (cs.display === "none" || cs.visibility === "hidden" || el.disabled) continue;
     const r = el.getBoundingClientRect();
@@ -72,7 +73,9 @@ function auditInPage() {
     while (anc && anc !== document.body) {
       const acs = getComputedStyle(anc);
       if (acs.display === "none" || acs.visibility === "hidden" || +acs.opacity === 0) { hidden = true; break; }
-      if (!scrollHost && /(auto|scroll)/.test(acs.overflowY) && anc.scrollHeight > anc.clientHeight + 4) scrollHost = anc;
+      const scrollsY = /(auto|scroll)/.test(acs.overflowY) && anc.scrollHeight > anc.clientHeight + 4;
+      const scrollsX = /(auto|scroll)/.test(acs.overflowX) && anc.scrollWidth > anc.clientWidth + 4;
+      if (!scrollHost && (scrollsY || scrollsX)) scrollHost = anc;
       anc = anc.parentElement;
     }
     if (hidden) continue;
@@ -132,16 +135,23 @@ async function run() {
             const canvas = document.getElementById("game");
             const host = document.getElementById("battlefieldScroll");
             const panel = document.getElementById("selPanel");
+            const deck = document.querySelector('[data-testid="mobile-control-deck"]');
             const blockers = ["tutorial", "diffOverlay", "mapOverlay"].map((id) => document.getElementById(id)).filter(Boolean);
             const blockerDisplay = blockers.map((el) => el.style.display);
             blockers.forEach((el) => { el.style.display = "none"; });
             panel.classList.remove("hidden");
             const panelStyle = getComputedStyle(panel);
-            const hud = document.querySelector(".hud-core");
-            const hudRect = hud.getBoundingClientRect();
+            const deckStyle = getComputedStyle(deck);
+            const deckRect = deck.getBoundingClientRect();
             const panelRect = panel.getBoundingClientRect();
             const start = document.getElementById("startBtn");
-            const targets = [document.getElementById("upgBtn"), document.getElementById("sellBtn")];
+            const targets = [
+              ...document.querySelectorAll("#towerList .tower-btn"),
+              ...document.querySelectorAll("#skillList .skill-btn"),
+              start,
+              document.getElementById("upgBtn"),
+              document.getElementById("sellBtn"),
+            ];
             const targetMin = Math.min(...targets.map((el) => el.getBoundingClientRect().height));
             const cellCss = canvas.getBoundingClientRect().width / (canvas.width / 48);
             const startRect = start.getBoundingClientRect();
@@ -151,21 +161,34 @@ async function run() {
             );
             const guard = {
               cellCss,
-              scrollable: host.scrollWidth > host.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(host).overflowX),
-              floatingUpgrade: panelStyle.position === "fixed" && targetMin >= 44,
-              controlsClear: panelRect.bottom <= hudRect.top + 2 && !!hit && start.contains(hit),
+              navigable: host.scrollWidth <= host.clientWidth + 2 || /(auto|scroll)/.test(getComputedStyle(host).overflowX),
+              sceneUpgrade: panelStyle.position === "absolute" && targetMin >= 44,
+              fixedDeck: deckStyle.position === "fixed" && deckRect.top >= -2 && deckRect.bottom <= innerHeight + 2 &&
+                document.querySelectorAll("#towerList .tower-btn").length === 10 && document.querySelectorAll("#skillList .skill-btn").length === 5,
+              controlsClear: !!hit && start.contains(hit),
               panelBottom: Math.round(panelRect.bottom),
-              hudTop: Math.round(hudRect.top),
+              deckTop: Math.round(deckRect.top),
               hitId: hit ? (hit.id || hit.tagName) : "none",
             };
             panel.classList.add("hidden");
             blockers.forEach((el, i) => { el.style.display = blockerDisplay[i]; });
             return guard;
           });
-          if (mobileGuard.cellCss < 36 || !mobileGuard.scrollable || !mobileGuard.floatingUpgrade || !mobileGuard.controlsClear) {
-            res.violations.push({ label: `手機格位/平移/浮動升級/波控 guard（panel ${mobileGuard.panelBottom} / hud ${mobileGuard.hudTop} / hit ${mobileGuard.hitId}）`, status: "TOUCH_TARGET",
-              top: Math.round(mobileGuard.cellCss), bottom: mobileGuard.scrollable ? 1 : 0,
-              left: mobileGuard.floatingUpgrade ? 1 : 0, right: mobileGuard.controlsClear ? 1 : 0 });
+          if (mobileGuard.cellCss < 36 || !mobileGuard.navigable || !mobileGuard.sceneUpgrade || !mobileGuard.fixedDeck || !mobileGuard.controlsClear) {
+            res.violations.push({ label: `手機格位/平移/就地升級/固定控制盤 guard（panel ${mobileGuard.panelBottom} / deck ${mobileGuard.deckTop} / hit ${mobileGuard.hitId}）`, status: "TOUCH_TARGET",
+              top: Math.round(mobileGuard.cellCss), bottom: mobileGuard.navigable ? 1 : 0,
+              left: mobileGuard.sceneUpgrade && mobileGuard.fixedDeck ? 1 : 0, right: mobileGuard.controlsClear ? 1 : 0 });
+          }
+        }
+        if (pg.name === "td-main" && vp.kind === "desktop" && vp.w >= 1900) {
+          const desktopCanvas = await page.evaluate(() => {
+            const canvas = document.getElementById("game").getBoundingClientRect();
+            const stage = document.getElementById("battlefieldStage").getBoundingClientRect();
+            return { width: canvas.width, height: canvas.height, stageWidth: stage.width, ratio: canvas.width / canvas.height };
+          });
+          if (desktopCanvas.width <= 960 || Math.abs(desktopCanvas.ratio - 1.5) > .01 || desktopCanvas.width < desktopCanvas.stageWidth * .72) {
+            res.violations.push({ label: `R64 桌機 Canvas 放大填滿（canvas ${Math.round(desktopCanvas.width)} / stage ${Math.round(desktopCanvas.stageWidth)}）`, status: "DESKTOP_CANVAS",
+              top: Math.round(desktopCanvas.height), bottom: Math.round(desktopCanvas.width), left: 0, right: 0 });
           }
         }
         const scrollBad = res.pageScrollY > 8;

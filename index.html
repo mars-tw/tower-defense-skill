@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r63-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r64-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -767,6 +767,204 @@
     .codex-stage-list { grid-template-columns: 1fr; }
     .codex-head h2 { font-size: 18px; }
   }
+  /* ===== td R64：戰場內控制盤、就地操作與大畫面 RWD ===== */
+  .wrap { max-width: none; align-items: stretch; justify-content: stretch; }
+  .battlefield-stage {
+    position: relative; display: flex; flex: 1 1 auto; min-width: 0; min-height: 0;
+    align-items: center; justify-content: center; overflow: visible; border-radius: 14px;
+    background: rgba(3,10,7,.42); box-shadow: inset 0 0 0 1px rgba(255,255,255,.035);
+  }
+  .battlefield-stage .battlefield-scroll {
+    width: 100%; height: 100%; max-height: none; align-items: center; justify-content: center;
+    overflow: auto; scrollbar-width: thin; overscroll-behavior: contain; border-radius: 14px;
+  }
+  .battlefield-stage canvas { max-width: none; max-height: none; flex: 0 0 auto; }
+
+  .scene-controls {
+    position: absolute; z-index: 48; left: 50%; bottom: 10px; transform: translateX(-50%);
+    display: grid; gap: 6px; width: min(980px, calc(100% - 18px)); padding: 7px 9px;
+    border: 1px solid rgba(255,255,255,.16); border-radius: 16px;
+    background: linear-gradient(180deg, rgba(20,38,29,.93), rgba(6,15,10,.96));
+    box-shadow: 0 12px 34px rgba(0,0,0,.56), inset 0 1px 0 rgba(255,255,255,.07);
+    backdrop-filter: blur(10px);
+  }
+  .dock-row { display: flex; align-items: center; min-width: 0; gap: 7px; }
+  .dock-label { flex: 0 0 auto; color: #d8e8dc; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .build-row { justify-content: center; }
+  #towerList.build-dock {
+    display: flex; flex-direction: row; flex-wrap: nowrap; gap: 5px; width: auto; max-width: 100%;
+    overflow-x: auto; overflow-y: hidden; padding: 2px; scrollbar-width: thin; scroll-snap-type: x proximity;
+  }
+  #towerList .tower-btn {
+    position: relative; display: grid; place-items: center; flex: 0 0 44px; width: 44px; min-width: 44px;
+    height: 44px; min-height: 44px; padding: 0; border-radius: 11px; scroll-snap-align: center;
+    border: 1px solid rgba(255,255,255,.13); background: linear-gradient(180deg,#20382a,#102018);
+    transform: none;
+  }
+  #towerList .tower-btn .ico { width: auto; font-size: 24px; line-height: 1; }
+  #towerList .tower-btn .cost {
+    position: absolute; right: -2px; bottom: -3px; min-width: 22px; padding: 1px 3px;
+    border: 1px solid rgba(250,204,21,.62); border-radius: 999px; color: #fff2a8;
+    background: rgba(30,20,3,.94); font-size: 9px; line-height: 1.15; text-align: center;
+  }
+  #towerList .tower-btn:hover { transform: translateY(-2px); }
+  #towerList .tower-btn.active { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(250,204,21,.24), 0 4px 14px rgba(0,0,0,.35); }
+  #towerList .tower-btn.cant { filter: grayscale(1) brightness(.62); opacity: .55; }
+  #towerList .tower-btn[data-hotkey] { padding-right: 0; }
+  #towerList .tower-btn[data-hotkey]::after { top: -4px; right: -3px; min-width: 14px; padding: 0 3px; font-size: 8px; }
+
+  .action-row { justify-content: space-between; }
+  .skill-group { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  #skillList.skill-dock { display: flex; flex-direction: row; gap: 5px; overflow: visible; padding: 1px; }
+  #skillList .skill-btn {
+    --cd-angle: 0deg; position: relative; display: grid; place-items: center; flex: 0 0 50px;
+    width: 50px; min-width: 50px; height: 50px; min-height: 50px; padding: 4px; border: 0; border-radius: 50%;
+    background: conic-gradient(rgba(3,8,6,.88) var(--cd-angle), var(--skill-color,#4ade80) 0);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 5px 14px rgba(0,0,0,.38); overflow: hidden;
+  }
+  #skillList .skill-btn::before {
+    content: ""; position: absolute; inset: 4px; z-index: 0; border-radius: 50%;
+    background: radial-gradient(circle at 45% 35%, #294236, #0b1711 72%);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+  #skillList .skill-btn .ico { position: relative; z-index: 1; width: auto; font-size: 25px; line-height: 1; }
+  #skillList .skill-btn .cdtext {
+    position: absolute; z-index: 2; inset: auto 3px 3px; padding: 1px 2px; border-radius: 999px;
+    background: rgba(2,6,4,.82); color: #d9f6ff; font-size: 9px; line-height: 1.1; text-align: center;
+  }
+  #skillList .skill-btn.cd { opacity: .78; filter: grayscale(.55); }
+  #skillList .skill-btn.active { box-shadow: 0 0 0 3px rgba(250,204,21,.55), 0 0 18px var(--skill-color,#facc15); }
+  #skillList .skill-btn[data-hotkey] { padding-right: 4px; }
+  #skillList .skill-btn[data-hotkey]::after { top: -1px; right: -1px; z-index: 3; min-width: 14px; padding: 0 3px; font-size: 8px; }
+
+  .scene-controls .hud-core { display: flex; flex: 0 0 auto; align-items: stretch; gap: 5px; }
+  .scene-controls .controls { flex-wrap: nowrap; }
+  .scene-controls button.act { min-height: 44px; padding: 7px 9px; font-size: 12px; }
+  .scene-controls .wave-start { min-width: 142px; }
+  .scene-controls .wave-start .start { min-width: 142px; }
+  .scene-controls .wave-speed { gap: 4px; }
+  .scene-controls .wave-speed .act { flex: 0 0 42px; padding-inline: 5px; }
+  .scene-controls .settings-btn { flex: 0 0 44px; width: 44px; }
+
+  .panel { flex: 0 0 clamp(238px, 17vw, 292px); width: clamp(238px, 17vw, 292px); max-height: 100%; overflow-y: auto; }
+  .panel-drawer { border: 1px solid var(--border-soft); border-radius: 11px; background: rgba(255,255,255,.035); overflow: clip; }
+  .panel-drawer summary {
+    list-style: none; cursor: pointer; min-height: 42px; display: flex; align-items: center; padding: 9px 11px;
+    color: var(--ink); font-size: 13px; font-weight: 900; background: linear-gradient(180deg,var(--surface-2),var(--surface-1));
+  }
+  .panel-drawer summary::-webkit-details-marker { display: none; }
+  .panel-drawer summary::after { content: "＋"; margin-left: auto; color: var(--ink-dim); }
+  .panel-drawer[open] summary::after { content: "－"; }
+  .drawer-body { display: grid; gap: 7px; padding: 8px; }
+  .drawer-body #heroRoster, .drawer-body #deployedHeroes { max-height: 250px; overflow-y: auto; }
+  .drawer-body .act { width: 100%; }
+
+  .scene-bubble {
+    position: absolute; z-index: 55; width: min(244px, calc(100% - 16px)); padding: 10px;
+    border: 1px solid rgba(74,222,128,.58); border-radius: 13px;
+    background: linear-gradient(180deg,rgba(27,51,37,.98),rgba(7,18,12,.98));
+    box-shadow: 0 14px 38px rgba(0,0,0,.68); transform: translate(-50%, calc(-100% - 16px));
+  }
+  .scene-bubble.hidden, .build-wheel.hidden { display: none !important; }
+  .scene-bubble #selInfo, .goddess-panel #goddessInfo { font-size: 11px; line-height: 1.35; }
+  .scene-bubble .row { margin-top: 7px; }
+  .scene-bubble button { min-height: 44px; }
+  .goddess-panel .goddess-btn { margin-top: 7px; min-height: 42px; }
+
+  .build-wheel { position: absolute; z-index: 58; width: 248px; height: 248px; pointer-events: none; transform: translate(-50%,-50%); }
+  .build-wheel::before {
+    content: ""; position: absolute; inset: 20px; border: 1px solid rgba(250,204,21,.36); border-radius: 50%;
+    background: radial-gradient(circle,rgba(6,16,11,.92) 0 28%,rgba(13,31,21,.78) 29% 66%,rgba(5,12,8,.28) 67%);
+    box-shadow: 0 12px 42px rgba(0,0,0,.7), inset 0 0 24px rgba(74,222,128,.08);
+  }
+  .wheel-tower-btn, .wheel-close {
+    position: absolute; z-index: 2; pointer-events: auto; display: grid; place-items: center;
+    width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%;
+    border: 2px solid var(--wheel-color,#facc15); background: #12251a; color: #fff; cursor: pointer;
+    box-shadow: 0 5px 16px rgba(0,0,0,.6), 0 0 12px color-mix(in srgb,var(--wheel-color,#facc15) 44%,transparent);
+    transform: translate(-50%,-50%);
+  }
+  .wheel-tower-btn .wheel-ico { font-size: 22px; }
+  .wheel-tower-btn .wheel-cost { position: absolute; right: -7px; bottom: -4px; border-radius: 999px; padding: 1px 4px; background: #241703; color: #fde68a; font-size: 9px; font-weight: 900; }
+  .wheel-close { left: 50%; top: 50%; width: 64px; height: 64px; border-color: rgba(255,255,255,.2); color: #d9e8dd; font-size: 10px; font-weight: 900; line-height: 1.15; }
+
+  @media (min-width: 901px) {
+    .wrap { flex-wrap: nowrap; }
+    .panel { padding-right: 2px; }
+    .battlefield-scroll canvas { width: var(--r64-canvas-width, 960px); height: var(--r64-canvas-height, 640px); }
+  }
+
+  @media (max-width: 900px) {
+    :root { --r64-control-height: 164px; }
+    body { padding-bottom: calc(var(--r64-control-height) + max(6px, env(safe-area-inset-bottom))); }
+    h1 { flex: 0 0 auto; }
+    .wrap { flex-direction: column; gap: 5px; }
+    .battlefield-stage { order: 2; width: 100%; flex: 1 1 auto; }
+    .battlefield-stage .battlefield-scroll { align-self: stretch; justify-content: center; }
+    .battlefield-stage canvas { align-self: center; max-height: none; }
+    .panel {
+      order: 1; display: flex; flex: 0 0 auto; flex-direction: row; gap: 5px; width: 100%; max-height: none;
+      overflow: visible; padding: 0;
+    }
+    .panel > .wave-warning { position: fixed; left: 8px; right: 8px; top: 78px; z-index: 80; }
+    .panel-drawer { flex: 1 1 0; overflow: visible; min-width: 0; }
+    .panel-drawer summary { justify-content: center; min-height: 38px; padding: 7px 5px; font-size: 11px; white-space: nowrap; }
+    .panel-drawer summary::after { margin-left: 5px; }
+    .panel-drawer[open] > .drawer-body {
+      position: fixed; z-index: 64; left: max(7px,env(safe-area-inset-left)); right: max(7px,env(safe-area-inset-right));
+      bottom: calc(var(--r64-control-height) + max(8px,env(safe-area-inset-bottom)));
+      max-height: min(52dvh, 430px); overflow-y: auto; border: 1px solid var(--border-hi); border-radius: 13px;
+      background: linear-gradient(180deg,rgba(25,43,32,.99),rgba(7,17,11,.99)); box-shadow: 0 12px 36px rgba(0,0,0,.7);
+    }
+    .scene-controls {
+      position: fixed; left: max(5px,env(safe-area-inset-left)); right: max(5px,env(safe-area-inset-right));
+      bottom: max(4px,env(safe-area-inset-bottom)); transform: none; width: auto; height: var(--r64-control-height);
+      grid-template-rows: 48px 55px 45px; gap: 4px; padding: 6px 7px; border-radius: 15px;
+    }
+    .build-row { justify-content: flex-start; }
+    #towerList.build-dock { flex: 1 1 auto; justify-content: flex-start; }
+    .tower-scroll-hint { display: none; }
+    .action-row { display: contents; }
+    .skill-group { grid-row: 2; justify-content: center; overflow: hidden; }
+    #skillList.skill-dock { justify-content: center; overflow: visible; }
+    .scene-controls .hud-core {
+      grid-row: 3; position: static; display: flex; min-height: 45px; margin: 0; padding: 0; border: 0; background: none;
+    }
+    .scene-controls .wave-start { flex: 1 1 auto; min-width: 0; }
+    .scene-controls .wave-start .start { min-width: 0; }
+    .scene-controls button.act { min-height: 43px; padding-block: 6px; }
+    .scene-bubble { position: absolute; max-height: none; overflow: visible; }
+    #towerList .tower-btn, #skillList .skill-btn { width: 44px; min-width: 44px; }
+    #skillList .skill-btn { height: 50px; width: 50px; min-width: 50px; }
+    .series-footer { display: none; }
+    #log { flex: 0 0 18px; width: 100%; white-space: nowrap; text-overflow: ellipsis; }
+  }
+
+  @media (max-width: 560px) and (orientation: portrait) {
+    .battlefield-scroll { width: 100%; height: 100%; flex: 1 1 auto; max-height: none; }
+    .battlefield-scroll canvas { width: 724px; min-width: 724px; height: auto; max-width: none; max-height: none; align-self: flex-start; touch-action: pan-x pan-y; }
+  }
+
+  @media (max-width: 900px) and (max-height: 520px) {
+    :root { --r64-control-height: 110px; }
+    body { padding-bottom: calc(var(--r64-control-height) + max(4px,env(safe-area-inset-bottom))); }
+    h1 { display: none; }
+    .wrap { flex-direction: column; }
+    .battlefield-stage { width: 100%; }
+    .panel { width: 100%; max-height: none; }
+    .scene-controls { grid-template-rows: 46px 48px; height: var(--r64-control-height); }
+    .build-row { grid-row: 1; }
+    .action-row { display: flex; grid-row: 2; min-width: 0; }
+    .skill-group { grid-row: auto; flex: 1 1 auto; justify-content: flex-start; overflow-x: auto; }
+    #skillList .skill-btn { flex-basis: 44px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+    .scene-controls .hud-core { grid-row: auto; flex: 0 0 auto; min-height: 44px; }
+    .scene-controls .wave-start { min-width: 102px; }
+    .scene-controls .wave-speed .act { flex-basis: 36px; }
+    .scene-controls .settings-btn { flex-basis: 40px; width: 40px; }
+    .battlefield-scroll { width: 100%; height: 100%; flex-basis: auto; }
+    .battlefield-scroll canvas { width: 724px; min-width: 724px; height: auto; max-width: none; max-height: none; touch-action: pan-x pan-y; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .hud-number, .hud .lives.danger, canvas.shake, .wave-meter-fill { animation: none !important; transition: none !important; transform: none !important; }
   }
@@ -787,56 +985,85 @@
   </div>
 
   <div class="wrap">
-    <div class="battlefield-scroll" id="battlefieldScroll" aria-label="戰場，可滑動查看完整棋盤">
-      <canvas id="game" width="960" height="640"></canvas>
-    </div>
-
-    <div class="panel">
-      <div class="hud-core">
-        <div class="controls wave-start">
-          <button class="act start" id="startBtn" data-hotkey="⏎" aria-label="開始下一波">▶ 開始下一波</button>
-        </div>
-        <div class="controls wave-speed">
-          <button class="act speed on" id="speed1" data-s="1" aria-label="切換一倍速度">1×</button>
-          <button class="act speed" id="speed2" data-hotkey="T" data-s="2" aria-label="切換二倍速度">2×</button>
-          <button class="act pause" id="pauseBtn" data-hotkey="P" aria-label="暫停或恢復">⏸</button>
-        </div>
-        <button class="act settings-btn" id="settingsBtn" aria-label="開啟設定">⚙️ 設定</button>
+    <section class="battlefield-stage" id="battlefieldStage" aria-label="戰場與核心控制盤">
+      <div class="battlefield-scroll" id="battlefieldScroll" aria-label="戰場，可滑動查看完整棋盤">
+        <canvas id="game" width="960" height="640"></canvas>
       </div>
-      <div class="wave-warning" id="waveWarning" role="status" aria-live="polite"></div>
-      <button class="act goddess-btn" id="goddessBtn" aria-label="升級女神">👸 升級女神</button>
-      <button class="act board-btn" id="boardBtn" aria-label="開啟排行榜與成就">🏆 排行榜/成就</button>
-      <button class="act codex-btn" id="codexBtn" aria-label="開啟神魔誌">📜 神魔誌</button>
-      <button class="act install-btn" id="installBtn" hidden aria-label="安裝無盡塔防到主畫面">📲 安裝到主畫面</button>
-      <div class="next-wave-card" id="nextWaveCard"></div>
-      <div class="affix-card" id="affixCard"></div>
-      <div class="enemy-info hidden" id="enemyInfo"></div>
-      <div class="shortcut-help">快捷鍵：1-8 建塔 · Q/W/E/R/A 技能 · Enter 下一波 · T 加速 · H 抽英雄</div>
 
-      <h3 class="tower-title">🗼 建造砲塔</h3>
-      <div id="towerList"></div>
-      <div class="scroll-hint tower-scroll-hint">左右滑動查看更多塔 →</div>
+      <div class="build-wheel hidden" id="buildWheel" data-testid="build-wheel" role="dialog" aria-label="就地建塔輪盤"></div>
 
-      <h3 class="hero-title">🦸 英雄</h3>
-      <button class="act gacha-btn" id="gachaBtn" data-hotkey="H" aria-label="抽英雄，快捷鍵 H">🎲 抽英雄（首抽免費！）</button>
-      <div class="gacha-meta" id="gachaMeta"></div>
-      <div class="mission-panel" id="beginnerMissions"></div>
-      <div id="heroRoster"></div>
-      <div class="deployed-heroes" id="deployedHeroes"></div>
-      <div class="scroll-hint hero-scroll-hint">左右滑動查看更多英雄 →</div>
-
-      <h3 class="skill-title">✨ 主動技能</h3>
-      <div id="skillList"></div>
-      <div class="scroll-hint skill-scroll-hint">左右滑動查看更多技能 →</div>
-
-      <div class="sel-panel hidden" id="selPanel">
+      <div class="sel-panel scene-bubble hidden" id="selPanel" data-testid="tower-action-bubble" role="dialog" aria-label="砲塔就地操作">
         <div id="selInfo"></div>
         <div class="row">
           <button class="upg" id="upgBtn" aria-label="升級選取的塔">升級</button>
           <button class="sell" id="sellBtn" aria-label="賣出選取的塔">賣出</button>
         </div>
       </div>
-    </div>
+
+      <div class="goddess-panel scene-bubble hidden" id="goddessPanel" data-testid="goddess-action-bubble" role="dialog" aria-label="女神就地升級">
+        <div id="goddessInfo"></div>
+        <button class="act goddess-btn" id="goddessBtn" aria-label="升級女神">👸 升級女神</button>
+      </div>
+
+      <nav class="scene-controls" id="sceneControls" data-testid="mobile-control-deck" aria-label="戰場核心操作控制盤">
+        <div class="dock-row build-row">
+          <span class="dock-label tower-title">🗼 建塔</span>
+          <div id="towerList" class="build-dock" data-testid="build-dock" role="toolbar" aria-label="建塔快捷列"></div>
+          <span class="scroll-hint tower-scroll-hint">左右滑動查看更多塔 →</span>
+        </div>
+        <div class="dock-row action-row">
+          <div class="skill-group">
+            <span class="dock-label skill-title">✨ 技能</span>
+            <div id="skillList" class="skill-dock" data-testid="skill-dock" role="toolbar" aria-label="技能控制盤"></div>
+          </div>
+          <div class="hud-core">
+            <div class="controls wave-start">
+              <button class="act start" id="startBtn" data-hotkey="⏎" aria-label="開始下一波">▶ 開始下一波</button>
+            </div>
+            <div class="controls wave-speed">
+              <button class="act speed on" id="speed1" data-s="1" aria-label="切換一倍速度">1×</button>
+              <button class="act speed" id="speed2" data-hotkey="T" data-s="2" aria-label="切換二倍速度">2×</button>
+              <button class="act pause" id="pauseBtn" data-hotkey="P" aria-label="暫停或恢復">⏸</button>
+            </div>
+            <button class="act settings-btn" id="settingsBtn" aria-label="開啟設定">⚙️</button>
+          </div>
+        </div>
+      </nav>
+    </section>
+
+    <aside class="panel" aria-label="可展開的戰場資訊抽屜">
+      <div class="wave-warning" id="waveWarning" role="status" aria-live="polite"></div>
+
+      <details class="panel-drawer intel-drawer" open>
+        <summary id="intelDrawerToggle">📡 戰況情報</summary>
+        <div class="drawer-body">
+          <div class="next-wave-card" id="nextWaveCard"></div>
+          <div class="affix-card" id="affixCard"></div>
+          <div class="enemy-info hidden" id="enemyInfo"></div>
+        </div>
+      </details>
+
+      <details class="panel-drawer hero-drawer">
+        <summary id="heroDrawerToggle">🦸 英雄與抽卡</summary>
+        <div class="drawer-body">
+          <button class="act gacha-btn" id="gachaBtn" data-hotkey="H" aria-label="抽英雄，快捷鍵 H">🎲 抽英雄（首抽免費！）</button>
+          <div class="gacha-meta" id="gachaMeta"></div>
+          <div class="mission-panel" id="beginnerMissions"></div>
+          <div id="heroRoster"></div>
+          <div class="deployed-heroes" id="deployedHeroes"></div>
+        </div>
+      </details>
+
+      <details class="panel-drawer utility-drawer">
+        <summary id="utilityDrawerToggle">☰ 其他功能</summary>
+        <div class="drawer-body">
+          <button class="act board-btn" id="boardBtn" aria-label="開啟排行榜與成就">🏆 排行榜/成就</button>
+          <button class="act codex-btn" id="codexBtn" aria-label="開啟神魔誌">📜 神魔誌</button>
+          <button class="act install-btn" id="installBtn" hidden aria-label="安裝無盡塔防到主畫面">📲 安裝到主畫面</button>
+          <div class="shortcut-help">快捷鍵：1-0 建塔 · Q/W/E/R/A 技能 · Enter 下一波 · T 加速 · H 抽英雄</div>
+        </div>
+      </details>
+    </aside>
   </div>
 
   <div id="log"></div>
@@ -999,18 +1226,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r63-v1"></script>
-  <script src="src/heroes.js?v=td-r63-v1"></script>
-  <script src="src/rules.js?v=td-r63-v1"></script>
-  <script src="src/lore.js?v=td-r63-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r63-v1"></script>
-  <script src="src/hero-animation.js?v=td-r63-v1"></script>
-  <script src="src/game.js?v=td-r63-v1"></script>
-  <script src="src/ui.js?v=td-r63-v1"></script>
+  <script src="src/config.js?v=td-r64-v1"></script>
+  <script src="src/heroes.js?v=td-r64-v1"></script>
+  <script src="src/rules.js?v=td-r64-v1"></script>
+  <script src="src/lore.js?v=td-r64-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r64-v1"></script>
+  <script src="src/hero-animation.js?v=td-r64-v1"></script>
+  <script src="src/game.js?v=td-r64-v1"></script>
+  <script src="src/ui.js?v=td-r64-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r63-v1";
+      const PWA_VERSION = "td-r64-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

@@ -493,6 +493,8 @@
       running: false, over: false, betweenWaves: true, waveTotal: 0, waveResolved: 0,
       selectedTowerType: null,   // 準備建造的塔
       selectedTower: null,        // 已選中的塔（看升級）
+      selectedGoddess: false,     // R64：直接點女神後顯示就地升級
+      buildMenuTarget: null,      // R64：直接點空格後顯示就地建塔輪盤（不持久化）
       pendingSkill: null,         // 準備施放的技能
       skillCooldowns: {},         // 技能冷卻計時
       speed: 1,                    // 遊戲速度倍率
@@ -1546,9 +1548,9 @@
   }
 
   // ===== 建塔 / 升級 =====
-  function buildPreviewAt(px, py) {
+  function buildPreviewFor(type, px, py) {
     const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
-    const def = TOWERS[state.selectedTowerType];
+    const def = TOWERS[type];
     const center = cellCenter(cx, cy);
     const buildRange = def ? def.range * affixMul("towerRangeMul") : 0;
     const reach = def ? cellReachInfo(cx, cy, buildRange) : { distance: Infinity, reachable: false };
@@ -1573,6 +1575,16 @@
     };
   }
 
+  function buildPreviewAt(px, py) {
+    return buildPreviewFor(state.selectedTowerType, px, py);
+  }
+
+  function buildOptionsAt(px, py) {
+    return Object.values(TOWERS)
+      .filter((def) => state.gold >= def.cost && buildPreviewFor(def.id, px, py).ok)
+      .map((def) => def.id);
+  }
+
   function tryBuildTower(px, py) {
     if (!state.selectedTowerType) return;
     const cx = Math.floor(px / CELL), cy = Math.floor(py / CELL);
@@ -1591,6 +1603,7 @@
     });
     state.towersBuilt = (state.towersBuilt || 0) + 1;
     state.buildGhost = null;
+    state.buildMenuTarget = null;
     state.mouse = null;
     log(`建造 ${def.name}！`);
     notifyUI();
@@ -1615,6 +1628,30 @@
     state.selectedTower = null;
     log(`賣出 ${TOWERS[tw.type].name}，回收 ${refund} 金。`);
     notifyUI();
+  }
+
+  function buildTowerAt(type, px, py) {
+    if (!TOWERS[type] || !Number.isFinite(px) || !Number.isFinite(py)) return false;
+    state.selectedTowerType = type;
+    state.selectedTower = null;
+    state.selectedGoddess = false;
+    state.pendingSkill = null;
+    state.advisorBuildConfirm = false;
+    const built = !!tryBuildTower(px, py);
+    state.selectedTowerType = null;
+    state.buildGhost = null;
+    state.buildMenuTarget = null;
+    canvas.style.cursor = "default";
+    notifyUI(true);
+    return built;
+  }
+
+  function closeSceneMenus() {
+    state.buildMenuTarget = null;
+    state.selectedTower = null;
+    state.selectedGoddess = false;
+    state.advisorUpgradeTarget = null;
+    notifyUI(true);
   }
 
   // ===== 守護女神升級 =====
@@ -2808,7 +2845,14 @@
   }
 
   function handleTap(p, isTouch) {
-    if (state.pendingSkill) { castSkill(state.pendingSkill, p.x, p.y); state.pendingSkill = null; canvas.style.cursor = "default"; return; }
+    if (state.pendingSkill) {
+      castSkill(state.pendingSkill, p.x, p.y);
+      state.pendingSkill = null;
+      state.buildMenuTarget = null;
+      state.selectedGoddess = false;
+      canvas.style.cursor = "default";
+      return;
+    }
     if (state.selectedTowerType) { handleBuildTap(p, isTouch); return; }
     // D9 駐守：已選中英雄 → 點地圖設駐守點（點英雄自己=取消駐守）
     if (state.pendingHero) {
@@ -2819,6 +2863,8 @@
         log(onSelf ? `${HEROES[h.id].name} 解除駐守，自由作戰。` : `${HEROES[h.id].name} 駐守此地！`);
       }
       state.pendingHero = null; canvas.style.cursor = "default";
+      state.buildMenuTarget = null;
+      state.selectedGoddess = false;
       notifyUI();
       return;
     }
@@ -2826,13 +2872,35 @@
     const hero = state.heroes.find((x) => Math.hypot(p.x - x.x, p.y - x.y) < CELL * 0.5);
     if (hero) {
       state.pendingHero = hero.uid; canvas.style.cursor = "crosshair";
+      state.selectedTower = null;
+      state.selectedGoddess = false;
+      state.buildMenuTarget = null;
       log(`已選 ${HEROES[hero.id].name}，點地圖指定駐守點（點它自己取消駐守）。`);
       notifyUI();
       return;
     }
     const cx = Math.floor(p.x / CELL), cy = Math.floor(p.y / CELL);
     const tw = state.towers.find((t) => t.cx === cx && t.cy === cy);
-    state.selectedTower = tw || null;
+    const onGoddess = Math.hypot(p.x - state.goddess.x, p.y - state.goddess.y) <= CELL * 0.85;
+    if (onGoddess) {
+      state.selectedTower = null;
+      state.selectedGoddess = true;
+      state.buildMenuTarget = null;
+      notifyUI();
+      return;
+    }
+    if (tw) {
+      state.selectedTower = tw;
+      state.selectedGoddess = false;
+      state.buildMenuTarget = null;
+      notifyUI();
+      return;
+    }
+    state.selectedTower = null;
+    state.selectedGoddess = false;
+    const options = buildOptionsAt(p.x, p.y);
+    const center = cellCenter(cx, cy);
+    state.buildMenuTarget = options.length ? { x: center.x, y: center.y, cx, cy } : null;
     notifyUI();
   }
   canvas.addEventListener("mousemove", (ev) => { state.mouse = canvasPos(ev.clientX, ev.clientY); });
@@ -2867,6 +2935,8 @@
       const rawY = Number.isFinite(action.y) ? action.y : (Number.isFinite(action.cy) ? action.cy * CELL + CELL / 2 : H / 2);
       state.selectedTowerType = action.towerId;
       state.selectedTower = null;
+      state.selectedGoddess = false;
+      state.buildMenuTarget = null;
       state.pendingSkill = null;
       state.pendingHero = null;
       state.advisorUpgradeTarget = null;
@@ -2905,6 +2975,8 @@
       if (!tw) return false;
       state.selectedTower = tw;
       state.selectedTowerType = null;
+      state.selectedGoddess = false;
+      state.buildMenuTarget = null;
       state.pendingSkill = null;
       state.pendingHero = null;
       state.advisorBuildConfirm = false;
@@ -2947,13 +3019,14 @@
     state: () => state,
     newGame: (options) => { newGame(options); state.clock = 0; render(); },
     startWave,
-    selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; },
+    selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; },
     cancelBuild: () => { state.selectedTowerType = null; state.buildGhost = null; state.advisorBuildConfirm = false; },
-    selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "crosshair"; } },
+    selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "crosshair"; } },
     upgradeSelected: () => { if (state.selectedTower) upgradeTower(state.selectedTower); },
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
     upgradeCost, towerStat, getTowerBuff: supportBuffFor, effectiveTowerDamage, supportDpsGain,
+    buildOptionsAt, buildTowerAt, closeSceneMenus,
     deployHero, selectHeroGuard, rollHero,  // 英雄上場、駐守與抽卡
     rollHeroWithPity,      // 含保底的抽卡（Stage 1：pity 由 ui.js 的 meta 持久化）
     rollHeroWithPityPreferNew, // 新手第二隻英雄避開重複
@@ -2969,7 +3042,7 @@
     getJuiceSettings,
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
-    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },
+    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },
     setSpeed: (s) => { state.speed = s; },
     buildPreviewAt: (x, y) => buildPreviewAt(x, y),
     drainIntroLogs: () => {

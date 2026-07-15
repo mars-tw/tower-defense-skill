@@ -318,33 +318,86 @@ async function run() {
     await sleep(200);
 
     const firstScreen = await page.evaluate(() => {
-      const ids = ["towerList", "startBtn"];
+      const ids = ["towerList", "skillList", "startBtn", "sceneControls"];
       const rects = Object.fromEntries(ids.map((id) => {
         const r = document.getElementById(id).getBoundingClientRect();
-        return [id, { top: r.top, bottom: r.bottom }];
+        return [id, { top: r.top, bottom: r.bottom, left: r.left, right: r.right }];
       }));
-      const title = document.querySelector(".tower-title").getBoundingClientRect();
       return {
         innerHeight: window.innerHeight,
+        innerWidth: window.innerWidth,
         towerListTop: rects.towerList.top,
-        towerTitleBottom: title.bottom,
         towerListBottom: rects.towerList.bottom,
+        skillListBottom: rects.skillList.bottom,
         startTop: rects.startBtn.top,
         startBottom: rects.startBtn.bottom,
-        towerHintDisplay: getComputedStyle(document.querySelector(".tower-scroll-hint")).display,
+        deckBottom: rects.sceneControls.bottom,
+        deckPosition: getComputedStyle(document.getElementById("sceneControls")).position,
+        towerButtons: document.querySelectorAll("#towerList .tower-btn").length,
+        skillButtons: document.querySelectorAll("#skillList .skill-btn").length,
       };
     });
-    assert(firstScreen.towerTitleBottom <= firstScreen.innerHeight && firstScreen.towerListBottom <= firstScreen.innerHeight && firstScreen.startBottom <= firstScreen.innerHeight,
-      `首屏可見建塔入口與開始波（tower ${Math.round(firstScreen.towerListBottom)} / start ${Math.round(firstScreen.startBottom)} <= ${firstScreen.innerHeight}）`);
+    assert(firstScreen.towerListBottom <= firstScreen.innerHeight && firstScreen.skillListBottom <= firstScreen.innerHeight && firstScreen.startBottom <= firstScreen.innerHeight && firstScreen.towerButtons === 10 && firstScreen.skillButtons === 5,
+      `首屏常駐 10 塔 dock、5 技能盤與開始波（tower ${Math.round(firstScreen.towerListBottom)} / skill ${Math.round(firstScreen.skillListBottom)} / start ${Math.round(firstScreen.startBottom)} <= ${firstScreen.innerHeight}）`);
     if (vp.w <= 560) {
-      assert(firstScreen.towerListTop < firstScreen.startTop && firstScreen.towerHintDisplay !== "none",
-        "手機首屏建塔列排在開始波前，且顯示橫滑提示");
+      assert(firstScreen.towerListTop < firstScreen.startTop && firstScreen.deckPosition === "fixed" && firstScreen.deckBottom <= firstScreen.innerHeight + 2,
+        "手機底部控制盤固定於視口，建塔列、技能與波控不依賴側欄捲動");
     }
 
+    const directBuildWheel = await page.evaluate(() => {
+      const st = window.TD.state();
+      const canvas = document.getElementById("game");
+      const rect = canvas.getBoundingClientRect();
+      let point = null;
+      for (let y = 24; y < 640 && !point; y += 48) {
+        for (let x = 24; x < 960 && !point; x += 48) {
+          if (window.TD.buildOptionsAt(x, y).length) point = { x, y };
+        }
+      }
+      if (point) canvas.dispatchEvent(new MouseEvent("click", {
+        clientX: rect.left + point.x * rect.width / 960,
+        clientY: rect.top + point.y * rect.height / 640,
+        bubbles: true,
+      }));
+      const wheel = document.querySelector('[data-testid="build-wheel"]');
+      const buttons = [...wheel.querySelectorAll(".wheel-tower-btn")];
+      const result = {
+        point,
+        shown: !wheel.classList.contains("hidden"),
+        count: buttons.length,
+        onlyAffordable: buttons.every((btn) => window.TD.config.TOWERS[btn.dataset.type].cost <= st.gold),
+      };
+      window.TD.closeSceneMenus();
+      return result;
+    });
+    assert(directBuildWheel.point && directBuildWheel.shown && directBuildWheel.count > 0 && directBuildWheel.onlyAffordable,
+      `直接點空格開啟只列可負擔塔種的就地輪盤（${directBuildWheel.count} 種）`);
+
+    const goddessDiegetic = await page.evaluate(() => {
+      const st = window.TD.state();
+      const canvas = document.getElementById("game");
+      const rect = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(new MouseEvent("click", {
+        clientX: rect.left + st.goddess.x * rect.width / 960,
+        clientY: rect.top + st.goddess.y * rect.height / 640,
+        bubbles: true,
+      }));
+      const panel = document.querySelector('[data-testid="goddess-action-bubble"]');
+      const result = {
+        selected: st.selectedGoddess === true,
+        shown: !panel.classList.contains("hidden"),
+        text: panel.textContent,
+      };
+      window.TD.closeSceneMenus();
+      return result;
+    });
+    assert(goddessDiegetic.selected && goddessDiegetic.shown && goddessDiegetic.text.includes("Lv.1") && goddessDiegetic.text.includes("升級女神"),
+      "直接點女神物件會開啟就地升級氣泡，不需側欄常駐按鈕");
+
     const nextWaveCardInitial = await page.evaluate(() => ({
-      text: document.getElementById("nextWaveCard").innerText,
+      text: document.getElementById("nextWaveCard").textContent,
       enemyButtons: document.querySelectorAll("#nextWaveCard .enemy-chip-btn").length,
-      affixText: document.getElementById("affixCard").innerText,
+      affixText: document.getElementById("affixCard").textContent,
       affixId: window.TD.state().affix && window.TD.state().affix.id,
     }));
     assert(nextWaveCardInitial.text.includes("下一波情報") && nextWaveCardInitial.text.includes("主元素") && nextWaveCardInitial.text.includes("建議塔種") && nextWaveCardInitial.enemyButtons > 0,
@@ -363,7 +416,7 @@ async function run() {
       st.towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
       window.__tdUI();
       const preview = window.TD.previewNextWave();
-      const text = document.getElementById("nextWaveCard").innerText;
+      const text = document.getElementById("nextWaveCard").textContent;
       const buttons = document.querySelectorAll("#nextWaveCard [data-advisor-toggle], #nextWaveCard [data-advisor-close]").length;
       window.TD.newGame();
       if (savedMeta === null) localStorage.removeItem("td_meta_v1");
@@ -445,7 +498,7 @@ async function run() {
         document.querySelector(`#nextWaveCard [data-advisor-mode="${mode}"]`).click();
         ids[mode] = window.TD.previewNextWave({ advisorMode: mode }).advisor[0].towerId;
       }
-      const text = document.getElementById("nextWaveCard").innerText;
+      const text = document.getElementById("nextWaveCard").textContent;
       restore();
       return { ids, text };
     });
@@ -478,8 +531,15 @@ async function run() {
     });
     assert(advisorBuildR29.selected === "frost" && advisorBuildR29.confirm && advisorBuildR29.ghost,
       `顧問建塔建議一鍵顯示寒冰塔幽靈預覽（${advisorBuildR29.selected} @ ${advisorBuildR29.ghost && advisorBuildR29.ghost.cx},${advisorBuildR29.ghost && advisorBuildR29.ghost.cy}）`);
-    if (vp.w <= 560) await page.touchscreen.tap(advisorBuildR29.clientX, advisorBuildR29.clientY);
-    else await page.mouse.click(advisorBuildR29.clientX, advisorBuildR29.clientY);
+    await page.evaluate(({ x, y }) => {
+      const canvas = document.getElementById("game");
+      const rect = canvas.getBoundingClientRect();
+      canvas.dispatchEvent(new MouseEvent("click", {
+        clientX: rect.left + x * rect.width / 960,
+        clientY: rect.top + y * rect.height / 640,
+        bubbles: true,
+      }));
+    }, { x: advisorBuildR29.ghost.x, y: advisorBuildR29.ghost.y });
     const advisorBuildConfirmR29 = await page.evaluate(() => {
       const st = window.TD.state();
       const result = {
@@ -537,7 +597,7 @@ async function run() {
       await page.evaluate(() => document.querySelector("#nextWaveCard .enemy-chip-btn").click());
       const enemyInfo = await page.evaluate(() => ({
         shown: !document.getElementById("enemyInfo").classList.contains("hidden"),
-        text: document.getElementById("enemyInfo").innerText,
+        text: document.getElementById("enemyInfo").textContent,
       }));
       assert(enemyInfo.shown && enemyInfo.text.includes("血量") && enemyInfo.text.includes("速度") && enemyInfo.text.includes("元素") && enemyInfo.text.includes("特性") && enemyInfo.text.includes("反制"),
         `手機可點敵人開小圖鑑（${enemyInfo.text.split("\n")[0]}）`);
@@ -552,7 +612,7 @@ async function run() {
           const btn = [...document.querySelectorAll("#nextWaveCard .enemy-chip-btn")].find((el) => el.dataset.enemy === "goblin");
           if (btn) {
             btn.click();
-            text = document.getElementById("enemyInfo").innerText;
+            text = document.getElementById("enemyInfo").textContent;
           }
         }
         st.wave = originalWave;
@@ -695,12 +755,14 @@ async function run() {
         const cs = getComputedStyle(el);
         return {
           id: el && el.id,
+          tag: el && el.tagName,
           focusVisible: !!(el && el.matches && el.matches(":focus-visible")),
           outline: cs.outlineStyle,
         };
       });
-      assert(["startBtn", "speed1", "speed2", "pauseBtn", "goddessBtn", "boardBtn", "settingsBtn", "gachaBtn"].includes(tabSmoke1.id) &&
-        ["startBtn", "speed1", "speed2", "pauseBtn", "goddessBtn", "boardBtn", "settingsBtn", "gachaBtn"].includes(tabSmoke2.id) &&
+      const tabbableControls = ["startBtn", "speed1", "speed2", "pauseBtn", "settingsBtn", "intelDrawerToggle", "heroDrawerToggle", "utilityDrawerToggle"];
+      assert((tabbableControls.includes(tabSmoke1.id) || tabSmoke1.tag === "BUTTON") &&
+        (tabbableControls.includes(tabSmoke2.id) || tabSmoke2.tag === "BUTTON") &&
         (tabSmoke1.focusVisible || tabSmoke1.outline !== "none") && (tabSmoke2.focusVisible || tabSmoke2.outline !== "none"),
         `Tab 可抵達主控件且焦點可見（${tabSmoke1.id} → ${tabSmoke2.id}）`);
 
@@ -1478,7 +1540,7 @@ async function run() {
         firstUpgrade: after.beginnerMissions && after.beginnerMissions.firstUpgrade === true,
         firstSkill: after.beginnerMissions && after.beginnerMissions.firstSkill === true,
         gachaDisabled: document.getElementById("gachaBtn").disabled,
-        missionText: document.getElementById("beginnerMissions").innerText,
+        missionText: document.getElementById("beginnerMissions").textContent,
       };
     });
     assert(missionPathToSecondDraw.firstUpgrade && missionPathToSecondDraw.firstSkill && missionPathToSecondDraw.afterCrystal >= 20 && missionPathToSecondDraw.gachaDisabled === false,
@@ -1540,7 +1602,7 @@ async function run() {
       document.getElementById("heroDetailClose").click();
       return {
         owned,
-        rosterText: document.getElementById("heroRoster").innerText,
+        rosterText: document.getElementById("heroRoster").textContent,
         detailShown,
         detailText,
         cardAria,
@@ -1564,7 +1626,7 @@ async function run() {
       return {
         rosterCount: cards.length,
         deployedIds: window.TD.state().heroes.map((h) => h.id),
-        slotText: document.getElementById("deployedHeroes").innerText,
+        slotText: document.getElementById("deployedHeroes").textContent,
         slotAria: [...document.querySelectorAll("#deployedHeroes .deployed-hero-slot")].map((slot) => slot.getAttribute("aria-label")).join(" / "),
       };
     });
@@ -1578,7 +1640,7 @@ async function run() {
     const heroCommand = await page.evaluate(() => {
       window.__tdUI();
       const slots = [...document.querySelectorAll("#deployedHeroes .deployed-hero-slot")];
-      const slotTextBefore = document.getElementById("deployedHeroes").innerText;
+      const slotTextBefore = document.getElementById("deployedHeroes").textContent;
       if (slots[0]) slots[0].click();
       const pendingAfterCard = !!window.TD.state().pendingHero;
       const activeAfterCard = !!document.querySelector("#deployedHeroes .deployed-hero-slot.active");
@@ -1598,7 +1660,7 @@ async function run() {
         pendingAfterCard,
         activeAfterCard,
         guardSet: !!(first && first.guardPoint),
-        slotTextAfter: document.getElementById("deployedHeroes").innerText,
+        slotTextAfter: document.getElementById("deployedHeroes").textContent,
       };
     });
     assert(heroCommand.slotCount === 2 && heroCommand.hpBars === 2 && heroCommand.slotTextBefore.includes("Lv.") && heroCommand.slotTextBefore.includes("點我駐守"),
@@ -1856,6 +1918,7 @@ async function run() {
       "排行榜 overlay 開啟時暫停，關閉後恢復");
 
     // 9. Stage 3 回歸：overlay 開啟後 Enter 不得重入或觸發底下按鈕
+    await page.evaluate(() => { document.querySelector(".utility-drawer").open = true; });
     await page.click("#boardBtn");
     await page.keyboard.press("Enter");
     const progressEnter = await page.evaluate(() => ({
@@ -2000,7 +2063,7 @@ async function run() {
       await sleep(250);
     }
     const reachable = await page.evaluate(() => {
-      const ids = ["startBtn", "pauseBtn", "goddessBtn", "boardBtn", "settingsBtn"];
+      const ids = ["startBtn", "pauseBtn", "settingsBtn", "towerList", "skillList"];
       const misses = [];
       for (const id of ids) {
         const el = document.getElementById(id);
@@ -2018,6 +2081,7 @@ async function run() {
       let gachaReachable = false;
       let gachaDebug = "";
       if (gacha) {
+        document.querySelector(".hero-drawer").open = true;
         gacha.scrollIntoView({ block: "center" });
         const gr = gacha.getBoundingClientRect();
         const hit = document.elementFromPoint(gr.left + gr.width / 2, gr.top + gr.height / 2);

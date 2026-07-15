@@ -138,8 +138,12 @@ console.log("== R41：PWA/可近用性資產 ==");
   const fortifyCount = (index.match(/\.battlefield-scroll canvas\s*\{\s*width:\s*724px/g) || []).length;
   assert(fortifyCount >= 2 && index.includes("touch-action: pan-x pan-y"),
     "手機直式與橫式戰場皆具備 ≥36px 格位與可平移容器");
-  assert(index.includes("--mobile-hud-reserve") && index.includes("z-index: 44") && index.includes("max-height: min(30dvh, 210px)"),
-    "浮動升級面板預留 sticky 波控空間且控制層可及");
+  assert(index.includes('data-testid="mobile-control-deck"') && index.includes("--r64-control-height") &&
+    index.includes('data-testid="build-dock"') && index.includes('data-testid="skill-dock"'),
+    "R64 手機常駐底部控制盤整合建塔、技能與波控");
+  assert(index.includes('data-testid="build-wheel"') && index.includes('data-testid="tower-action-bubble"') &&
+    index.includes('data-testid="goddess-action-bubble"'),
+    "R64 空格建塔輪盤、塔操作氣泡與女神就地升級具穩定場景 selector");
 
   // R45：URL 版本化守門 — 根治「新 HTML 配舊 JS」版本錯配
   const swVersion = (sw.match(/const\s+CACHE_VERSION\s*=\s*["']([^"']+)["']/) || [])[1] || "";

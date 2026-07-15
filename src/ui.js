@@ -106,7 +106,7 @@
     return `${e.name}：${ELEM_LABEL[e.element]}系，${enemyTrait(e)}`;
   }
 
-  // ===== 建塔選單（補關鍵數值與元素，D3 資訊透明）=====
+  // ===== R64 畫面下緣建塔 dock =====
   function towerMetaText(t) {
     if (t.slowAura) return `範圍 ${t.range} · 暴露 · 減速 ${Math.round(t.slowAura * 100)}% · 不補盲區`;
     if (t.support) return `範圍 ${t.range} · 增傷 +${Math.round(t.buff * 100)}%`;
@@ -124,10 +124,8 @@
     const shortcut = TOWER_HOTKEYS[t.id] ? `快捷鍵 ${TOWER_HOTKEYS[t.id]}。` : "";
     btn.title = shortcut + (t.desc || t.name);
     btn.setAttribute("aria-label", `${t.name}：${shortcut}${t.desc || stats}`);
-    btn.innerHTML = `
-      <span class="ico">${t.emoji}</span>
-      <span class="info"><span class="nm">${t.name}</span> ${elemChip(t.element)}<br><span class="meta">${stats}</span></span>
-      <span class="cost">${t.cost}</span>`;
+    btn.style.setProperty("--tower-color", t.color || "#4ade80");
+    btn.innerHTML = `<span class="ico" aria-hidden="true">${t.emoji}</span><span class="cost">${t.cost}</span>`;
     btn.onclick = () => {
       const st = TD.state();
       if (st.selectedTowerType === t.id) { TD.cancelBuild(); }
@@ -137,7 +135,7 @@
     towerList.appendChild(btn);
   });
 
-  // ===== 技能列 =====
+  // ===== R64 常駐技能控制盤（圓形圖示＋冷卻環） =====
   const skillList = $("skillList");
   Object.values(SKILLS).forEach((s) => {
     const btn = document.createElement("button");
@@ -146,10 +144,8 @@
     const shortcut = SKILL_HOTKEYS[s.id] ? `快捷鍵 ${SKILL_HOTKEYS[s.id]}。` : "";
     btn.title = shortcut + s.desc;
     btn.setAttribute("aria-label", `${s.name}：${shortcut}${s.desc}`);
-    btn.innerHTML = `
-      <span class="ico">${s.emoji}</span>
-      <span class="info"><span class="nm">${s.name}</span><br><span class="meta">${s.desc}</span></span>
-      <span class="cdtext" data-cd="${s.id}"></span>`;
+    btn.style.setProperty("--skill-color", s.color || "#4ade80");
+    btn.innerHTML = `<span class="ico" aria-hidden="true">${s.emoji}</span><span class="cdtext" data-cd="${s.id}"></span>`;
     btn.onclick = () => { activateSkill(s.id); };
     skillList.appendChild(btn);
   });
@@ -193,6 +189,107 @@
     TD.selectSkill(id);
     refreshUI();
     return true;
+  }
+
+  // ===== R64 場景內選單定位 =====
+  function positionSceneElement(el, worldX, worldY, kind) {
+    const stage = $("battlefieldStage");
+    const canvas = $("game");
+    if (!el || !stage || !canvas || el.classList.contains("hidden")) return;
+    const stageRect = stage.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const rawX = canvasRect.left - stageRect.left + worldX * canvasRect.width / canvas.width;
+    const rawY = canvasRect.top - stageRect.top + worldY * canvasRect.height / canvas.height;
+    if (kind === "wheel") {
+      const halfW = Math.min(124, stageRect.width / 2);
+      const halfH = Math.min(124, stageRect.height / 2);
+      const minX = halfW + 2, maxX = Math.max(minX, stageRect.width - halfW - 2);
+      const minY = halfH + 2, maxY = Math.max(minY, stageRect.height - halfH - 2);
+      el.style.left = `${Math.max(minX, Math.min(maxX, rawX))}px`;
+      el.style.top = `${Math.max(minY, Math.min(maxY, rawY))}px`;
+      return;
+    }
+    const width = Math.max(180, el.offsetWidth || 244);
+    const half = Math.min(width / 2, stageRect.width / 2 - 4);
+    el.style.left = `${Math.max(half + 4, Math.min(stageRect.width - half - 4, rawX))}px`;
+    el.style.top = `${Math.max(4, Math.min(stageRect.height - 4, rawY))}px`;
+    const needsBelow = rawY < (el.offsetHeight || 130) + 24;
+    el.style.transform = needsBelow ? "translate(-50%, 16px)" : "translate(-50%, calc(-100% - 16px))";
+  }
+
+  function closeBuildWheel() {
+    if (TD.closeSceneMenus) TD.closeSceneMenus();
+    refreshUI();
+  }
+
+  function renderBuildWheel(st) {
+    const wheel = $("buildWheel");
+    const target = st.buildMenuTarget;
+    if (!wheel || !target || isBlockingOverlayOpen()) {
+      if (wheel) wheel.classList.add("hidden");
+      return;
+    }
+    const ids = TD.buildOptionsAt ? TD.buildOptionsAt(target.x, target.y) : [];
+    if (!ids.length) {
+      wheel.classList.add("hidden");
+      return;
+    }
+    wheel.innerHTML = "";
+    const close = document.createElement("button");
+    close.className = "wheel-close";
+    close.type = "button";
+    close.setAttribute("aria-label", "關閉建塔輪盤");
+    close.innerHTML = "✕<br>建塔";
+    close.onclick = (ev) => { ev.stopPropagation(); closeBuildWheel(); };
+    wheel.appendChild(close);
+    const radius = ids.length >= 8 ? 102 : ids.length >= 5 ? 92 : 78;
+    ids.forEach((id, index) => {
+      const t = TOWERS[id];
+      if (!t) return;
+      const angle = -Math.PI / 2 + index * Math.PI * 2 / ids.length;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "wheel-tower-btn";
+      btn.dataset.type = t.id;
+      btn.style.left = `${124 + Math.cos(angle) * radius}px`;
+      btn.style.top = `${124 + Math.sin(angle) * radius}px`;
+      btn.style.setProperty("--wheel-color", t.color || "#facc15");
+      btn.title = `${t.name} · ${t.cost} 金幣`;
+      btn.setAttribute("aria-label", `在此建造${t.name}，花費 ${t.cost} 金幣`);
+      btn.innerHTML = `<span class="wheel-ico" aria-hidden="true">${t.emoji}</span><span class="wheel-cost">${t.cost}</span>`;
+      btn.onclick = (ev) => {
+        ev.stopPropagation();
+        if (TD.buildTowerAt) TD.buildTowerAt(t.id, target.x, target.y);
+        refreshUI();
+      };
+      wheel.appendChild(btn);
+    });
+    wheel.classList.remove("hidden");
+    positionSceneElement(wheel, target.x, target.y, "wheel");
+  }
+
+  function refreshScenePositions() {
+    const st = TD.state();
+    if (st.selectedTower) positionSceneElement($("selPanel"), st.selectedTower.x, st.selectedTower.y, "bubble");
+    if (st.selectedGoddess) positionSceneElement($("goddessPanel"), st.goddess.x, st.goddess.y, "bubble");
+    if (st.buildMenuTarget) positionSceneElement($("buildWheel"), st.buildMenuTarget.x, st.buildMenuTarget.y, "wheel");
+  }
+
+  function fitCanvasToStage() {
+    const stage = $("battlefieldStage");
+    if (!stage) return;
+    if (window.matchMedia("(max-width: 900px)").matches) {
+      stage.style.removeProperty("--r64-canvas-width");
+      stage.style.removeProperty("--r64-canvas-height");
+      requestAnimationFrame(refreshScenePositions);
+      return;
+    }
+    const width = Math.max(1, stage.clientWidth);
+    const height = Math.max(1, stage.clientHeight);
+    const scale = Math.max(.1, Math.min(width / 960, height / 640));
+    stage.style.setProperty("--r64-canvas-width", `${Math.floor(960 * scale)}px`);
+    stage.style.setProperty("--r64-canvas-height", `${Math.floor(640 * scale)}px`);
+    requestAnimationFrame(refreshScenePositions);
   }
 
   function syncPauseButton(paused) {
@@ -986,8 +1083,9 @@
     if (waveMeter) waveMeter.setAttribute("aria-valuenow", String(wavePct));
     if (waveText) waveText.textContent = st.betweenWaves ? (st.wave > 0 ? "CLEAR" : "就緒") : `${waveResolved}/${waveTotal}`;
 
-    // 女神升級按鈕
+    // 女神升級只在直接點戰場女神後就地顯示
     const gBtn = $("goddessBtn");
+    const gPanel = $("goddessPanel");
     const G = TD.config.GODDESS;
     if (st.goddess.level >= G.maxLevel) { gBtn.textContent = "👸 女神已滿級"; gBtn.disabled = true; }
     else {
@@ -995,6 +1093,11 @@
       gBtn.textContent = `👸 升級女神 (${cost}💰) Lv.${st.goddess.level}`;
       gBtn.disabled = st.gold < cost;
     }
+    if (st.selectedGoddess) {
+      $("goddessInfo").innerHTML = `<b>👸 ${G.name}</b> Lv.${st.goddess.level}<br>生命 ${Math.max(0, Math.round(st.goddess.hp))}/${st.goddess.maxHp}${st.goddess.level >= G.smiteUnlockLevel ? " · 聖光反擊已啟動" : " · Lv.2 解鎖聖光反擊"}`;
+      gPanel.classList.remove("hidden");
+      positionSceneElement(gPanel, st.goddess.x, st.goddess.y, "bubble");
+    } else gPanel.classList.add("hidden");
 
     // 抽卡按鈕（花魂晶，跨局貨幣；首抽免費）
     const meta = claimBeginnerMissions();
@@ -1023,12 +1126,16 @@
       const t = TOWERS[b.dataset.type];
       b.classList.toggle("cant", st.gold < t.cost);
       b.classList.toggle("active", st.selectedTowerType === t.id);
+      b.setAttribute("aria-disabled", st.gold < t.cost ? "true" : "false");
     });
 
     // 技能冷卻
     document.querySelectorAll(".skill-btn").forEach((b) => {
       const cd = st.skillCooldowns[b.dataset.skill] || 0;
+      const sk = SKILLS[b.dataset.skill];
       b.classList.toggle("cd", cd > 0);
+      b.classList.toggle("active", st.pendingSkill === b.dataset.skill);
+      b.style.setProperty("--cd-angle", `${Math.round(Math.min(1, cd / Math.max(.01, sk.cooldown)) * 360)}deg`);
       const span = b.querySelector(".cdtext");
       span.textContent = cd > 0 ? Math.ceil(cd) + "s" : "就緒";
     });
@@ -1077,10 +1184,13 @@
       $("selInfo").innerHTML = `
         <b>${def.emoji} ${def.name}</b> Lv.${tw.level}<br>
         ${statLine}`;
-      $("upgBtn").textContent = maxed ? "已滿級" : `升級 (${TD.upgradeCost(tw)}💰)`;
-      $("upgBtn").disabled = maxed;
+      const cost = TD.upgradeCost(tw);
+      $("upgBtn").textContent = maxed ? "已滿級" : `升級 (${cost}💰)`;
+      $("upgBtn").disabled = maxed || st.gold < cost;
       sel.classList.remove("hidden");
+      positionSceneElement(sel, tw.x, tw.y, "bubble");
     } else sel.classList.add("hidden");
+    renderBuildWheel(st);
   }
 
   // ===== 日誌 =====
@@ -1847,6 +1957,26 @@
       if (overlay) overlay.classList.remove("show");
     });
   }
+
+  // R64：手機只保留抽屜入口；展開一個抽屜時自動收起其他抽屜。
+  const panelDrawers = [...document.querySelectorAll(".panel-drawer")];
+  if (window.matchMedia("(max-width: 900px)").matches) panelDrawers.forEach((drawer) => { drawer.open = false; });
+  panelDrawers.forEach((drawer) => {
+    drawer.addEventListener("toggle", () => {
+      if (!drawer.open || !window.matchMedia("(max-width: 900px)").matches) return;
+      panelDrawers.forEach((other) => { if (other !== drawer) other.open = false; });
+    });
+  });
+
+  const stage = $("battlefieldStage");
+  if (stage && typeof ResizeObserver === "function") {
+    const canvasFitObserver = new ResizeObserver(() => fitCanvasToStage());
+    canvasFitObserver.observe(stage);
+  }
+  window.addEventListener("resize", fitCanvasToStage, { passive: true });
+  const battlefieldScroll = $("battlefieldScroll");
+  if (battlefieldScroll) battlefieldScroll.addEventListener("scroll", refreshScenePositions, { passive: true });
+  fitCanvasToStage();
 
   renderRoster();
   refreshUI();

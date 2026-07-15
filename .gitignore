@@ -20,6 +20,13 @@ desktop.ini
 # 暫存
 *.tmp
 *.log
+*.bak
+.cache/
+
+# 測試與覆蓋率輸出
+test-results/
+playwright-report/
+coverage/
 
 # 環境機密
 .env
@@ -27,7 +34,6 @@ desktop.ini
 
 # npm（playwright devDependency 用）
 node_modules/
-package-lock.json
 
 # 下載的原始素材包（遊戲實際使用檔案另放 assets/）
 tools/

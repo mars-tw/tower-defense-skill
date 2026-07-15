@@ -2,7 +2,7 @@
 
 [![CI & Deploy Pages](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version 0.6.5](https://img.shields.io/badge/version-0.6.5-blue.svg)](package.json)
+[![Version 0.6.6](https://img.shields.io/badge/version-0.6.6-blue.svg)](package.json)
 [![Play Online](https://img.shields.io/badge/Play-GitHub%20Pages-brightgreen.svg)](https://mars-tw.github.io/tower-defense-skill/)
 
 ![無盡塔防封面](assets/cover.png)
@@ -11,7 +11,7 @@
 
 **[立即線上遊玩](https://mars-tw.github.io/tower-defense-skill/)**
 
-目前版本：`0.6.5`／PWA 快取版本 `td-r65-v1`（R65）。
+目前版本：`0.6.6`／PWA 快取版本 `td-r66-v1`（R66）。
 
 ## 遊戲畫面
 

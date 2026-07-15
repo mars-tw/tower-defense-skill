@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r65-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r66-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -775,18 +775,18 @@
     background: rgba(3,10,7,.42); box-shadow: inset 0 0 0 1px rgba(255,255,255,.035);
   }
   .battlefield-stage .battlefield-scroll {
-    width: 100%; height: 100%; max-height: none; align-items: center; justify-content: center;
+    position: relative; z-index: 1; width: 100%; height: 100%; max-height: none; align-items: center; justify-content: center;
     overflow: auto; scrollbar-width: thin; overscroll-behavior: contain; border-radius: 14px;
   }
   .battlefield-stage canvas { max-width: none; max-height: none; flex: 0 0 auto; }
 
   .scene-controls {
-    position: absolute; z-index: 48; left: 50%; bottom: 10px; transform: translateX(-50%);
+    position: absolute; z-index: 90; left: 50%; bottom: 10px; transform: translateX(-50%);
     display: grid; gap: 6px; width: min(980px, calc(100% - 18px)); padding: 7px 9px;
     border: 1px solid rgba(255,255,255,.16); border-radius: 16px;
     background: linear-gradient(180deg, rgba(20,38,29,.93), rgba(6,15,10,.96));
     box-shadow: 0 12px 34px rgba(0,0,0,.56), inset 0 1px 0 rgba(255,255,255,.07);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px); pointer-events: auto;
   }
   .dock-row { display: flex; align-items: center; min-width: 0; gap: 7px; }
   .dock-label { flex: 0 0 auto; color: #d8e8dc; font-size: 11px; font-weight: 900; white-space: nowrap; }
@@ -851,7 +851,7 @@
   .scene-controls .wave-start { min-width: 142px; }
   .scene-controls .wave-start .start { min-width: 142px; }
   .scene-controls .wave-speed { gap: 4px; }
-  .scene-controls .wave-speed .act { flex: 0 0 42px; padding-inline: 5px; }
+  .scene-controls .wave-speed .act { flex: 0 0 44px; padding-inline: 5px; }
   .scene-controls .settings-btn { flex: 0 0 44px; width: 44px; }
 
   .panel { flex: 0 0 clamp(238px, 17vw, 292px); width: clamp(238px, 17vw, 292px); max-height: 100%; overflow-y: auto; }
@@ -904,7 +904,7 @@
   }
 
   @media (max-width: 900px) {
-    :root { --r64-control-height: 164px; }
+    :root { --r64-control-height: 208px; }
     body { padding-bottom: calc(var(--r64-control-height) + max(6px, env(safe-area-inset-bottom))); }
     h1 { flex: 0 0 auto; }
     .wrap { flex-direction: column; gap: 5px; }
@@ -928,10 +928,14 @@
     .scene-controls {
       position: fixed; left: max(5px,env(safe-area-inset-left)); right: max(5px,env(safe-area-inset-right));
       bottom: max(4px,env(safe-area-inset-bottom)); transform: none; width: auto; height: var(--r64-control-height);
-      grid-template-rows: 48px 55px 45px; gap: 4px; padding: 6px 7px; border-radius: 15px;
+      grid-template-rows: 96px 52px 45px; gap: 4px; padding: 6px 7px; border-radius: 15px;
     }
-    .build-row { justify-content: flex-start; }
-    #towerList.build-dock { flex: 1 1 auto; justify-content: flex-start; }
+    .build-row { align-items: center; justify-content: flex-start; }
+    .build-row .tower-title { width: 44px; line-height: 1.1; text-align: center; white-space: normal; }
+    #towerList.build-dock {
+      flex: 1 1 auto; flex-wrap: wrap; align-content: center; justify-content: center;
+      row-gap: 4px; column-gap: 4px; overflow: visible; padding: 0;
+    }
     .tower-scroll-hint { display: none; }
     .action-row { display: contents; }
     .skill-group { grid-row: 2; justify-content: center; overflow: hidden; }
@@ -941,7 +945,7 @@
     }
     .scene-controls .wave-start { flex: 1 1 auto; min-width: 0; }
     .scene-controls .wave-start .start { min-width: 0; }
-    .scene-controls button.act { min-height: 43px; padding-block: 6px; }
+    .scene-controls button.act { min-height: 44px; padding-block: 6px; }
     .scene-bubble { position: absolute; max-height: none; overflow: visible; }
     #towerList .tower-btn, #skillList .skill-btn { width: 44px; min-width: 44px; }
     #skillList .skill-btn { height: 50px; width: 50px; min-width: 50px; }
@@ -968,8 +972,8 @@
     #skillList .skill-btn { flex-basis: 44px; width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
     .scene-controls .hud-core { grid-row: auto; flex: 0 0 auto; min-height: 44px; }
     .scene-controls .wave-start { min-width: 102px; }
-    .scene-controls .wave-speed .act { flex-basis: 36px; }
-    .scene-controls .settings-btn { flex-basis: 40px; width: 40px; }
+    .scene-controls .wave-speed .act { flex-basis: 44px; }
+    .scene-controls .settings-btn { flex-basis: 44px; width: 44px; }
     .battlefield-scroll { width: 100%; height: 100%; flex-basis: auto; }
     .battlefield-scroll canvas { width: 724px; min-width: 724px; height: auto; max-width: none; max-height: none; touch-action: pan-x pan-y; }
   }
@@ -1235,18 +1239,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r65-v1"></script>
-  <script src="src/heroes.js?v=td-r65-v1"></script>
-  <script src="src/rules.js?v=td-r65-v1"></script>
-  <script src="src/lore.js?v=td-r65-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r65-v1"></script>
-  <script src="src/hero-animation.js?v=td-r65-v1"></script>
-  <script src="src/game.js?v=td-r65-v1"></script>
-  <script src="src/ui.js?v=td-r65-v1"></script>
+  <script src="src/config.js?v=td-r66-v1"></script>
+  <script src="src/heroes.js?v=td-r66-v1"></script>
+  <script src="src/rules.js?v=td-r66-v1"></script>
+  <script src="src/lore.js?v=td-r66-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r66-v1"></script>
+  <script src="src/hero-animation.js?v=td-r66-v1"></script>
+  <script src="src/game.js?v=td-r66-v1"></script>
+  <script src="src/ui.js?v=td-r66-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r65-v1";
+      const PWA_VERSION = "td-r66-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

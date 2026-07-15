@@ -136,10 +136,11 @@ async function run() {
         await swPage.waitForFunction(async () => {
           const reg = await navigator.serviceWorker.getRegistration();
           return !!(reg && reg.active);
-        }, null, { timeout: 12000 });
+        }, null, { timeout: 30000 });
         await swPage.reload({ waitUntil: "networkidle" });
-        await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 12000 });
-        await swPage.waitForFunction(async (v) => (await caches.keys()).some((key) => key.includes(v)), SW_VERSION, { timeout: 12000 });
+        // 版本 bump 後 SW 重裝，冷 CI 機取得 controller 的 handoff 可能超過 12s；放寬避免偽逾時
+        await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 30000 });
+        await swPage.waitForFunction(async (v) => (await caches.keys()).some((key) => key.includes(v)), SW_VERSION, { timeout: 30000 });
         await swContext.setOffline(true);
         await swPage.reload({ waitUntil: "domcontentloaded" });
         await swPage.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 12000 });

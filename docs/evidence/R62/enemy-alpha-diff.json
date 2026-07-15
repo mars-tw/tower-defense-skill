@@ -1,0 +1,1053 @@
+{
+  "atlas": "assets/enemies/enemy-animation-atlas.png",
+  "cellSize": 128,
+  "columns": 9,
+  "rows": 18,
+  "thresholdExclusive": 0.08,
+  "enemies": {
+    "slime": {
+      "row": 0,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.082193,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.134518
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.139845
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.082193
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.163389
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.184829
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.190972
+        }
+      ]
+    },
+    "goblin": {
+      "row": 1,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.099993,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.207087
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.213057
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.099993
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.126123
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.178236
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.177326
+        }
+      ]
+    },
+    "orc": {
+      "row": 2,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.107517,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.18179
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.137727
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.126437
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.107517
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.189519
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.159928
+        }
+      ]
+    },
+    "bat": {
+      "row": 3,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.084983,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.229242
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.208281
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.181404
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.084983
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.192159
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.170662
+        }
+      ]
+    },
+    "frostwolf": {
+      "row": 4,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.165065,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.20289
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.182155
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.218836
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.165065
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.214854
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.211022
+        }
+      ]
+    },
+    "imp": {
+      "row": 5,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.115713,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.220252
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.115713
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.179681
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.221463
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.14523
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.164684
+        }
+      ]
+    },
+    "shieldman": {
+      "row": 6,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.12343,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.277036
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.227907
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.12343
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.172091
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.270627
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.22125
+        }
+      ]
+    },
+    "medic": {
+      "row": 7,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.085803,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.177757
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.085803
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.156176
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.180985
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.110918
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.18156
+        }
+      ]
+    },
+    "frostwraith": {
+      "row": 8,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.11744,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.159159
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.21682
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.217032
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.19239
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.192852
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.11744
+        }
+      ]
+    },
+    "lavagolem": {
+      "row": 9,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.156171,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.162786
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.156171
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.211294
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.187706
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.1961
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.176324
+        }
+      ]
+    },
+    "emberbat": {
+      "row": 10,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.119532,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.229517
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.229644
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.239656
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.176019
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.171275
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.119532
+        }
+      ]
+    },
+    "thunderronin": {
+      "row": 11,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.168858,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.219619
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.296082
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.245733
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.188991
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.168858
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.181221
+        }
+      ]
+    },
+    "abysshound": {
+      "row": 12,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.15255,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.15255
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.205013
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.232618
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.160823
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.158197
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.161441
+        }
+      ]
+    },
+    "silencer": {
+      "row": 13,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.126191,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.126191
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.218272
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.192626
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.205946
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.190357
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.136542
+        }
+      ]
+    },
+    "mirrorling": {
+      "row": 14,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.104988,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.156717
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.171189
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.104988
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.173348
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.143084
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.138692
+        }
+      ]
+    },
+    "warden": {
+      "row": 15,
+      "walkFrames": 4,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.087943,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.148925
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.087943
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.104216
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.148238
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.143263
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.111057
+        }
+      ]
+    },
+    "yaksha": {
+      "row": 16,
+      "walkFrames": 6,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.134195,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.164975
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.205743
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.225393
+        },
+        {
+          "frames": [
+            0,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.196363
+        },
+        {
+          "frames": [
+            0,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.137947
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.149866
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.164787
+        },
+        {
+          "frames": [
+            1,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.163598
+        },
+        {
+          "frames": [
+            1,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.150365
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.134195
+        },
+        {
+          "frames": [
+            2,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.192193
+        },
+        {
+          "frames": [
+            2,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.171612
+        },
+        {
+          "frames": [
+            3,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.201067
+        },
+        {
+          "frames": [
+            3,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.200601
+        },
+        {
+          "frames": [
+            4,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.148706
+        }
+      ]
+    },
+    "boss": {
+      "row": 17,
+      "walkFrames": 6,
+      "deathFrames": 3,
+      "normalizationTarget": "existing",
+      "minimumAlphaMeanAbsDiff": 0.084976,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.21333
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.110066
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.142555
+        },
+        {
+          "frames": [
+            0,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.174002
+        },
+        {
+          "frames": [
+            0,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.258508
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.179446
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.146193
+        },
+        {
+          "frames": [
+            1,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.149949
+        },
+        {
+          "frames": [
+            1,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.084976
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.161849
+        },
+        {
+          "frames": [
+            2,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.169127
+        },
+        {
+          "frames": [
+            2,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.21232
+        },
+        {
+          "frames": [
+            3,
+            4
+          ],
+          "alphaMeanAbsDiff": 0.106097
+        },
+        {
+          "frames": [
+            3,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.194509
+        },
+        {
+          "frames": [
+            4,
+            5
+          ],
+          "alphaMeanAbsDiff": 0.187513
+        }
+      ]
+    }
+  }
+}

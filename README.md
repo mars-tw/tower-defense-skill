@@ -2,7 +2,7 @@
 
 [![CI & Deploy Pages](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version 0.6.1](https://img.shields.io/badge/version-0.6.1-blue.svg)](package.json)
+[![Version 0.6.2](https://img.shields.io/badge/version-0.6.2-blue.svg)](package.json)
 [![Play Online](https://img.shields.io/badge/Play-GitHub%20Pages-brightgreen.svg)](https://mars-tw.github.io/tower-defense-skill/)
 
 ![無盡塔防封面](assets/cover.png)
@@ -11,7 +11,7 @@
 
 **[立即線上遊玩](https://mars-tw.github.io/tower-defense-skill/)**
 
-目前版本：`0.6.1`／PWA 快取版本 `td-r61-v1`（R61）。
+目前版本：`0.6.2`／PWA 快取版本 `td-r62-v1`（R62）。
 
 ## 遊戲畫面
 
@@ -22,6 +22,7 @@
 ## 最新特色
 
 - **R61 十塔統一畫風**：弓箭、加農、寒冰、電磁、毒霧、聖光、引魂、狙擊、奧術與墜星臼砲採一致的 Eastern Dark Fantasy 3/4 視角美術。
+- **R62 敵人真幀動畫**：18 種敵人全數採 atlas 裁切步態，普通敵 4 幀、Boss 6 幀，另有受擊白閃與三幀碎裂死亡反應。
 - **神話英雄卡池**：15 位英雄，包含妲己、魔關羽、孫悟空、哪吒、雷震子、牛魔王、白素貞、二郎神與鍾馗；首抽免費、18 抽傳說保底，重複英雄轉為魂晶。
 - **女神升級**：守護女神最高 Lv.8；升級增加生命並回滿，Lv.2 起解鎖自動聖擊。
 - **波次詞綴與事件**：每局從濃霧、餘震、豐收、超載、魔潮、血月抽取風險／報酬詞綴，並穿插狂奔、精英、蟲潮、寶藏等事件波。

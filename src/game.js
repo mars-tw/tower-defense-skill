@@ -699,7 +699,7 @@
       leak: spec.leakOverride == null ? def.leak : spec.leakOverride,
       hp: maxHp, maxHp, shield: maxShield, maxShield, slowUntil: 0, slowFactor: 1, frozenUntil: 0,
       poisonStacks: [], _poisonAcc: 0, _poisonFloatAt: 0, healCd: def.healInterval || 0,
-      walkDist: 0, animSeed: Math.random() * Math.PI * 2, vx: 1, vy: 0, flipX: false, hitFlash: 0, hitKick: 0,
+      walkDist: 0, animSeed: Math.random(), vx: 1, vy: 0, flipX: false, hitFlash: 0, hitKick: 0,
       event: ev, role: spec.role || null, color: spec.colorOverride || (ev && ev.id === "elite" ? "#a855f7" : def.color), // 精英波變色
       _dodgeRoll: Math.random(),
       uid: "e" + seq,
@@ -988,9 +988,9 @@
 
     // 敵人移動
     for (const e of state.enemies) {
-      if (e._dead) continue;
       if (e.hitFlash > 0) e.hitFlash = Math.max(0, e.hitFlash - dt);
       if (e.hitKick > 0) e.hitKick = Math.max(0, e.hitKick - dt);
+      if (e._dead) continue;
       const frozen = e.frozenUntil > state.clock;
       const frostFactor = e.slowUntil > state.clock ? e.slowFactor : 1;
       const beaconFactor = e.beaconSlowUntil > state.clock ? e.beaconSlowFactor : 1;
@@ -1009,7 +1009,13 @@
       if (step >= dist) { e.x = target.x; e.y = target.y; e.wp++; if (e.wp >= state.path.length) leak(e); }
       else { e.x += e.vx * step; e.y += e.vy * step; }
     }
-    state.enemies = state.enemies.filter((e) => !e._dead && !e._leaked);
+    state.enemies = state.enemies.filter((e) => {
+      if (e._leaked) return false;
+      if (!e._dead) return true;
+      const startedAt = Number.isFinite(e.deathStartedAt) ? e.deathStartedAt : state.clock;
+      const duration = e.deathDuration || ENEMY_ANIMATION_ATLAS.deathDuration;
+      return state.clock - startedAt < duration;
+    });
 
     // 塔射擊
     for (const tw of state.towers) {
@@ -1283,6 +1289,8 @@
   function killEnemy(e) {
     if (e._dead) return;
     e._dead = true;
+    e.deathStartedAt = state.clock;
+    e.deathDuration = ENEMY_ANIMATION_ATLAS.deathDuration;
     if (e._waveTracked) {
       state.waveResolved = Math.min(state.waveTotal || Infinity, (state.waveResolved || 0) + 1);
       e._waveTracked = false;
@@ -2438,58 +2446,68 @@
       ctx.fillStyle = auraColor; ctx.fillText(`LV ${lv}`, tw.x, tw.y + baseR + 8);
     }
   }
+  function enemyWalkFrame(e, animation, lowQuality) {
+    const count = animation.walkFrames;
+    const stride = e.boss ? ENEMY_ANIMATION_ATLAS.bossFrameStride : ENEMY_ANIMATION_ATLAS.normalFrameStride;
+    const phase = (e.walkDist || 0) / stride + (e.animSeed || 0) * count;
+    if (lowQuality) return (Math.floor(phase / 2) & 1) ? Math.floor(count / 2) : 0;
+    const frame = Math.floor(phase) % count;
+    return frame < 0 ? frame + count : frame;
+  }
+
+  function drawEnemyAtlasFrame(atlas, animation, column, e, size) {
+    if (atlas && atlas.complete && atlas.naturalWidth > 0) {
+      const cell = ENEMY_ANIMATION_ATLAS.cellSize;
+      ctx.drawImage(atlas, column * cell, animation.row * cell, cell, cell, -size / 2, -size / 2, size, size);
+      return;
+    }
+    // 載入期間只畫靜態 fallback；不對 fallback 做任何假步態 transform。
+    drawSprite(`assets/enemies/${e.id}.png`, e.emoji, 0, 0, size);
+  }
+
   function drawEnemy(e) {
     const size = e.boss ? CELL * 1.1 : CELL * 0.6;
-    const seed = e.animSeed || 0;
-    const frozen = e.frozenUntil > state.clock;
-    const moving = !frozen && ((e.walkDist || 0) > 0 || Math.abs(e.vx || 0) + Math.abs(e.vy || 0) > 0.01);
-    const phase = (e.walkDist || 0) * (e.boss ? 0.14 : 0.24) + seed;
-    const idlePhase = state.clock * (e.boss ? 2.0 : 3.2) + seed;
-    const lift01 = moving ? (Math.sin(phase) + 1) * 0.5 : (e.boss ? 0.35 + Math.sin(idlePhase) * 0.12 : 0.22);
-    const animScale = performanceLow() ? 0.42 : 1;
-    const bobAmp = (e.boss ? 3.2 : 4.4) * animScale;
-    const bob = moving ? -lift01 * bobAmp : Math.sin(idlePhase) * (e.boss ? 1.8 : 0.7) * animScale;
-    const waddle = moving
-      ? Math.sin(phase + Math.PI / 2) * (e.boss ? 0.038 : 0.08) * animScale
-      : Math.sin(idlePhase) * (e.boss ? 0.048 : 0.022) * animScale;
-    const breath = e.boss ? Math.sin(idlePhase) * 0.045 * animScale : 0;
-    let scaleX = moving ? 1 + (0.07 - 0.11 * lift01) * animScale : 1;
-    let scaleY = moving ? 1 + (-0.06 + 0.14 * lift01) * animScale : 1 + (e.boss ? breath : Math.sin(idlePhase) * 0.012 * animScale);
-    if (e.boss) {
-      scaleX *= 1 + breath * 0.45;
-      scaleY *= 1 + breath * 0.75;
-    }
+    const animation = ENEMY_ANIMATIONS[e.id] || ENEMY_ANIMATIONS.slime;
+    const atlas = getImg(ENEMY_ANIMATION_ATLAS.src, true);
+    const lowQuality = performanceLow();
     const reduced = reducedFlashEnabled();
     const kick01 = reduced ? 0 : Math.min(1, (e.hitKick || 0) / 0.12);
-    const shake = kick01 > 0 ? Math.sin(state.clock * 90 + seed) * kick01 * (e.boss ? 3.0 : 2.2) : 0;
     const knock = kick01 * (e.boss ? 7.5 : 5.5);
-    const drawX = e.x + (e.hitDirX || 0) * knock + shake;
-    const drawY = e.y + bob + (e.hitDirY || 0) * knock * 0.45;
-    const shadowScale = Math.max(0.58, 1 - lift01 * (e.boss ? 0.18 : 0.28));
-    const shadowAlpha = Math.max(0.12, (e.boss ? 0.34 : 0.26) - lift01 * 0.12);
+    const drawX = e.x + (e.hitDirX || 0) * knock;
+    const drawY = e.y + (e.hitDirY || 0) * knock * 0.45;
+    let frameColumn = enemyWalkFrame(e, animation, lowQuality);
+    let spriteAlpha = 1;
+    if (e._dead) {
+      const startedAt = Number.isFinite(e.deathStartedAt) ? e.deathStartedAt : state.clock;
+      const duration = e.deathDuration || ENEMY_ANIMATION_ATLAS.deathDuration;
+      const progress = Math.max(0, Math.min(0.999, (state.clock - startedAt) / duration));
+      frameColumn = ENEMY_ANIMATION_ATLAS.deathStart + Math.min(ENEMY_ANIMATION_ATLAS.deathFrames - 1, Math.floor(progress * ENEMY_ANIMATION_ATLAS.deathFrames));
+      if (progress > 0.68) spriteAlpha = Math.max(0, (1 - progress) / 0.32);
+    }
 
     ctx.save();
-    ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+    ctx.globalAlpha = spriteAlpha;
+    ctx.fillStyle = e.boss ? "rgba(0,0,0,.34)" : "rgba(0,0,0,.26)";
     ctx.beginPath();
-    ctx.ellipse(e.x, e.y + size * 0.38, size * (e.boss ? 0.48 : 0.43) * shadowScale, size * (e.boss ? 0.17 : 0.14) * shadowScale, 0, 0, Math.PI * 2);
+    ctx.ellipse(e.x, e.y + size * 0.38, size * (e.boss ? 0.48 : 0.43), size * (e.boss ? 0.17 : 0.14), 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 
     ctx.save();
     ctx.translate(drawX, drawY);
-    ctx.rotate(waddle);
-    ctx.scale((e.flipX ? -1 : 1) * scaleX, scaleY);
-    drawSprite(`assets/enemies/${e.id}.png`, e.emoji, 0, 0, size);
+    ctx.scale(e.flipX ? -1 : 1, 1);
+    ctx.globalAlpha = spriteAlpha;
+    drawEnemyAtlasFrame(atlas, animation, frameColumn, e, size);
     const flash = reduced ? 0 : (e.hitFlash || 0);
-    if (flash > 0) {
-      ctx.globalAlpha = Math.min(0.62, flash / 0.14 * 0.58);
-      ctx.fillStyle = "#fff";
-      ctx.beginPath();
-      ctx.ellipse(0, 0, size * 0.44, size * 0.44, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+    if (flash > 0 && !e._dead) {
+      ctx.globalAlpha = Math.min(0.78, flash / 0.14 * 0.72);
+      ctx.filter = "brightness(0) saturate(100%) invert(1)";
+      drawEnemyAtlasFrame(atlas, animation, frameColumn, e, size);
     }
     ctx.restore();
+
+    // 死亡碎裂播完前保留在 state.enemies；屍體不畫血條或狀態環。
+    if (e._dead) return;
 
     // 血條（V3：圓角漸層）
     drawHealthBar(drawX - size / 2, drawY - size / 2 - 9, size, 5, Math.max(0, e.hp / e.maxHp));
@@ -2901,6 +2919,11 @@
       fireTower: (tw, target) => fire(tw, target),
       acquireTarget: (tw) => acquireTarget(tw),
       applyDamage: (enemy, amount, opts) => applyDamage(enemy, amount, opts),
+      killEnemy: (enemy) => killEnemy(enemy),
+      enemyAnimationColumn: (enemy, lowQuality) => {
+        const animation = ENEMY_ANIMATIONS[enemy.id] || ENEMY_ANIMATIONS.slime;
+        return enemy._dead ? ENEMY_ANIMATION_ATLAS.deathStart : enemyWalkFrame(enemy, animation, !!lowQuality);
+      },
       castSkill: (id, x, y) => castSkill(id, x, y),
       playSfx,
       pushParticle: (p, allowReduced) => pushParticle(p, allowReduced),

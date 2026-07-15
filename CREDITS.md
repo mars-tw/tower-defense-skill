@@ -1,6 +1,6 @@
 # 素材來源與授權
 
-本文件盤點遊戲執行時使用的素材與開發期第三方工具。R61 目前在 `assets/` 內共有 88 個檔案：82 個專案自有／專案製作素材，以及 6 個 Kenney CC0 粒子素材。
+本文件盤點遊戲執行時使用的素材與開發期第三方工具。R62 目前在 `assets/` 內共有 89 個檔案：83 個專案自有／專案製作素材，以及 6 個 Kenney CC0 粒子素材。
 
 ## 專案自有與 AI 輔助素材
 
@@ -11,6 +11,7 @@
 - `assets/heroes/`：英雄四方向圖與神話英雄立繪。
 - `assets/enemies/`：敵人與 Boss 圖像。
 - `assets/towers/`：R61 統一風格的十座塔。
+- `assets/enemies/enemy-animation-atlas.png`：R62 依既有敵人造型補製的走路／碎裂死亡合併圖集；透明補幀與逐敵 alpha 差量測見 [R62 報告](docs/CODEX_RESPONSE_td_R62.md)。
 - `assets/core/`、`assets/skills/`、`assets/cover.png`：女神、技能與宣傳圖。
 
 `assets/icons/`、`assets/projectiles/` 與 `assets/tiles/` 為本專案製作或由專案素材衍生的介面／戰鬥素材；早期提交沒有逐檔保存生成方式，因此不對其作更細的 AI／手繪分類。R61 的生成與後製驗收細節見 [R61 素材報告](docs/CODEX_RESPONSE_td_R61.md)。

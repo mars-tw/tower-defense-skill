@@ -1,0 +1,112 @@
+[
+  {
+    "file": "assets/tiles/grass1.png",
+    "colors": 5,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/tiles/grass2.png",
+    "colors": 8,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/tiles/grass3.png",
+    "colors": 7,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/tiles/path.png",
+    "colors": 5,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/tiles/rock.png",
+    "colors": 268,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/tiles/bush.png",
+    "colors": 105,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/tiles/tree.png",
+    "colors": 137,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/arrow.png",
+    "colors": 319,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/cannon.png",
+    "colors": 240,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/frost.png",
+    "colors": 279,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/tesla.png",
+    "colors": 368,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/poison.png",
+    "colors": 440,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/support.png",
+    "colors": 360,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/sniper.png",
+    "colors": 283,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/arcane.png",
+    "colors": 268,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/beacon.png",
+    "colors": 480,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/towers/mortar.png",
+    "colors": 233,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/skills/meteor.png",
+    "colors": 41,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/skills/freeze.png",
+    "colors": 17,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/skills/thunder.png",
+    "colors": 30,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/skills/judgment.png",
+    "colors": 45,
+    "size": "1024x1024"
+  },
+  {
+    "file": "assets/skills/sealarray.png",
+    "colors": 38,
+    "size": "1024x1024"
+  }
+]

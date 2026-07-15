@@ -16,6 +16,13 @@
   const ctx = canvas.getContext("2d");
   const W = canvas.width, H = canvas.height;
   const CELL = GAME.cellSize;
+  function usePixelArt(drawCtx) {
+    if (!drawCtx) return;
+    drawCtx.imageSmoothingEnabled = false;
+    drawCtx.webkitImageSmoothingEnabled = false;
+    drawCtx.mozImageSmoothingEnabled = false;
+  }
+  usePixelArt(ctx);
 
   // 依目前地圖即時計算「禁止建塔」的格位（路徑經過的格）
   const blocked = new Set();
@@ -2140,6 +2147,7 @@
     c.width = W;
     c.height = H;
     const bg = c.getContext("2d");
+    usePixelArt(bg);
     let ready = true;
     const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
     bg.fillStyle = visual.ground; bg.fillRect(0, 0, W, H);
@@ -2354,15 +2362,20 @@
       const c = document.createElement("canvas");
       c.width = im.naturalWidth; c.height = im.naturalHeight;
       const cx = c.getContext("2d");
+      usePixelArt(cx);
       cx.drawImage(im, 0, 0);
       const W = c.width, H = c.height;
       const data = cx.getImageData(0, 0, W, H);
       const p = data.data;
       // 取四角顏色平均當背景參考色
       const corners = [[0, 0], [W - 1, 0], [0, H - 1], [W - 1, H - 1]];
-      let br = 0, bg = 0, bb = 0;
-      for (const [x, y] of corners) { const i = (y * W + x) * 4; br += p[i]; bg += p[i + 1]; bb += p[i + 2]; }
-      br /= 4; bg /= 4; bb /= 4;
+      let br = 0, bg = 0, bb = 0, ba = 0;
+      for (const [x, y] of corners) { const i = (y * W + x) * 4; br += p[i]; bg += p[i + 1]; bb += p[i + 2]; ba += p[i + 3]; }
+      br /= 4; bg /= 4; bb /= 4; ba /= 4;
+      if (ba < 16) {
+        c.complete = true; c.naturalWidth = W;
+        return c;
+      }
       const TOL = 60; // 容差：與背景色距離小於此值的像素去除
       for (let i = 0; i < p.length; i += 4) {
         const d = Math.abs(p[i] - br) + Math.abs(p[i + 1] - bg) + Math.abs(p[i + 2] - bb);
@@ -2376,7 +2389,7 @@
   }
   function drawSprite(path, emoji, x, y, size, color) {
     const im = getImg(path);
-    if (im && im.complete && im.naturalWidth > 0) ctx.drawImage(im, x - size / 2, y - size / 2, size, size);
+    if (im && im.complete && im.naturalWidth > 0) { usePixelArt(ctx); ctx.drawImage(im, x - size / 2, y - size / 2, size, size); }
     else { ctx.font = size * 0.8 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(emoji, x, y); }
   }
   function towerVisualStyle(level) {

@@ -115,6 +115,9 @@
     const minRange = t.minRange ? ` · 盲區 ${t.minRange}` : "";
     return `傷 ${t.damage} · 程 ${t.range}${minRange} · 速 ${t.fireRate}/秒${extra}${control}`;
   }
+  function assetIcon(group, id, klass) {
+    return `<span class="${klass} asset-ico" aria-hidden="true"><img src="assets/${group}/${id}.png" alt="" loading="lazy" draggable="false"></span>`;
+  }
   const towerList = $("towerList");
   Object.values(TOWERS).forEach((t) => {
     const btn = document.createElement("button");
@@ -125,7 +128,7 @@
     btn.title = shortcut + (t.desc || t.name);
     btn.setAttribute("aria-label", `${t.name}：${shortcut}${t.desc || stats}`);
     btn.style.setProperty("--tower-color", t.color || "#4ade80");
-    btn.innerHTML = `<span class="ico" aria-hidden="true">${t.emoji}</span><span class="cost">${t.cost}</span>`;
+    btn.innerHTML = `${assetIcon("towers", t.id, "ico")}<span class="cost">${t.cost}</span>`;
     btn.onclick = () => {
       const st = TD.state();
       if (st.selectedTowerType === t.id) { TD.cancelBuild(); }
@@ -145,7 +148,7 @@
     btn.title = shortcut + s.desc;
     btn.setAttribute("aria-label", `${s.name}：${shortcut}${s.desc}`);
     btn.style.setProperty("--skill-color", s.color || "#4ade80");
-    btn.innerHTML = `<span class="ico" aria-hidden="true">${s.emoji}</span><span class="cdtext" data-cd="${s.id}"></span>`;
+    btn.innerHTML = `${assetIcon("skills", s.id, "ico")}<span class="cdtext" data-cd="${s.id}"></span>`;
     btn.onclick = () => { activateSkill(s.id); };
     skillList.appendChild(btn);
   });
@@ -256,7 +259,7 @@
       btn.style.setProperty("--wheel-color", t.color || "#facc15");
       btn.title = `${t.name} · ${t.cost} 金幣`;
       btn.setAttribute("aria-label", `在此建造${t.name}，花費 ${t.cost} 金幣`);
-      btn.innerHTML = `<span class="wheel-ico" aria-hidden="true">${t.emoji}</span><span class="wheel-cost">${t.cost}</span>`;
+      btn.innerHTML = `${assetIcon("towers", t.id, "wheel-ico")}<span class="wheel-cost">${t.cost}</span>`;
       btn.onclick = (ev) => {
         ev.stopPropagation();
         if (TD.buildTowerAt) TD.buildTowerAt(t.id, target.x, target.y);

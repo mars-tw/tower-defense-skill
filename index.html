@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r64-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r65-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -802,6 +802,13 @@
     transform: none;
   }
   #towerList .tower-btn .ico { width: auto; font-size: 24px; line-height: 1; }
+  .asset-ico { display: grid; place-items: center; overflow: visible; pointer-events: none; }
+  .asset-ico img {
+    display: block; width: 100%; height: 100%; object-fit: contain;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,.75)) drop-shadow(0 2px 4px rgba(0,0,0,.45));
+  }
+  #towerList .tower-btn .ico.asset-ico { width: 38px; height: 38px; }
   #towerList .tower-btn .cost {
     position: absolute; right: -2px; bottom: -3px; min-width: 22px; padding: 1px 3px;
     border: 1px solid rgba(250,204,21,.62); border-radius: 999px; color: #fff2a8;
@@ -828,6 +835,7 @@
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
   }
   #skillList .skill-btn .ico { position: relative; z-index: 1; width: auto; font-size: 25px; line-height: 1; }
+  #skillList .skill-btn .ico.asset-ico { width: 40px; height: 40px; }
   #skillList .skill-btn .cdtext {
     position: absolute; z-index: 2; inset: auto 3px 3px; padding: 1px 2px; border-radius: 999px;
     background: rgba(2,6,4,.82); color: #d9f6ff; font-size: 9px; line-height: 1.1; text-align: center;
@@ -885,6 +893,7 @@
     transform: translate(-50%,-50%);
   }
   .wheel-tower-btn .wheel-ico { font-size: 22px; }
+  .wheel-tower-btn .wheel-ico.asset-ico { width: 38px; height: 38px; }
   .wheel-tower-btn .wheel-cost { position: absolute; right: -7px; bottom: -4px; border-radius: 999px; padding: 1px 4px; background: #241703; color: #fde68a; font-size: 9px; font-weight: 900; }
   .wheel-close { left: 50%; top: 50%; width: 64px; height: 64px; border-color: rgba(255,255,255,.2); color: #d9e8dd; font-size: 10px; font-weight: 900; line-height: 1.15; }
 
@@ -1226,18 +1235,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r64-v1"></script>
-  <script src="src/heroes.js?v=td-r64-v1"></script>
-  <script src="src/rules.js?v=td-r64-v1"></script>
-  <script src="src/lore.js?v=td-r64-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r64-v1"></script>
-  <script src="src/hero-animation.js?v=td-r64-v1"></script>
-  <script src="src/game.js?v=td-r64-v1"></script>
-  <script src="src/ui.js?v=td-r64-v1"></script>
+  <script src="src/config.js?v=td-r65-v1"></script>
+  <script src="src/heroes.js?v=td-r65-v1"></script>
+  <script src="src/rules.js?v=td-r65-v1"></script>
+  <script src="src/lore.js?v=td-r65-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r65-v1"></script>
+  <script src="src/hero-animation.js?v=td-r65-v1"></script>
+  <script src="src/game.js?v=td-r65-v1"></script>
+  <script src="src/ui.js?v=td-r65-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r64-v1";
+      const PWA_VERSION = "td-r65-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

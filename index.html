@@ -22,13 +22,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r62-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r63-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
   (() => {
     "use strict";
     if (!("serviceWorker" in navigator)) return;
+    if (new URLSearchParams(location.search).get("r63Evidence")) return;
     const swTest = new URLSearchParams(location.search).get("swtest") === "1";
     if (navigator.webdriver && !swTest) return;
     navigator.serviceWorker.getRegistration()
@@ -998,17 +999,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r62-v1"></script>
-  <script src="src/heroes.js?v=td-r62-v1"></script>
-  <script src="src/rules.js?v=td-r62-v1"></script>
-  <script src="src/lore.js?v=td-r62-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r62-v1"></script>
-  <script src="src/game.js?v=td-r62-v1"></script>
-  <script src="src/ui.js?v=td-r62-v1"></script>
+  <script src="src/config.js?v=td-r63-v1"></script>
+  <script src="src/heroes.js?v=td-r63-v1"></script>
+  <script src="src/rules.js?v=td-r63-v1"></script>
+  <script src="src/lore.js?v=td-r63-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r63-v1"></script>
+  <script src="src/hero-animation.js?v=td-r63-v1"></script>
+  <script src="src/game.js?v=td-r63-v1"></script>
+  <script src="src/ui.js?v=td-r63-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r62-v1";
+      const PWA_VERSION = "td-r63-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";
@@ -1133,6 +1135,7 @@
         showUpdatePrompt(null, "新版本已套用，請在安全時重新整理");
       });
       window.addEventListener("load", () => {
+        if (new URLSearchParams(location.search).get("r63Evidence")) return;
         navigator.serviceWorker.register("sw.js").then((reg) => {
           window.__tdPwa.registration = reg;
           setPwaStatus("離線更新已啟用");

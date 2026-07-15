@@ -83,7 +83,7 @@ async function run() {
       const sw = await fetch("/sw.js").then((r) => r.text());
       const offline = await fetch("/offline.html").then(async (r) => ({ ok: r.ok, text: await r.text() }));
       const regs = navigator.serviceWorker ? await navigator.serviceWorker.getRegistrations() : [];
-      const shellJs = ["src/config.js", "src/heroes.js", "src/rules.js", "src/game.js", "src/ui.js"];
+      const shellJs = ["src/config.js", "src/heroes.js", "src/rules.js", "src/enemy-animation.js", "src/hero-animation.js", "src/game.js", "src/ui.js"];
       return {
         hasManifestLink: !!document.querySelector('link[rel="manifest"]'),
         manifestOk: manifest.ok,
@@ -1892,6 +1892,91 @@ async function run() {
     // 11. 全程無 console error / pageerror
     assert(errors.length === 0, "無 console 錯誤 / pageerror" + (errors.length ? "：" + errors.slice(0, 3).join(" | ") : ""));
 
+    await page.close();
+  }
+
+  // R63：英雄攻擊三段時點與揮空回歸（獨立頁，不污染主流程狀態）
+  {
+    console.log("\n== R63 英雄動畫／攻擊時點 ==");
+    const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
+    const r63Errors = [];
+    page.on("pageerror", (e) => r63Errors.push("pageerror: " + e.message));
+    await page.goto(base, { waitUntil: "networkidle" });
+    await page.waitForFunction(() => window.TD && window.TD.debug && typeof window.TD.debug.heroAnimationColumn === "function");
+    const result = await page.evaluate(() => {
+      window.TD.newGame({ runSeed: 63, affixSeed: 63 });
+      const st = window.TD.state();
+      st.spawnQueue = []; st.enemies = []; st.heroes = []; st.bullets = []; st.particles = [];
+
+      window.TD.deployHero("knight");
+      const melee = st.heroes[0];
+      Object.assign(melee, { x: 300, y: 300, facing: "right", cd: 0, attackPhase: "idle", walkDist: 0 });
+      const target = window.TD.debug.spawnEnemy("slime", { x: 330, y: 300, speed: 0, hp: 300, maxHp: 300, wp: 1 });
+      const meleeHp0 = target.hp;
+      const began = window.TD.debug.beginHeroAttack(melee, target);
+      const input = { phase: melee.attackPhase, hp: target.hp, bullets: st.bullets.length };
+      const windup = window.TD.debug.heroAttackPhaseDuration(melee, "anticipation");
+      window.TD.debug.step(windup - 0.001);
+      const beforeImpact = { phase: melee.attackPhase, hp: target.hp, bullets: st.bullets.length };
+      window.TD.debug.step(0.002);
+      const impact = { phase: melee.attackPhase, hp: target.hp, connected: melee.attackConnected };
+      const impactDuration = window.TD.debug.heroAttackPhaseDuration(melee, "impact");
+      window.TD.debug.step(impactDuration + 0.001);
+      const recovery = { phase: melee.attackPhase, hp: target.hp };
+
+      st.enemies = []; st.bullets = [];
+      Object.assign(melee, { attackPhase: "idle", attackTimer: 0, attackTarget: null, attackConnected: false, cd: 0 });
+      const miss = window.TD.debug.spawnEnemy("slime", { x: 325, y: 300, speed: 0, hp: 300, maxHp: 300, wp: 1 });
+      const missHp0 = miss.hp;
+      window.TD.debug.beginHeroAttack(melee, miss);
+      miss.x = 700;
+      window.TD.debug.step(window.TD.debug.heroAttackPhaseDuration(melee, "anticipation") + 0.001);
+      const whiff = { phase: melee.attackPhase, hp: miss.hp, connected: melee.attackConnected };
+
+      st.enemies = []; st.bullets = [];
+      window.TD.deployHero("archer");
+      const ranged = st.heroes[1];
+      Object.assign(ranged, { x: 400, y: 300, facing: "right", cd: 0, attackPhase: "idle", walkDist: 0 });
+      const rangedTarget = window.TD.debug.spawnEnemy("slime", { x: 400, y: 300, speed: 0, hp: 300, maxHp: 300, wp: 1 });
+      const rangedHp0 = rangedTarget.hp;
+      window.TD.debug.beginHeroAttack(ranged, rangedTarget);
+      const rangedInput = { phase: ranged.attackPhase, hp: rangedTarget.hp, bullets: st.bullets.length };
+      const rangedWindup = window.TD.debug.heroAttackPhaseDuration(ranged, "anticipation");
+      window.TD.debug.step(rangedWindup - 0.001);
+      const rangedBeforeImpact = { phase: ranged.attackPhase, hp: rangedTarget.hp, bullets: st.bullets.length };
+      window.TD.debug.step(0.002);
+      const rangedImpact = { phase: ranged.attackPhase, hp: rangedTarget.hp, bullets: st.bullets.length, connected: ranged.attackConnected };
+
+      st.enemies = []; st.bullets = [];
+      Object.assign(melee, { x: 100, y: 100, attackPhase: "idle", attackTimer: 0, attackTarget: null, cd: 99, walkDist: 0, guardPoint: { x: 220, y: 100 } });
+      window.TD.debug.step(0.1);
+      const locomotion = {
+        moved: melee.x > 100, walkDist: melee.walkDist, moving: melee.moving,
+        frame: window.TD.debug.heroAnimationColumn(melee, false),
+        lowFrame: window.TD.debug.heroAnimationColumn(melee, true),
+      };
+      return { began, meleeHp0, input, beforeImpact, impact, recovery, missHp0, whiff,
+        rangedHp0, rangedInput, rangedBeforeImpact, rangedImpact, locomotion };
+    });
+    assert(result.began && result.input.phase === "anticipation" && result.input.hp === result.meleeHp0 && result.input.bullets === 0,
+      "近戰輸入當下只進 anticipation，未傷害／未建立 hitbox");
+    assert(result.beforeImpact.phase === "anticipation" && result.beforeImpact.hp === result.meleeHp0,
+      "近戰 windup 結束前 HP 完全不變");
+    assert(result.impact.phase === "impact" && result.impact.hp < result.meleeHp0 && result.impact.connected,
+      "近戰傷害只在 impact 幀結算");
+    assert(result.recovery.phase === "recovery" && result.recovery.hp === result.impact.hp,
+      "近戰 recovery 不重複結算傷害");
+    assert(result.whiff.phase === "impact" && result.whiff.hp === result.missHp0 && !result.whiff.connected,
+      "目標離開 active range 時揮空不結算");
+    assert(result.rangedInput.phase === "anticipation" && result.rangedInput.hp === result.rangedHp0 && result.rangedInput.bullets === 0 &&
+      result.rangedBeforeImpact.phase === "anticipation" && result.rangedBeforeImpact.hp === result.rangedHp0 && result.rangedBeforeImpact.bullets === 0,
+      "遠程 windup 期間未建立子彈且 HP 不變");
+    assert(result.rangedImpact.phase === "impact" && result.rangedImpact.hp < result.rangedHp0 && result.rangedImpact.connected,
+      "遠程 active hitbox 只在 impact 建立並於碰撞命中");
+    assert(result.locomotion.moved && result.locomotion.walkDist > 0 && result.locomotion.moving &&
+      Number.isInteger(result.locomotion.frame) && Number.isInteger(result.locomotion.lowFrame),
+      `英雄 physics root 移動時累積 walkDist 並選 atlas 幀（${result.locomotion.walkDist.toFixed(2)}）`);
+    assert(r63Errors.length === 0, "R63 攻擊回歸頁無 pageerror" + (r63Errors.length ? "：" + r63Errors.join(" | ") : ""));
     await page.close();
   }
 

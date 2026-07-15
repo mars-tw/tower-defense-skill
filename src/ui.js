@@ -1840,6 +1840,14 @@
     const el = $("bestWave"); if (el) el.textContent = m.bestWave;
   })();
 
+  // R63 自動化驗收場景只呈現戰場，避免首次進入流程遮住動畫證據。
+  if (new URLSearchParams(window.location.search).get("r63Evidence")) {
+    ["tutorial", "diffOverlay", "mapOverlay"].forEach((id) => {
+      const overlay = $(id);
+      if (overlay) overlay.classList.remove("show");
+    });
+  }
+
   renderRoster();
   refreshUI();
   if (!drainedIntroCount) pushLog("放置砲塔、抽英雄上場守護女神！火克冰、冰克雷、雷克火。");

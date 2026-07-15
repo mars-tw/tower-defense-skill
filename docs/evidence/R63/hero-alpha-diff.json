@@ -1,0 +1,1489 @@
+{
+  "atlas": "assets/heroes/hero-animation-atlas.png",
+  "cellSize": 128,
+  "columns": 7,
+  "rows": 42,
+  "walkColumns": 4,
+  "attackStart": 4,
+  "thresholdExclusive": 0.08,
+  "animationRows": {
+    "knight": {
+      "down": 0,
+      "up": 1,
+      "left": 2,
+      "right": 3
+    },
+    "archer": {
+      "down": 4,
+      "up": 5,
+      "left": 6,
+      "right": 7
+    },
+    "mage": {
+      "down": 8,
+      "up": 9,
+      "left": 10,
+      "right": 11
+    },
+    "iceMage": {
+      "down": 12,
+      "up": 13,
+      "left": 14,
+      "right": 15
+    },
+    "valkyrie": {
+      "down": 16,
+      "up": 17,
+      "left": 18,
+      "right": 19
+    },
+    "cleric": {
+      "down": 20,
+      "up": 21,
+      "left": 22,
+      "right": 23
+    },
+    "daji": {
+      "down": 24,
+      "up": 24,
+      "right": 24,
+      "left": 25
+    },
+    "guanyu": {
+      "down": 26,
+      "up": 26,
+      "right": 26,
+      "left": 27
+    },
+    "wukong": {
+      "down": 28,
+      "up": 28,
+      "right": 28,
+      "left": 29
+    },
+    "nezha": {
+      "down": 30,
+      "up": 30,
+      "right": 30,
+      "left": 31
+    },
+    "leizhenzi": {
+      "down": 32,
+      "up": 32,
+      "right": 32,
+      "left": 33
+    },
+    "niumowang": {
+      "down": 34,
+      "up": 34,
+      "right": 34,
+      "left": 35
+    },
+    "baisuzhen": {
+      "down": 36,
+      "up": 36,
+      "right": 36,
+      "left": 37
+    },
+    "erlangshen": {
+      "down": 38,
+      "up": 38,
+      "right": 38,
+      "left": 39
+    },
+    "zhongkui": {
+      "down": 40,
+      "up": 40,
+      "right": 40,
+      "left": 41
+    }
+  },
+  "animations": {
+    "knight:down": {
+      "row": 0,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.288657,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.288657
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.260285,
+        0.212825
+      ]
+    },
+    "knight:up": {
+      "row": 1,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.4227,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.4227
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.321485,
+        0.287589
+      ]
+    },
+    "knight:left": {
+      "row": 2,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.18011,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.18011
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.177304,
+        0.105674
+      ]
+    },
+    "knight:right": {
+      "row": 3,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.436927,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.436927
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.229788,
+        0.297958
+      ]
+    },
+    "archer:down": {
+      "row": 4,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.463116,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.463116
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.250831,
+        0.506858
+      ]
+    },
+    "archer:up": {
+      "row": 5,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.402741,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.402741
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.20323,
+        0.535808
+      ]
+    },
+    "archer:left": {
+      "row": 6,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.565365,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.565365
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.238785,
+        0.498127
+      ]
+    },
+    "archer:right": {
+      "row": 7,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.577693,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.577693
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.17826,
+        0.537408
+      ]
+    },
+    "mage:down": {
+      "row": 8,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.305422,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.305422
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.328202,
+        0.233037
+      ]
+    },
+    "mage:up": {
+      "row": 9,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.303216,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.303216
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.21363,
+        0.282774
+      ]
+    },
+    "mage:left": {
+      "row": 10,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.3478,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.3478
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.378572,
+        0.14727
+      ]
+    },
+    "mage:right": {
+      "row": 11,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.462434,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.462434
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.373253,
+        0.518904
+      ]
+    },
+    "iceMage:down": {
+      "row": 12,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.368962,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.368962
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.465632,
+        0.41967
+      ]
+    },
+    "iceMage:up": {
+      "row": 13,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.180178,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.180178
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.312956,
+        0.345405
+      ]
+    },
+    "iceMage:left": {
+      "row": 14,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.266187,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.266187
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.284441,
+        0.407939
+      ]
+    },
+    "iceMage:right": {
+      "row": 15,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.409415,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.409415
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.260744,
+        0.37457
+      ]
+    },
+    "valkyrie:down": {
+      "row": 16,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.604381,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.604381
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.220352,
+        0.534182
+      ]
+    },
+    "valkyrie:up": {
+      "row": 17,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.564075,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.564075
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.319969,
+        0.305992
+      ]
+    },
+    "valkyrie:left": {
+      "row": 18,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.519416,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.519416
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.308825,
+        0.31715
+      ]
+    },
+    "valkyrie:right": {
+      "row": 19,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.597314,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.597314
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.220484,
+        0.423414
+      ]
+    },
+    "cleric:down": {
+      "row": 20,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.375998,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.375998
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.28482,
+        0.169527
+      ]
+    },
+    "cleric:up": {
+      "row": 21,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.136792,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.136792
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.20241,
+        0.096845
+      ]
+    },
+    "cleric:left": {
+      "row": 22,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.223139,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.223139
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.185252,
+        0.130457
+      ]
+    },
+    "cleric:right": {
+      "row": 23,
+      "walkFrames": 2,
+      "minimumAlphaMeanAbsDiff": 0.170435,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.170435
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.23705,
+        0.169452
+      ]
+    },
+    "daji:default": {
+      "row": 24,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.085976,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.104349
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.105074
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.12268
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.12966
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.164072
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.085976
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.215915,
+        0.161608
+      ]
+    },
+    "daji:left": {
+      "row": 25,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.085976,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.104349
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.105074
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.12268
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.12966
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.164072
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.085976
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.215915,
+        0.161608
+      ]
+    },
+    "guanyu:default": {
+      "row": 26,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.119868,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.146298
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.221639
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.229234
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.173028
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.186497
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.119868
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.212937,
+        0.212944
+      ]
+    },
+    "guanyu:left": {
+      "row": 27,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.119868,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.146298
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.221639
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.229234
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.173028
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.186497
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.119868
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.212937,
+        0.212944
+      ]
+    },
+    "wukong:default": {
+      "row": 28,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.154319,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.211505
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.183645
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.195726
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.173385
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.154319
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.173644
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.199011,
+        0.251169
+      ]
+    },
+    "wukong:left": {
+      "row": 29,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.154319,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.211505
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.183645
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.195726
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.173385
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.154319
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.173644
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.199011,
+        0.251169
+      ]
+    },
+    "nezha:default": {
+      "row": 30,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.196222,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.217263
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.254868
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.206084
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.209238
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.218503
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.196222
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.272829,
+        0.272151
+      ]
+    },
+    "nezha:left": {
+      "row": 31,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.196222,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.217263
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.254868
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.206084
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.209238
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.218503
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.196222
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.272829,
+        0.272151
+      ]
+    },
+    "leizhenzi:default": {
+      "row": 32,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.158898,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.210835
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.18772
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.205662
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.204315
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.211009
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.158898
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.261607,
+        0.244314
+      ]
+    },
+    "leizhenzi:left": {
+      "row": 33,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.158898,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.210835
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.18772
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.205662
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.204315
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.211009
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.158898
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.261607,
+        0.244314
+      ]
+    },
+    "niumowang:default": {
+      "row": 34,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.106737,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.219325
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.207364
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.258988
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.106737
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.128496
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.118769
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.204799,
+        0.215884
+      ]
+    },
+    "niumowang:left": {
+      "row": 35,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.106737,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.219325
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.207364
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.258988
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.106737
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.128496
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.118769
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.204799,
+        0.215884
+      ]
+    },
+    "baisuzhen:default": {
+      "row": 36,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.083848,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.083848
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.132441
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.152919
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.1374
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.153558
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.118943
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.171719,
+        0.216297
+      ]
+    },
+    "baisuzhen:left": {
+      "row": 37,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.083848,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.083848
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.132441
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.152919
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.1374
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.153558
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.118943
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.171719,
+        0.216297
+      ]
+    },
+    "erlangshen:default": {
+      "row": 38,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.109051,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.17705
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.165084
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.162459
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.109051
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.138297
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.145599
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.281719,
+        0.227645
+      ]
+    },
+    "erlangshen:left": {
+      "row": 39,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.109051,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.17705
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.165084
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.162459
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.109051
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.138297
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.145599
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.281719,
+        0.227645
+      ]
+    },
+    "zhongkui:default": {
+      "row": 40,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.091475,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.131594
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.111318
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.126804
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.135215
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.091475
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.125342
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.281921,
+        0.196135
+      ]
+    },
+    "zhongkui:left": {
+      "row": 41,
+      "walkFrames": 4,
+      "minimumAlphaMeanAbsDiff": 0.091475,
+      "pairs": [
+        {
+          "frames": [
+            0,
+            1
+          ],
+          "alphaMeanAbsDiff": 0.131594
+        },
+        {
+          "frames": [
+            0,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.111318
+        },
+        {
+          "frames": [
+            0,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.126804
+        },
+        {
+          "frames": [
+            1,
+            2
+          ],
+          "alphaMeanAbsDiff": 0.135215
+        },
+        {
+          "frames": [
+            1,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.091475
+        },
+        {
+          "frames": [
+            2,
+            3
+          ],
+          "alphaMeanAbsDiff": 0.125342
+        }
+      ],
+      "attackPhaseDiffs": [
+        0.281921,
+        0.196135
+      ]
+    }
+  }
+}

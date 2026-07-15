@@ -74,6 +74,7 @@
   let loopToken = 0;
   let uiRefreshScheduled = false;
   let reducedFlashCache;
+  let forceEnemyAtlasFallback = false;
   let reducedEffectsCache;
   let audioMutedCache;
   const MAX_PARTICLES = 220;
@@ -1138,6 +1139,8 @@
       x: end.x - 60 + (Math.random() * 40 - 20), y: end.y - 60 + (Math.random() * 40 - 20),
       hp: maxHp, maxHp,
       facing: "down", cd: 0, hitFlash: 0, uid: "h" + (Math.random() * 1e9 | 0),
+      walkDist: 0, animSeed: Math.random(), moving: false,
+      attackPhase: "idle", attackTimer: 0, attackTarget: null, attackConnected: false,
     };
     state.heroes.push(h);
     log(`${def.name} 上場！`);
@@ -1160,11 +1163,27 @@
   }
 
   const HERO_GUARD_RADIUS = 130; // 駐守英雄的防守範圍
+  const HERO_ATTACK_PHASE = Object.freeze({
+    IDLE: "idle", ANTICIPATION: "anticipation", IMPACT: "impact", RECOVERY: "recovery",
+  });
+
+  function heroAttackPhaseDuration(def, phase) {
+    const interval = 1 / def.atkRate;
+    if (phase === HERO_ATTACK_PHASE.ANTICIPATION) return Math.max(0.1, Math.min(0.24, interval * 0.28));
+    if (phase === HERO_ATTACK_PHASE.IMPACT) return Math.max(0.055, Math.min(0.09, interval * 0.12));
+    if (phase === HERO_ATTACK_PHASE.RECOVERY) return Math.max(0.12, Math.min(0.28, interval * 0.3));
+    return 0;
+  }
+
   function updateHero(h, dt) {
     const def = HEROES[h.id];
+    h.moving = false;
     if (h.hitFlash > 0) h.hitFlash = Math.max(0, h.hitFlash - dt);
+    h.cd = Math.max(0, (h.cd || 0) - dt);
+    if (updateHeroAttack(h, dt)) return;
     // 待命/駐守點：有 guardPoint 用駐守點，否則女神身邊
-    const home = h.guardPoint || { x: state.goddess.x - 50, y: state.goddess.y - 50 };
+    const homeX = h.guardPoint ? h.guardPoint.x : state.goddess.x - 50;
+    const homeY = h.guardPoint ? h.guardPoint.y : state.goddess.y - 50;
     // 尋找敵人；駐守模式只鎖定駐守範圍內的敵人
     let target = null, best = Infinity;
     for (const e of state.enemies) {
@@ -1172,14 +1191,13 @@
       const d = Math.hypot(e.x - h.x, e.y - h.y);
       // 駐守模式：只打駐守點半徑內的敵人（不追遠的）
       if (h.guardPoint) {
-        const dh = Math.hypot(e.x - home.x, e.y - home.y);
+        const dh = Math.hypot(e.x - homeX, e.y - homeY);
         if (dh > HERO_GUARD_RADIUS + def.range) continue;
       }
       if (d < best) { best = d; target = e; }
     }
-    h.cd -= dt;
     if (!target) {
-      moveToward(h, home.x, home.y, def.speed, dt); // 無目標：回家/駐守點
+      moveToward(h, homeX, homeY, def.speed, dt); // 無目標：回家/駐守點
       return;
     }
     const range = def.range;
@@ -1187,7 +1205,7 @@
       moveToward(h, target.x, target.y, def.speed, dt); // 追敵
     } else {
       faceToward(h, target.x, target.y);
-      if (h.cd <= 0) { heroAttack(h, target); h.cd = 1 / def.atkRate; }
+      if (h.cd <= 0) heroAttack(h, target);
     }
   }
 
@@ -1205,18 +1223,61 @@
     faceToward(h, tx, ty); // 先定朝向，再移動
     const step = Math.min(d, speed * dt);
     h.x += (dx / d) * step; h.y += (dy / d) * step;
+    h.walkDist = (h.walkDist || 0) + step;
+    h.moving = step > 0;
   }
 
+  // 攻擊輸入只進入前搖；此函式不得造成傷害或建立子彈。
   function heroAttack(h, target) {
     const def = HEROES[h.id];
+    if (!target || target._dead || (h.attackPhase && h.attackPhase !== HERO_ATTACK_PHASE.IDLE)) return false;
+    faceToward(h, target.x, target.y);
+    h.attackPhase = HERO_ATTACK_PHASE.ANTICIPATION;
+    h.attackTimer = heroAttackPhaseDuration(def, HERO_ATTACK_PHASE.ANTICIPATION);
+    h.attackTarget = target;
+    h.attackConnected = false;
+    h.cd = 1 / def.atkRate;
+    return true;
+  }
+
+  function updateHeroAttack(h, dt) {
+    if (!h.attackPhase || h.attackPhase === HERO_ATTACK_PHASE.IDLE) return false;
+    const def = HEROES[h.id];
+    let remaining = Math.max(0, dt);
+    while (h.attackPhase !== HERO_ATTACK_PHASE.IDLE && remaining >= h.attackTimer) {
+      remaining -= h.attackTimer;
+      if (h.attackPhase === HERO_ATTACK_PHASE.ANTICIPATION) {
+        h.attackPhase = HERO_ATTACK_PHASE.IMPACT;
+        h.attackTimer = heroAttackPhaseDuration(def, HERO_ATTACK_PHASE.IMPACT);
+        resolveHeroAttackImpact(h);
+      } else if (h.attackPhase === HERO_ATTACK_PHASE.IMPACT) {
+        h.attackPhase = HERO_ATTACK_PHASE.RECOVERY;
+        h.attackTimer = heroAttackPhaseDuration(def, HERO_ATTACK_PHASE.RECOVERY);
+      } else {
+        h.attackPhase = HERO_ATTACK_PHASE.IDLE;
+        h.attackTimer = 0;
+        h.attackTarget = null;
+      }
+    }
+    if (h.attackPhase !== HERO_ATTACK_PHASE.IDLE) h.attackTimer -= remaining;
+    return true;
+  }
+
+  function resolveHeroAttackImpact(h) {
+    const def = HEROES[h.id];
+    const target = h.attackTarget;
+    if (!target || target._dead) return false;
+    const activeRange = def.range + (def.role === "ranged" ? 12 : 18);
+    if (Math.hypot(target.x - h.x, target.y - h.y) > activeRange) return false; // 揮空：impact 無命中
     const atk = heroBattleStat(h, "atk");
+    h.attackConnected = true;
     if (def.role === "ranged") {
-      // 遠程：發射子彈
+      // 遠程 active hitbox 只在 impact 幀建立；實際傷害仍由子彈碰撞結算。
       state.bullets.push({
         x: h.x, y: h.y, target, speed: 360, color: def.color,
         damage: atk, element: def.element, splash: def.splash || 0, slow: def.slow || 0,
         projectile: PROJECTILE_BY_ELEMENT[def.element] || "arrow",
-        _heroOwner: h,
+        _heroOwner: h, activeHitbox: true, attackPhase: HERO_ATTACK_PHASE.IMPACT,
       });
     } else {
       // 近戰：直接造成傷害；有 pierce 時一次掃中多名貼近敵人（孫悟空的連打感）
@@ -1230,7 +1291,7 @@
       }
       for (const t of targets) {
         const mult = elementMultiplier(def.element, t.element);
-        applyDamage(t, atk * mult);
+        applyDamage(t, atk * mult, { source: "hero", element: def.element, attackPhase: HERO_ATTACK_PHASE.IMPACT });
         burst(t.x, t.y, def.color, 8);
         if (t.hp <= 0) { killEnemy(t); grantXp(h, t); }
       }
@@ -1239,6 +1300,7 @@
     if (def.healGoddess) {
       state.goddess.hp = Math.min(state.goddess.maxHp, state.goddess.hp + def.healGoddess);
     }
+    return true;
   }
 
   // 英雄獲得經驗並升級
@@ -1966,45 +2028,42 @@
     ctx.fillText(def.emoji, h.x, h.y);
   }
 
-  function drawSingleHeroSprite(def, h, fallbackSize) {
-    const im = getImg(def.sprite);
-    const iw = (im && (im.naturalWidth || im.width)) || 0;
-    const ih = (im && (im.naturalHeight || im.height)) || 0;
-    if (!im || !im.complete || iw <= 0 || ih <= 0) {
-      drawHeroEmoji(def, h, fallbackSize);
-      return;
-    }
-    const maxSide = def.spriteSize || Math.min(56, Math.max(44, CELL * 1.12));
-    let drawW = maxSide, drawH = maxSide;
-    if (iw >= ih) drawH = maxSide * (ih / iw);
-    else drawW = maxSide * (iw / ih);
-    ctx.save();
-    ctx.translate(h.x, h.y);
-    if (h.facing === "left") ctx.scale(-1, 1);
-    ctx.drawImage(im, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.restore();
+  function heroWalkFrame(h, animation, lowQuality) {
+    const count = animation.walkFrames;
+    if (!h.moving) return 0;
+    const stride = lowQuality ? HERO_ANIMATION_ATLAS.lowWalkFrameStride : HERO_ANIMATION_ATLAS.walkFrameStride;
+    const phase = (h.walkDist || 0) / stride + (h.animSeed || 0) * count;
+    const frame = Math.floor(phase) % count;
+    return frame < 0 ? frame + count : frame;
   }
 
-  // 英雄繪製（單張 sprite / 四方向精靈圖；圖片不可用時退回 emoji）
+  function heroAnimationColumn(h, animation, lowQuality) {
+    if (h.attackPhase === HERO_ATTACK_PHASE.ANTICIPATION) return HERO_ANIMATION_ATLAS.anticipationColumn;
+    if (h.attackPhase === HERO_ATTACK_PHASE.IMPACT) return HERO_ANIMATION_ATLAS.impactColumn;
+    if (h.attackPhase === HERO_ATTACK_PHASE.RECOVERY) return HERO_ANIMATION_ATLAS.recoveryColumn;
+    return heroWalkFrame(h, animation, lowQuality);
+  }
+
+  function drawHeroAtlasFrame(atlas, animation, column, h, size) {
+    if (!atlas || !atlas.complete || atlas.naturalWidth <= 0) return false;
+    const cell = HERO_ANIMATION_ATLAS.cellSize;
+    const row = animation.rows[h.facing] == null ? animation.rows.down : animation.rows[h.facing];
+    ctx.drawImage(atlas, column * cell, row * cell, cell, cell, h.x - size / 2, h.y - size / 2, size, size);
+    return true;
+  }
+
+  // 英雄繪製：單一 atlas 裁切真幀；載入期間只退回 emoji，不讀舊單張圖。
   function drawHero(h) {
     const def = HEROES[h.id];
-    const size = CELL * 0.85;
+    const animation = HERO_ANIMATIONS[h.id] || HERO_ANIMATIONS.knight;
+    const atlas = getImg(HERO_ANIMATION_ATLAS.src, true);
+    const size = animation.walkFrames > 2 ? Math.min(56, CELL * 1.08) : CELL * 0.9;
+    const frameColumn = heroAnimationColumn(h, animation, performanceLow());
     // 圓形光環底（區別於敵人）
     ctx.strokeStyle = def.color; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(h.x, h.y, size * 0.55, 0, Math.PI * 2); ctx.stroke();
     if (h.hitFlash > 0) { ctx.fillStyle = `rgba(239,68,68,${h.hitFlash})`; ctx.beginPath(); ctx.arc(h.x, h.y, size * 0.6, 0, Math.PI * 2); ctx.fill(); }
-    if (def.sprite) {
-      drawSingleHeroSprite(def, h, size);
-    } else if (def.sprites && def.sprites[h.facing]) {
-      const spritePath = def.sprites[h.facing];
-      const im = getImg(spritePath);
-      if (im && im.complete && im.naturalWidth > 0) {
-        // left 方向用右圖水平翻轉（若只有 right），這裡假設四方向都有
-        ctx.drawImage(im, h.x - size / 2, h.y - size / 2, size, size);
-      } else drawSprite(spritePath, def.emoji, h.x, h.y, size);
-    } else {
-      drawHeroEmoji(def, h, size);
-    }
+    if (!drawHeroAtlasFrame(atlas, animation, frameColumn, h, size)) drawHeroEmoji(def, h, size);
     // 血條（V3 圓角漸層）
     drawHealthBar(h.x - size / 2, h.y - size / 2 - 9, size, 5, Math.max(0, h.hp / h.maxHp));
     // 等級（描邊）
@@ -2456,13 +2515,21 @@
   }
 
   function drawEnemyAtlasFrame(atlas, animation, column, e, size) {
-    if (atlas && atlas.complete && atlas.naturalWidth > 0) {
+    if (!forceEnemyAtlasFallback && atlas && atlas.complete && atlas.naturalWidth > 0) {
       const cell = ENEMY_ANIMATION_ATLAS.cellSize;
       ctx.drawImage(atlas, column * cell, animation.row * cell, cell, cell, -size / 2, -size / 2, size, size);
       return;
     }
-    // 載入期間只畫靜態 fallback；不對 fallback 做任何假步態 transform。
-    drawSprite(`assets/enemies/${e.id}.png`, e.emoji, 0, 0, size);
+    // Gen-2 舊 master 有烤入黑底；atlas 載入期間改畫乾淨 Canvas 暫代。
+    ctx.save();
+    ctx.fillStyle = e.color || "#64748b";
+    ctx.strokeStyle = "rgba(255,255,255,.7)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, size * 0.37, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.font = `${Math.max(14, size * 0.54)}px serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(e.emoji || "◆", 0, 1);
+    ctx.restore();
   }
 
   function drawEnemy(e) {
@@ -2924,6 +2991,13 @@
         const animation = ENEMY_ANIMATIONS[enemy.id] || ENEMY_ANIMATIONS.slime;
         return enemy._dead ? ENEMY_ANIMATION_ATLAS.deathStart : enemyWalkFrame(enemy, animation, !!lowQuality);
       },
+      heroAnimationColumn: (hero, lowQuality) => {
+        const animation = HERO_ANIMATIONS[hero.id] || HERO_ANIMATIONS.knight;
+        return heroAnimationColumn(hero, animation, !!lowQuality);
+      },
+      beginHeroAttack: (hero, target) => heroAttack(hero, target),
+      heroAttackPhaseDuration: (hero, phase) => heroAttackPhaseDuration(HEROES[hero.id], phase),
+      forceEnemyAtlasFallback: (enabled) => { forceEnemyAtlasFallback = !!enabled; render(); return forceEnemyAtlasFallback; },
       castSkill: (id, x, y) => castSkill(id, x, y),
       playSfx,
       pushParticle: (p, allowReduced) => pushParticle(p, allowReduced),
@@ -2946,4 +3020,82 @@
     },
     config: { TOWERS, ENEMIES, SKILLS, UPGRADE, GAME, GODDESS, HEROES, HERO_RARITY, GACHA, DIFFICULTIES, MAPS, MAP_AFFIXES, EVENT_WAVES, ACHIEVEMENTS, BEGINNER_MISSIONS },
   };
+
+  // R63 可重現的只讀驗收入口：由 URL 決定場景，瀏覽器不需注入或改寫頁面狀態。
+  function applyR63EvidenceScenario(name) {
+    if (!name || !["walk", "attack", "fallback"].includes(name)) return;
+    newGame();
+    document.documentElement.classList.add("r63-evidence");
+    if (!document.getElementById("r63EvidenceStyle")) {
+      const style = document.createElement("style");
+      style.id = "r63EvidenceStyle";
+      style.textContent = ".r63-evidence .mission-toast,.r63-evidence .bond-toast,.r63-evidence .recovery-toast,.r63-evidence .pwa-update-toast{display:none!important}";
+      document.head.appendChild(style);
+    }
+    state.running = false;
+    state.paused = false;
+    state.heroes.length = 0;
+    state.enemies.length = 0;
+    state.towers.length = 0;
+    state.bullets.length = 0;
+    state.particles.length = 0;
+    state.banner = null;
+    forceEnemyAtlasFallback = name === "fallback";
+
+    const labels = {
+      walk: "R63 · TRUE-FRAME WALK · walkDist 驅動裁幀",
+      attack: "R63 · ANTICIPATION → IMPACT → RECOVERY",
+      fallback: "R63 · GEN-2 CLEAN FALLBACK · 無黑底方塊",
+    };
+    let banner = document.querySelector(".r63-evidence-banner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.className = "r63-evidence-banner";
+      banner.style.cssText = "position:fixed;z-index:9999;top:10px;left:50%;transform:translateX(-50%);padding:8px 14px;border:1px solid #67e8f9;border-radius:999px;background:rgba(2,6,23,.9);color:#e0f2fe;font:700 12px/1.2 ui-monospace,monospace;letter-spacing:.04em;white-space:nowrap;pointer-events:none";
+      document.body.appendChild(banner);
+    }
+    banner.textContent = labels[name];
+
+    if (name === "walk") {
+      const ids = ["knight", "archer", "mage", "valkyrie", "daji", "guanyu", "wukong", "nezha"];
+      for (let index = 0; index < ids.length; index++) {
+        deployHero(ids[index]);
+        const h = state.heroes[state.heroes.length - 1];
+        h.x = 115 + (index % 4) * 150;
+        h.y = 135 + Math.floor(index / 4) * 235;
+        h.guardPoint = { x: h.x + (index % 2 ? -90 : 90), y: h.y + (index < 4 ? 42 : -42) };
+        h.walkDist = 10 + index * 13;
+        h.animSeed = index / ids.length;
+        h.cd = 99;
+        updateHero(h, 0.12);
+      }
+    } else if (name === "attack") {
+      const ids = ["guanyu", "nezha", "mage"];
+      const phases = [HERO_ATTACK_PHASE.ANTICIPATION, HERO_ATTACK_PHASE.IMPACT, HERO_ATTACK_PHASE.RECOVERY];
+      for (let index = 0; index < ids.length; index++) {
+        deployHero(ids[index]);
+        const h = state.heroes[state.heroes.length - 1];
+        h.x = 175 + index * 190;
+        h.y = 350;
+        h.facing = "right";
+        h.attackPhase = phases[index];
+        h.attackTimer = 99;
+        h.cd = 99;
+      }
+    } else {
+      const ids = ["abysshound", "emberbat", "frostwraith", "lavagolem", "thunderronin", "yaksha"];
+      for (let index = 0; index < ids.length; index++) {
+        const e = createEnemy(ids[index], {
+          x: 75 + (index % 3) * 120,
+          y: 160 + Math.floor(index / 3) * 190,
+          speed: 0,
+          walkDist: index * 17,
+        });
+        state.enemies.push(e);
+      }
+    }
+    render();
+  }
+
+  applyR63EvidenceScenario(new URLSearchParams(window.location.search).get("r63Evidence"));
 })();

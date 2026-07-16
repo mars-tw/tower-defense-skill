@@ -93,6 +93,7 @@ console.log("== R41：PWA/可近用性資產 ==");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const sw = fs.readFileSync(swPath, "utf8");
   const index = fs.readFileSync(indexPath, "utf8");
+  const ui = fs.readFileSync(path.join(root, "src", "ui.js"), "utf8");
   const offline = fs.readFileSync(offlinePath, "utf8");
   const icon192 = iconSize("assets/icons/icon-192.png");
   const icon512 = iconSize("assets/icons/icon-512.png");
@@ -135,12 +136,12 @@ console.log("== R41：PWA/可近用性資產 ==");
     "手機殼啟用 viewport-fit 與上下 safe-area 防護");
   assert(index.includes('rel="apple-touch-icon"') && index.includes("apple-mobile-web-app-capable") &&
     index.includes("beforeinstallprompt") && index.includes("installBtn"), "PWA 有 iOS 主畫面 metadata 與產品內安裝入口");
-  const fortifyCount = (index.match(/\.battlefield-scroll canvas\s*\{\s*width:\s*724px/g) || []).length;
-  assert(fortifyCount >= 2 && index.includes("touch-action: pan-x pan-y"),
-    "手機直式與橫式戰場皆具備 ≥36px 格位與可平移容器");
-  assert(index.includes('data-testid="mobile-control-deck"') && index.includes("--r64-control-height") &&
+  assert(index.includes("--r68-canvas-width") && index.includes("grid-template-rows: minmax(0,1fr) auto") &&
+    ui.includes('const host = $("battlefieldScroll")') && ui.includes("Math.min(width / 960, height / 640)"),
+    "R68 手機與桌機以保留控制列後的戰場容器等比顯示完整 960×640 地圖");
+  assert(index.includes('data-testid="mobile-control-deck"') && index.includes("position: relative") &&
     index.includes('data-testid="build-dock"') && index.includes('data-testid="skill-dock"'),
-    "R64 手機常駐底部控制盤整合建塔、技能與波控");
+    "R68 控制盤保留版面整合建塔、技能與波控");
   assert(index.includes('data-testid="build-wheel"') && index.includes('data-testid="tower-action-bubble"') &&
     index.includes('data-testid="goddess-action-bubble"'),
     "R64 空格建塔輪盤、塔操作氣泡與女神就地升級具穩定場景 selector");

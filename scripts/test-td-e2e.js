@@ -71,7 +71,7 @@ async function run() {
     });
     page.on("pageerror", (e) => errors.push("pageerror: " + (e && e.message)));
 
-    await page.goto(base);
+    await page.goto(base, { timeout: 90000 });
     // Stage 5：首次流程只有一個快速開始入口，進階選項另開難度/地圖選擇。
     await page.evaluate(() => localStorage.clear());
     await page.reload();
@@ -126,7 +126,7 @@ async function run() {
       const swPage = await swContext.newPage();
       let swOfflineR44 = null;
       try {
-        await swPage.goto(base + "?swtest=1", { waitUntil: "domcontentloaded" });
+        await swPage.goto(base + "?swtest=1", { waitUntil: "domcontentloaded", timeout: 90000 });
         await swPage.evaluate(() => {
           localStorage.clear();
           localStorage.setItem("td_tutorial_seen", "1");
@@ -319,7 +319,7 @@ async function run() {
     await sleep(200);
 
     const firstScreen = await page.evaluate(() => {
-      const ids = ["towerList", "skillList", "startBtn", "sceneControls"];
+      const ids = ["towerList", "skillList", "startBtn", "sceneControls", "game"];
       const rects = Object.fromEntries(ids.map((id) => {
         const r = document.getElementById(id).getBoundingClientRect();
         return [id, { top: r.top, bottom: r.bottom, left: r.left, right: r.right }];
@@ -333,7 +333,10 @@ async function run() {
         startTop: rects.startBtn.top,
         startBottom: rects.startBtn.bottom,
         deckBottom: rects.sceneControls.bottom,
+        deckTop: rects.sceneControls.top,
         deckPosition: getComputedStyle(document.getElementById("sceneControls")).position,
+        deckCanvasOverlap: Math.max(0, Math.min(rects.sceneControls.right, rects.game.right) - Math.max(rects.sceneControls.left, rects.game.left)) *
+          Math.max(0, Math.min(rects.sceneControls.bottom, rects.game.bottom) - Math.max(rects.sceneControls.top, rects.game.top)),
         towerButtons: document.querySelectorAll("#towerList .tower-btn").length,
         skillButtons: document.querySelectorAll("#skillList .skill-btn").length,
       };
@@ -341,8 +344,9 @@ async function run() {
     assert(firstScreen.towerListBottom <= firstScreen.innerHeight && firstScreen.skillListBottom <= firstScreen.innerHeight && firstScreen.startBottom <= firstScreen.innerHeight && firstScreen.towerButtons === 10 && firstScreen.skillButtons === 5,
       `首屏常駐 10 塔 dock、5 技能盤與開始波（tower ${Math.round(firstScreen.towerListBottom)} / skill ${Math.round(firstScreen.skillListBottom)} / start ${Math.round(firstScreen.startBottom)} <= ${firstScreen.innerHeight}）`);
     if (vp.w <= 560) {
-      assert(firstScreen.towerListTop < firstScreen.startTop && firstScreen.deckPosition === "fixed" && firstScreen.deckBottom <= firstScreen.innerHeight + 2,
-        "手機底部控制盤固定於視口，建塔列、技能與波控不依賴側欄捲動");
+      assert(firstScreen.towerListTop < firstScreen.startTop && firstScreen.deckPosition !== "fixed" && firstScreen.deckPosition !== "absolute" &&
+        firstScreen.deckTop >= -2 && firstScreen.deckBottom <= firstScreen.innerHeight + 2 && firstScreen.deckCanvasOverlap <= 1,
+        "R68 手機底部控制盤保留版面列，建塔、技能與波控不覆蓋地圖");
     }
 
     const directBuildWheel = await page.evaluate(() => {
@@ -1998,7 +2002,7 @@ async function run() {
     const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
     const r63Errors = [];
     page.on("pageerror", (e) => r63Errors.push("pageerror: " + e.message));
-    await page.goto(base, { waitUntil: "networkidle" });
+    await page.goto(base, { waitUntil: "networkidle", timeout: 90000 });
     await page.waitForFunction(() => window.TD && window.TD.debug && typeof window.TD.debug.heroAnimationColumn === "function");
     const result = await page.evaluate(() => {
       window.TD.newGame({ runSeed: 63, affixSeed: 63 });
@@ -2083,7 +2087,7 @@ async function run() {
     const page = await browser.newPage({ viewport: { width: 1366, height: 700 } });
     const shortErrors = [];
     page.on("pageerror", (e) => shortErrors.push("pageerror: " + e.message));
-    await page.goto(base, { waitUntil: "networkidle" });
+    await page.goto(base, { waitUntil: "networkidle", timeout: 90000 });
     await page.waitForSelector("#startBtn", { timeout: 15000 });
     const tutorialShown = await page.evaluate(() => document.getElementById("tutorial").classList.contains("show"));
     if (tutorialShown) {

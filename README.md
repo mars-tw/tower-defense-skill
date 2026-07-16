@@ -2,7 +2,7 @@
 
 [![CI & Deploy Pages](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version 0.6.7](https://img.shields.io/badge/version-0.6.7-blue.svg)](package.json)
+[![Version 0.6.8](https://img.shields.io/badge/version-0.6.8-blue.svg)](package.json)
 [![Play Online](https://img.shields.io/badge/Play-GitHub%20Pages-brightgreen.svg)](https://mars-tw.github.io/tower-defense-skill/)
 
 ![無盡塔防封面](assets/cover.png)
@@ -11,7 +11,7 @@
 
 **[立即線上遊玩](https://mars-tw.github.io/tower-defense-skill/)**
 
-目前版本：`0.6.7`／PWA 快取版本 `td-r67-v1`（R67）。
+目前版本：`0.6.8`／PWA 快取版本 `td-r68-v1`（R68）。
 
 ## 遊戲畫面
 
@@ -21,6 +21,7 @@
 
 ## 最新特色
 
+- **R68 地圖完整顯示**：戰場與建塔/技能/波次控制改為保留空間的版面列；矮寬裝置採側置 dock，直式手機採底部 dock，960×640 棋盤在所有守門視口完整可見且不被 UI 覆蓋。
 - **R67 施法、地圖與新手引導整修**：主動技能改為有效命中才消耗冷卻，觸控可取消；塔陣顧問與實際封路共用格位判定，並加入可重訪實戰教學、程序化音效與音量設定。
 - **R61 十塔統一畫風**：弓箭、加農、寒冰、電磁、毒霧、聖光、引魂、狙擊、奧術與墜星臼砲採一致的 Eastern Dark Fantasy 3/4 視角美術。
 - **R62 敵人真幀動畫**：18 種敵人全數採 atlas 裁切步態，普通敵 4 幀、Boss 6 幀，另有受擊白閃與三幀碎裂死亡反應。
@@ -53,7 +54,7 @@
 | `H` | 抽英雄 |
 | `Esc` | 取消目前的建塔或施法選擇 |
 
-滑鼠與觸控均可操作；窄螢幕上的塔、英雄與技能列可左右滑動。
+滑鼠與觸控均可操作；戰場會依 HUD 與控制 dock 以外的可用空間等比縮放，整張地圖不需平移即可操作。
 
 ## 技術棧
 

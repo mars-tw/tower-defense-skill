@@ -1,0 +1,2 @@
+desktop 1440x780: p95 runs 16.90 / 15.20 / 15.50 ms; median 15.50 ms
+mobile 390x844: p95 runs 14.10 / 14.90 / 14.80 ms; median 14.80 ms

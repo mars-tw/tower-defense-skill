@@ -153,7 +153,8 @@ async function run() {
               document.getElementById("sellBtn"),
             ];
             const targetMin = Math.min(...targets.map((el) => el.getBoundingClientRect().height));
-            const cellCss = canvas.getBoundingClientRect().width / (canvas.width / 48);
+            const canvasRect = canvas.getBoundingClientRect();
+            const cellCss = canvasRect.width / (canvas.width / 48);
             const startRect = start.getBoundingClientRect();
             const hit = document.elementFromPoint(
               Math.max(1, Math.min(innerWidth - 1, startRect.left + startRect.width / 2)),
@@ -161,9 +162,14 @@ async function run() {
             );
             const guard = {
               cellCss,
-              navigable: host.scrollWidth <= host.clientWidth + 2 || /(auto|scroll)/.test(getComputedStyle(host).overflowX),
+              fullMap: host.scrollWidth <= host.clientWidth + 2 && host.scrollHeight <= host.clientHeight + 2 &&
+                canvasRect.left >= host.getBoundingClientRect().left - 1 && canvasRect.top >= host.getBoundingClientRect().top - 1 &&
+                canvasRect.right <= host.getBoundingClientRect().right + 1 && canvasRect.bottom <= host.getBoundingClientRect().bottom + 1,
               sceneUpgrade: panelStyle.position === "absolute" && targetMin >= 44,
-              fixedDeck: deckStyle.position === "fixed" && deckRect.top >= -2 && deckRect.bottom <= innerHeight + 2 &&
+              reservedDeck: deckStyle.position !== "fixed" && deckStyle.position !== "absolute" &&
+                deckRect.top >= -2 && deckRect.bottom <= innerHeight + 2 &&
+                (Math.max(0, Math.min(canvasRect.right, deckRect.right) - Math.max(canvasRect.left, deckRect.left)) *
+                  Math.max(0, Math.min(canvasRect.bottom, deckRect.bottom) - Math.max(canvasRect.top, deckRect.top))) <= 1 &&
                 document.querySelectorAll("#towerList .tower-btn").length === 10 && document.querySelectorAll("#skillList .skill-btn").length === 5,
               controlsClear: !!hit && start.contains(hit),
               panelBottom: Math.round(panelRect.bottom),
@@ -174,20 +180,25 @@ async function run() {
             blockers.forEach((el, i) => { el.style.display = blockerDisplay[i]; });
             return guard;
           });
-          if (mobileGuard.cellCss < 36 || !mobileGuard.navigable || !mobileGuard.sceneUpgrade || !mobileGuard.fixedDeck || !mobileGuard.controlsClear) {
-            res.violations.push({ label: `手機格位/平移/就地升級/固定控制盤 guard（panel ${mobileGuard.panelBottom} / deck ${mobileGuard.deckTop} / hit ${mobileGuard.hitId}）`, status: "TOUCH_TARGET",
-              top: Math.round(mobileGuard.cellCss), bottom: mobileGuard.navigable ? 1 : 0,
-              left: mobileGuard.sceneUpgrade && mobileGuard.fixedDeck ? 1 : 0, right: mobileGuard.controlsClear ? 1 : 0 });
+          if (!mobileGuard.fullMap || !mobileGuard.sceneUpgrade || !mobileGuard.reservedDeck || !mobileGuard.controlsClear) {
+            res.violations.push({ label: `R68 手機完整地圖/就地升級/保留控制列 guard（panel ${mobileGuard.panelBottom} / deck ${mobileGuard.deckTop} / hit ${mobileGuard.hitId}）`, status: "TOUCH_TARGET",
+              top: Math.round(mobileGuard.cellCss), bottom: mobileGuard.fullMap ? 1 : 0,
+              left: mobileGuard.sceneUpgrade && mobileGuard.reservedDeck ? 1 : 0, right: mobileGuard.controlsClear ? 1 : 0 });
           }
         }
         if (pg.name === "td-main" && vp.kind === "desktop" && vp.w >= 1900) {
           const desktopCanvas = await page.evaluate(() => {
             const canvas = document.getElementById("game").getBoundingClientRect();
-            const stage = document.getElementById("battlefieldStage").getBoundingClientRect();
-            return { width: canvas.width, height: canvas.height, stageWidth: stage.width, ratio: canvas.width / canvas.height };
+            const host = document.getElementById("battlefieldScroll").getBoundingClientRect();
+            const dock = document.getElementById("sceneControls").getBoundingClientRect();
+            const overlap = Math.max(0, Math.min(canvas.right, dock.right) - Math.max(canvas.left, dock.left)) *
+              Math.max(0, Math.min(canvas.bottom, dock.bottom) - Math.max(canvas.top, dock.top));
+            return { width: canvas.width, height: canvas.height, hostWidth: host.width, ratio: canvas.width / canvas.height,
+              inHost: canvas.left >= host.left - 1 && canvas.top >= host.top - 1 && canvas.right <= host.right + 1 && canvas.bottom <= host.bottom + 1,
+              overlap };
           });
-          if (desktopCanvas.width <= 960 || Math.abs(desktopCanvas.ratio - 1.5) > .01 || desktopCanvas.width < desktopCanvas.stageWidth * .72) {
-            res.violations.push({ label: `R64 桌機 Canvas 放大填滿（canvas ${Math.round(desktopCanvas.width)} / stage ${Math.round(desktopCanvas.stageWidth)}）`, status: "DESKTOP_CANVAS",
+          if (Math.abs(desktopCanvas.ratio - 1.5) > .01 || !desktopCanvas.inHost || desktopCanvas.overlap > 1) {
+            res.violations.push({ label: `R68 桌機 Canvas 完整可見（canvas ${Math.round(desktopCanvas.width)} / host ${Math.round(desktopCanvas.hostWidth)} / overlap ${desktopCanvas.overlap.toFixed(1)}）`, status: "DESKTOP_CANVAS",
               top: Math.round(desktopCanvas.height), bottom: Math.round(desktopCanvas.width), left: 0, right: 0 });
           }
         }

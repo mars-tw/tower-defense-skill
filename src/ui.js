@@ -315,18 +315,15 @@
 
   function fitCanvasToStage() {
     const stage = $("battlefieldStage");
-    if (!stage) return;
-    if (window.matchMedia("(max-width: 900px)").matches) {
-      stage.style.removeProperty("--r64-canvas-width");
-      stage.style.removeProperty("--r64-canvas-height");
-      requestAnimationFrame(refreshScenePositions);
-      return;
-    }
-    const width = Math.max(1, stage.clientWidth);
-    const height = Math.max(1, stage.clientHeight);
-    const scale = Math.max(.1, Math.min(width / 960, height / 640));
-    stage.style.setProperty("--r64-canvas-width", `${Math.floor(960 * scale)}px`);
-    stage.style.setProperty("--r64-canvas-height", `${Math.floor(640 * scale)}px`);
+    const host = $("battlefieldScroll");
+    if (!stage || !host) return;
+    const width = Math.max(1, host.clientWidth);
+    const height = Math.max(1, host.clientHeight);
+    const scale = Math.max(.01, Math.min(width / 960, height / 640));
+    stage.style.removeProperty("--r64-canvas-width");
+    stage.style.removeProperty("--r64-canvas-height");
+    stage.style.setProperty("--r68-canvas-width", `${Math.max(1, Math.floor(960 * scale))}px`);
+    stage.style.setProperty("--r68-canvas-height", `${Math.max(1, Math.floor(640 * scale))}px`);
     requestAnimationFrame(refreshScenePositions);
   }
 
@@ -1374,7 +1371,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r67-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r68-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }
@@ -2112,6 +2109,8 @@
   if (stage && typeof ResizeObserver === "function") {
     const canvasFitObserver = new ResizeObserver(() => fitCanvasToStage());
     canvasFitObserver.observe(stage);
+    const host = $("battlefieldScroll");
+    if (host) canvasFitObserver.observe(host);
   }
   window.addEventListener("resize", fitCanvasToStage, { passive: true });
   const battlefieldScroll = $("battlefieldScroll");

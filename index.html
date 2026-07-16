@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r67-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r68-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -993,6 +993,89 @@
     .battlefield-scroll canvas { width: 724px; min-width: 724px; height: auto; max-width: none; max-height: none; touch-action: pan-x pan-y; }
   }
 
+  /* ===== td R68：戰場與控制盤分列，完整棋盤優先 ===== */
+  .battlefield-stage {
+    display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto;
+    gap: 6px; overflow: hidden;
+  }
+  .battlefield-stage .battlefield-scroll {
+    grid-column: 1; grid-row: 1; width: 100%; height: 100%; min-width: 0; min-height: 0;
+    align-items: center; justify-content: center; overflow: hidden;
+  }
+  .battlefield-stage .battlefield-scroll canvas {
+    width: var(--r68-canvas-width,960px); height: var(--r68-canvas-height,640px);
+    min-width: 0; max-width: 100%; min-height: 0; max-height: 100%; align-self: center;
+    touch-action: none;
+  }
+  .scene-controls {
+    position: relative; z-index: 10; left: auto; right: auto; bottom: auto; transform: none;
+    grid-column: 1; grid-row: 2; width: 100%; height: auto; min-height: 0;
+  }
+
+  /* 1366×600、1280×640、1440×780：側欄保留高度給完整戰場。 */
+  @media (min-width: 901px) and (max-height: 800px) {
+    .battlefield-stage {
+      grid-template-columns: minmax(0,1fr) clamp(286px,24vw,312px);
+      grid-template-rows: minmax(0,1fr);
+    }
+    .scene-controls {
+      grid-column: 2; grid-row: 1; height: 100%; align-content: center; overflow: hidden;
+    }
+    .scene-controls .build-row { flex-direction: column; justify-content: center; }
+    .scene-controls .build-row .tower-title { width: auto; white-space: nowrap; }
+    .scene-controls #towerList.build-dock {
+      flex: 0 0 auto; flex-wrap: wrap; justify-content: center; width: 240px; max-width: 100%;
+      overflow: visible;
+    }
+    .scene-controls .action-row { display: contents; }
+    .scene-controls .skill-group { flex-direction: column; justify-content: center; overflow: visible; }
+    .scene-controls .hud-core { flex-wrap: wrap; justify-content: center; }
+    .scene-controls .wave-start { flex: 1 0 100%; width: 100%; min-width: 0; }
+    .scene-controls .wave-start .start { width: 100%; min-width: 0; }
+  }
+
+  @media (max-width: 900px) {
+    body {
+      padding-bottom: max(6px, env(safe-area-inset-bottom));
+    }
+    .battlefield-stage { flex: 1 1 auto; min-height: 0; }
+    .scene-controls {
+      position: relative; left: auto; right: auto; bottom: auto; width: 100%; height: auto;
+      grid-template-rows: 96px 52px 45px;
+    }
+    .battlefield-scroll { flex-basis: auto; }
+    .battlefield-scroll canvas {
+      width: var(--r68-canvas-width,960px); height: var(--r68-canvas-height,640px);
+      min-width: 0; max-width: 100%; min-height: 0; max-height: 100%; align-self: center;
+      touch-action: none;
+    }
+  }
+
+  /* 橫向手機採側置控制欄，完整地圖不需平移或捲動。 */
+  @media (max-width: 900px) and (max-height: 520px) {
+    body { padding-bottom: max(4px,env(safe-area-inset-bottom)); }
+    .battlefield-stage {
+      grid-template-columns: minmax(0,1fr) clamp(286px,36vw,304px);
+      grid-template-rows: minmax(0,1fr);
+    }
+    .scene-controls {
+      grid-column: 2; grid-row: 1; width: 100%; height: 100%;
+      grid-template-rows: auto auto auto; align-content: center; overflow: hidden;
+    }
+    .scene-controls .build-row { grid-row: 1; flex-direction: row; justify-content: center; }
+    .scene-controls .build-row .tower-title { width: 34px; white-space: normal; }
+    .scene-controls #towerList.build-dock {
+      flex: 0 0 240px; width: 240px; max-width: 240px; flex-wrap: wrap;
+      justify-content: center; overflow: visible;
+    }
+    .scene-controls .action-row { display: contents; }
+    .scene-controls .skill-group { grid-row: 2; flex-direction: row; justify-content: center; overflow: visible; }
+    .scene-controls .skill-title { width: 34px; white-space: normal; }
+    .scene-controls .hud-core { grid-row: 3; flex-wrap: wrap; justify-content: center; }
+    .scene-controls .wave-start { flex: 1 0 100%; width: 100%; min-width: 0; }
+    .scene-controls .wave-start .start { width: 100%; min-width: 0; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .hud-number, .hud .lives.danger, canvas.shake, .wave-meter-fill { animation: none !important; transition: none !important; transform: none !important; }
   }
@@ -1270,18 +1353,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r67-v1"></script>
-  <script src="src/heroes.js?v=td-r67-v1"></script>
-  <script src="src/rules.js?v=td-r67-v1"></script>
-  <script src="src/lore.js?v=td-r67-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r67-v1"></script>
-  <script src="src/hero-animation.js?v=td-r67-v1"></script>
-  <script src="src/game.js?v=td-r67-v1"></script>
-  <script src="src/ui.js?v=td-r67-v1"></script>
+  <script src="src/config.js?v=td-r68-v1"></script>
+  <script src="src/heroes.js?v=td-r68-v1"></script>
+  <script src="src/rules.js?v=td-r68-v1"></script>
+  <script src="src/lore.js?v=td-r68-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r68-v1"></script>
+  <script src="src/hero-animation.js?v=td-r68-v1"></script>
+  <script src="src/game.js?v=td-r68-v1"></script>
+  <script src="src/ui.js?v=td-r68-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r67-v1";
+      const PWA_VERSION = "td-r68-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

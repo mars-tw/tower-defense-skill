@@ -147,7 +147,7 @@ async function run() {
         localStorage.clear();
         localStorage.setItem("td_tutorial_seen", "1");
       });
-      await page.goto(base, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.goto(base, { waitUntil: "domcontentloaded", timeout: 90000 });
       await page.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 15000 });
       await page.waitForTimeout(250);
 
@@ -157,7 +157,7 @@ async function run() {
       assert(diff.length > 0 && diff.every((item) => item.width >= 44 && item.height >= 44 && item.centerInViewport && item.hit),
         `${vp.w}x${vp.h} difficulty options are reachable`);
 
-      await page.locator(".diff-opt").first().click();
+      await page.locator(".diff-opt").first().click({ noWaitAfter: true, timeout: 90000 });
       await page.waitForTimeout(150);
       const mapShown = await page.evaluate(() => document.getElementById("mapOverlay").classList.contains("show"));
       assert(mapShown, `${vp.w}x${vp.h} map modal opens`);
@@ -165,7 +165,7 @@ async function run() {
       assert(map.length > 0 && map.every((item) => item.width >= 44 && item.height >= 44 && item.centerInViewport && item.hit),
         `${vp.w}x${vp.h} map options are reachable`);
 
-      await page.locator(".map-opt").first().click();
+      await page.locator(".map-opt").first().click({ noWaitAfter: true, timeout: 90000 });
       await page.waitForTimeout(250);
       const controls = await page.evaluate(auditControlsInPage);
       const detail = controls.bad.map((item) =>

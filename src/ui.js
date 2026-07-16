@@ -26,6 +26,7 @@
   let warningSerial = 0;
   let recoveryNoticeShown = false;
   const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6", sniper: "7", arcane: "8", beacon: "9", mortar: "0" };
+  const TOWER_SHORT_NAMES = { arrow: "箭", cannon: "砲", frost: "冰", tesla: "電", poison: "毒", support: "輔", sniper: "狙", arcane: "奧", beacon: "標", mortar: "臼" };
   const SKILL_HOTKEYS = { meteor: "Q", freeze: "W", thunder: "E", judgment: "R", sealarray: "A" };
   const TOWER_BY_KEY = Object.fromEntries(Object.entries(TOWER_HOTKEYS).map(([id, key]) => [key, id]));
   const SKILL_BY_KEY = Object.fromEntries(Object.entries(SKILL_HOTKEYS).map(([id, key]) => [key.toLowerCase(), id]));
@@ -163,7 +164,7 @@
     btn.title = shortcut + (t.desc || t.name);
     btn.setAttribute("aria-label", `${t.name}：${shortcut}${t.desc || stats}`);
     btn.style.setProperty("--tower-color", t.color || "#4ade80");
-    btn.innerHTML = `${assetIcon("towers", t.id, "ico")}<span class="cost">${t.cost}</span>`;
+    btn.innerHTML = `${assetIcon("towers", t.id, "ico")}<span class="tshort">${TOWER_SHORT_NAMES[t.id] || t.name.slice(0, 1)}</span><span class="cost">${t.cost}</span>`;
     btn.onclick = () => {
       const st = TD.state();
       if (st.selectedTowerType === t.id) { TD.cancelBuild(); }
@@ -1015,6 +1016,9 @@
     const modeHtml = Object.entries(advisorModes).map(([id, item]) =>
       `<button type="button" data-advisor-mode="${id}" class="${advisorMode === id ? "active" : ""}">${item.label}</button>`
     ).join("");
+    const advisorRestoreHtml = advisorHidden
+      ? '<button type="button" class="advisor-restore" data-advisor-show>顯示顧問</button>'
+      : "";
     const advisorHtml = advisorHidden ? "" : `
       <div class="advisor-row ${advisorCollapsed ? "collapsed" : ""}">
         <div class="advisor-head">
@@ -1052,6 +1056,7 @@
         </div>
         ${recs[0] ? `<div class="tower-rec-reason">${recs[0].reason}</div>` : ""}
       </div>
+      ${advisorRestoreHtml}
       ${advisorHtml}`;
     box.querySelectorAll(".enemy-chip-btn").forEach((btn) => {
       btn.onclick = () => openEnemyInfo(btn.dataset.enemy);
@@ -1060,6 +1065,8 @@
     if (toggle) toggle.onclick = () => { advisorCollapsed = !advisorCollapsed; renderNextWaveCard(); };
     const close = box.querySelector("[data-advisor-close]");
     if (close) close.onclick = () => { advisorHidden = true; renderNextWaveCard(); };
+    const showAdvisor = box.querySelector("[data-advisor-show]");
+    if (showAdvisor) showAdvisor.onclick = () => { advisorHidden = false; advisorCollapsed = false; renderNextWaveCard(); };
     box.querySelectorAll("[data-advisor-mode]").forEach((btn) => {
       btn.onclick = () => {
         advisorMode = btn.dataset.advisorMode || "control";
@@ -1233,10 +1240,15 @@
   // ===== 日誌 =====
   function pushLog(msg, kind) {
     const box = $("log");
+    if (!box.dataset.expandBound) {
+      box.dataset.expandBound = "1";
+      box.title = "點擊展開最近 20 條訊息";
+      box.onclick = () => box.classList.toggle("expanded");
+    }
     const d = document.createElement("div");
     d.className = kind || ""; d.textContent = msg;
     box.appendChild(d);
-    while (box.children.length > 3) box.removeChild(box.firstChild);
+    while (box.children.length > 20) box.removeChild(box.firstChild);
   }
 
   // ===== Meta 進度系統（D1：最高紀錄 + 魂晶）=====
@@ -1371,7 +1383,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r68-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r69-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }

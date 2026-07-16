@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r68-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r69-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -220,6 +220,9 @@
   .advisor-action b { color: var(--ink); }
   .advisor-action span { color: var(--ink-dim); }
   .advisor-action.static { cursor: default; }
+  .advisor-restore { margin-top: 8px; width: 100%; border: 1px solid rgba(74,222,128,.28);
+    border-radius: 9px; background: rgba(74,222,128,.08); color: var(--accent);
+    padding: 7px 8px; font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
   .wave-warning { display: none; border: 1px solid rgba(250,204,21,.32); border-radius: 10px;
     background: rgba(250,204,21,.10); color: #fde68a; padding: 8px 10px; font-size: 12px;
     font-weight: 900; line-height: 1.35; }
@@ -294,8 +297,10 @@
   .sel-panel button:active { transform: translateY(1px); filter: brightness(.95); }
   .upg { background: linear-gradient(180deg,#4ade80,#22c55e); color: #06210f; } .sell { background: linear-gradient(180deg,#f87171,#dc2626); color: #fff; }
 
-  #log { width: min(960px, 96vw); min-height: 44px; overflow: hidden; font-size: 12px; color: var(--ink-meta);
-    text-align: center; line-height: 1.5; padding: 4px; }
+  #log { width: min(960px, 96vw); min-height: 44px; max-height: 58px; overflow: hidden; font-size: 12px; color: var(--ink-meta);
+    text-align: center; line-height: 1.5; padding: 4px; cursor: pointer; }
+  #log.expanded { max-height: min(48vh, 360px); overflow-y: auto; background: rgba(8,13,10,.72);
+    border: 1px solid var(--border-soft); border-radius: 10px; }
   #log .bad { color: var(--hp); font-weight: 700; }
 
   .overlay { position: fixed; inset: 0; background: rgba(8,12,10,.92); display: none;
@@ -817,6 +822,12 @@
     filter: drop-shadow(0 1px 0 rgba(0,0,0,.75)) drop-shadow(0 2px 4px rgba(0,0,0,.45));
   }
   #towerList .tower-btn .ico.asset-ico { width: 38px; height: 38px; }
+  #towerList .tower-btn .tshort {
+    position: absolute; left: -2px; top: -3px; min-width: 15px; padding: 1px 3px;
+    border: 1px solid rgba(255,255,255,.22); border-radius: 999px;
+    background: rgba(6,12,9,.9); color: #e7f7ea; font-size: 8px; line-height: 1.1;
+    font-weight: 900; text-align: center; pointer-events: none;
+  }
   #towerList .tower-btn .cost {
     position: absolute; right: -2px; bottom: -3px; min-width: 22px; padding: 1px 3px;
     border: 1px solid rgba(250,204,21,.62); border-radius: 999px; color: #fff2a8;
@@ -993,7 +1004,7 @@
     .battlefield-scroll canvas { width: 724px; min-width: 724px; height: auto; max-width: none; max-height: none; touch-action: pan-x pan-y; }
   }
 
-  /* ===== td R68：戰場與控制盤分列，完整棋盤優先 ===== */
+  /* ===== td R69：戰場與控制盤分列，完整棋盤優先 ===== */
   .battlefield-stage {
     display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto;
     gap: 6px; overflow: hidden;
@@ -1353,18 +1364,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r68-v1"></script>
-  <script src="src/heroes.js?v=td-r68-v1"></script>
-  <script src="src/rules.js?v=td-r68-v1"></script>
-  <script src="src/lore.js?v=td-r68-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r68-v1"></script>
-  <script src="src/hero-animation.js?v=td-r68-v1"></script>
-  <script src="src/game.js?v=td-r68-v1"></script>
-  <script src="src/ui.js?v=td-r68-v1"></script>
+  <script src="src/config.js?v=td-r69-v1"></script>
+  <script src="src/heroes.js?v=td-r69-v1"></script>
+  <script src="src/rules.js?v=td-r69-v1"></script>
+  <script src="src/lore.js?v=td-r69-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r69-v1"></script>
+  <script src="src/hero-animation.js?v=td-r69-v1"></script>
+  <script src="src/game.js?v=td-r69-v1"></script>
+  <script src="src/ui.js?v=td-r69-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r68-v1";
+      const PWA_VERSION = "td-r69-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

@@ -29,7 +29,7 @@ $heroes = @(
   @{ id='cleric';  look='a chibi cleric priest in white and gold robes, holding a holy staff, gentle face' }
 )
 
-$style = "A pixel-art RPG character sprite sheet on a pure white background, arranged in a clean 2x2 grid with generous spacing. The SAME character shown in FOUR directions: top-left facing down/front, top-right facing up/back, bottom-left left side profile, bottom-right right side profile. Identical consistent character across all four, full body, flat white background, clear separation, no text, no labels, no grid lines."
+$style = "A pixel-art RPG character sprite sheet on a transparent background, arranged in a clean 2x2 layout with generous spacing. The SAME character shown in FOUR directions: top-left facing down/front, top-right facing up/back, bottom-left left side profile, bottom-right right side profile. Identical consistent character across all four, full body, transparent background, clear separation, no text, no labels, no grid lines."
 
 $ApiKey = $env:OPENAI_API_KEY
 if (-not $DryRun -and -not $ApiKey) { Write-Error "未設定 OPENAI_API_KEY"; exit 1 }

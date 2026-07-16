@@ -2,24 +2,24 @@
   {
     "viewport": "1920x1080",
     "canvas": {
-      "left": 259.5,
+      "left": 256.5,
       "top": 105,
-      "right": 1358.5,
-      "bottom": 838,
-      "width": 1099,
-      "height": 733
+      "right": 1361.5,
+      "bottom": 842,
+      "width": 1105,
+      "height": 737
     },
     "host": {
       "left": 8,
       "top": 105,
       "right": 1610,
-      "bottom": 838
+      "bottom": 842
     },
     "dock": {
       "left": 8,
-      "top": 844,
+      "top": 848,
       "right": 1610,
-      "bottom": 966,
+      "bottom": 970,
       "position": "relative"
     },
     "points": [
@@ -54,7 +54,7 @@
     "dockInViewport": true,
     "reservedDock": true,
     "overlapArea": 0,
-    "ratio": 1.499317871759891,
+    "ratio": 1.4993215739484396,
     "intrinsic": {
       "width": 960,
       "height": 640
@@ -69,24 +69,24 @@
   {
     "viewport": "1440x780",
     "canvas": {
-      "left": 8.09375,
-      "top": 109.53125,
-      "right": 859.09375,
-      "bottom": 676.53125,
-      "width": 851,
-      "height": 567
+      "left": 10.09375,
+      "top": 105,
+      "right": 857.09375,
+      "bottom": 670,
+      "width": 847,
+      "height": 565
     },
     "host": {
       "left": 8,
       "top": 105,
       "right": 859.203125,
-      "bottom": 681.078125
+      "bottom": 670
     },
     "dock": {
       "left": 865.203125,
       "top": 105,
       "right": 1177.203125,
-      "bottom": 681.078125,
+      "bottom": 670,
       "position": "relative"
     },
     "points": [
@@ -121,7 +121,7 @@
     "dockInViewport": true,
     "reservedDock": true,
     "overlapArea": 0,
-    "ratio": 1.5008818342151675,
+    "ratio": 1.4991150442477876,
     "intrinsic": {
       "width": 960,
       "height": 640
@@ -136,24 +136,24 @@
   {
     "viewport": "1366x600",
     "canvas": {
-      "left": 101,
+      "left": 111.5,
       "top": 105,
-      "right": 699,
-      "bottom": 504,
-      "width": 598,
-      "height": 399
+      "right": 688.5,
+      "bottom": 490,
+      "width": 577,
+      "height": 385
     },
     "host": {
       "left": 8,
       "top": 105,
       "right": 792,
-      "bottom": 504
+      "bottom": 490
     },
     "dock": {
       "left": 798,
       "top": 105,
       "right": 1110,
-      "bottom": 504,
+      "bottom": 490,
       "position": "relative"
     },
     "points": [
@@ -188,7 +188,7 @@
     "dockInViewport": true,
     "reservedDock": true,
     "overlapArea": 0,
-    "ratio": 1.4987468671679198,
+    "ratio": 1.4987012987012986,
     "intrinsic": {
       "width": 960,
       "height": 640
@@ -203,24 +203,24 @@
   {
     "viewport": "1280x640",
     "canvas": {
-      "left": 30.40625,
+      "left": 40.90625,
       "top": 105,
-      "right": 688.40625,
-      "bottom": 544,
-      "width": 658,
-      "height": 439
+      "right": 677.90625,
+      "bottom": 530,
+      "width": 637,
+      "height": 425
     },
     "host": {
       "left": 8,
       "top": 105,
       "right": 710.8125,
-      "bottom": 544
+      "bottom": 530
     },
     "dock": {
       "left": 716.8125,
       "top": 105,
       "right": 1024,
-      "bottom": 544,
+      "bottom": 530,
       "position": "relative"
     },
     "points": [
@@ -255,7 +255,7 @@
     "dockInViewport": true,
     "reservedDock": true,
     "overlapArea": 0,
-    "ratio": 1.498861047835991,
+    "ratio": 1.4988235294117647,
     "intrinsic": {
       "width": 960,
       "height": 640

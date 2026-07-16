@@ -1,29 +1,81 @@
 {
-  "_comment": "塔防美術生成統一設定檔。改這裡即可調整提示詞、加單位、換風格。gen-art.ps1(Grok) 讀這份。",
+  "_comment": "Asset generation manifest. Keep these groups aligned with src/config.js, src/heroes.js, and checked-in assets. scripts/gen-art.ps1 reads groups and writes PNG files under outputDir/group/id.png.",
   "outputDir": "assets",
   "size": "1024x1024",
-  "styleSuffix": "Game asset, top-down view icon, vibrant colors, clean silhouette, centered single subject, transparent or simple dark background, no text, fantasy tower-defense art style, square composition.",
+  "styleSuffix": "Game asset, top-down or three-quarter view icon, vibrant colors, clean silhouette, centered single subject, transparent background, no text, fantasy tower-defense art style, square composition.",
   "groups": {
     "towers": [
-      { "id": "arrow",   "prompt": "an archer tower with a crossbow, stone base, fantasy" },
-      { "id": "cannon",  "prompt": "a cannon tower with a heavy iron barrel, splash damage" },
-      { "id": "frost",   "prompt": "an ice crystal tower glowing blue, frost magic" },
-      { "id": "tesla",   "prompt": "a tesla coil lightning tower crackling with electricity" }
+      { "id": "arrow", "prompt": "an archer tower with a crossbow, stone base, fantasy" },
+      { "id": "cannon", "prompt": "a cannon tower with a heavy iron barrel, splash damage" },
+      { "id": "frost", "prompt": "an ice crystal tower glowing blue, frost magic" },
+      { "id": "tesla", "prompt": "a tesla coil lightning tower crackling with electricity" },
+      { "id": "poison", "prompt": "a poison mist tower with green alchemical glass and toxic vapor" },
+      { "id": "support", "prompt": "a holy support tower with golden banners and a radiant blessing aura" },
+      { "id": "beacon", "prompt": "a crimson spirit beacon tower with lantern flame and revealing light" },
+      { "id": "sniper", "prompt": "a long-range sniper tower with a precise ballista and watch platform" },
+      { "id": "arcane", "prompt": "an arcane obelisk tower with violet runes and weakening magic" },
+      { "id": "mortar", "prompt": "a heavy mortar tower with a short bronze cannon and explosive shells" }
     ],
     "enemies": [
-      { "id": "slime",   "prompt": "a small green slime monster, cute but menacing" },
-      { "id": "goblin",  "prompt": "a fast running goblin with a dagger" },
-      { "id": "orc",     "prompt": "a heavily armored orc brute, tanky" },
-      { "id": "bat",     "prompt": "a swarm of dark flying bats" },
-      { "id": "boss",    "prompt": "a giant demon boss monster, glowing red eyes, intimidating" }
+      { "id": "slime", "prompt": "a small green slime monster, cute but menacing" },
+      { "id": "goblin", "prompt": "a fast running goblin with a dagger" },
+      { "id": "orc", "prompt": "a heavily armored orc brute, tanky" },
+      { "id": "bat", "prompt": "a dark flying bat monster with sharp wings" },
+      { "id": "boss", "prompt": "a giant demon boss monster, glowing red eyes, intimidating" },
+      { "id": "frostwolf", "prompt": "a blue-white frost wolf with icy fur and sharp claws" },
+      { "id": "imp", "prompt": "a small fire imp demon with ember horns and mischievous grin" },
+      { "id": "shieldman", "prompt": "a shield-bearing armored soldier monster with a heavy iron shield" },
+      { "id": "medic", "prompt": "a green-robed enemy medic carrying healing charms and vials" },
+      { "id": "frostwraith", "prompt": "an icy wraith spirit with spectral armor and a regenerating shield" },
+      { "id": "lavagolem", "prompt": "a lava golem with molten cracks, stone fists, and a heat shield" },
+      { "id": "emberbat", "prompt": "a fiery ember bat with glowing orange wings" },
+      { "id": "thunderronin", "prompt": "a thunder ronin enemy with a straw hat and lightning blade" },
+      { "id": "abysshound", "prompt": "a fast abyss hound with purple lightning markings" },
+      { "id": "silencer", "prompt": "a masked silencer mage enemy with mute sigils and violet robes" },
+      { "id": "mirrorling", "prompt": "a mirror spirit enemy with reflective glass armor" },
+      { "id": "warden", "prompt": "a golden armored warden enemy projecting a protective aura" },
+      { "id": "yaksha", "prompt": "a thunder yaksha boss with violet horns and a massive weapon" }
+    ],
+    "heroes": [
+      { "id": "knight", "prompt": "a chibi paladin knight in blue and silver armor, blonde hair, holding a silver sword" },
+      { "id": "archer", "prompt": "a chibi elf ranger in green leather armor, holding a wooden bow, brown hair" },
+      { "id": "mage", "prompt": "a chibi fire mage in red and orange robes, holding a glowing fire staff, white beard" },
+      { "id": "iceMage", "prompt": "a chibi ice mage in blue and white robes, holding a frost staff, silver hair" },
+      { "id": "valkyrie", "prompt": "a chibi valkyrie warrior in golden winged armor, holding a lightning spear, white hair" },
+      { "id": "cleric", "prompt": "a chibi cleric priest in white and gold robes, holding a holy staff, gentle face" },
+      { "id": "daji", "prompt": "a chibi fox spirit heroine in elegant red robes, fire magic, nine-tail motif" },
+      { "id": "guanyu", "prompt": "a chibi legendary warrior with a long beard, green armor, and crescent blade" },
+      { "id": "wukong", "prompt": "a chibi monkey king hero with golden staff, thunder aura, and agile stance" },
+      { "id": "nezha", "prompt": "a chibi flame wheel hero with red ribbons, spear, and youthful expression" },
+      { "id": "leizhenzi", "prompt": "a chibi thunder wing hero with storm feathers and electric talons" },
+      { "id": "niumowang", "prompt": "a chibi bull demon king hero with horned armor and a heavy axe" },
+      { "id": "baisuzhen", "prompt": "a chibi white serpent heroine in pale blue robes casting ice magic" },
+      { "id": "erlangshen", "prompt": "a chibi three-eyed celestial warrior with spear and thunder halo" },
+      { "id": "zhongkui", "prompt": "a chibi demon-quelling judge hero with talismans and dark robes" }
+    ],
+    "maps": [
+      { "id": "plains", "prompt": "a top-down tower defense grassland map tile set with winding plains road, grass, bushes, trees, and rocks" },
+      { "id": "canyon", "prompt": "a top-down tower defense canyon map tile set with narrow cliffs, winding canyon road, dry rocks, and sparse shrubs" },
+      { "id": "lava", "prompt": "a top-down tower defense lava canyon map tile set with volcanic ground, molten cracks, black rock, and winding path" }
     ],
     "skills": [
-      { "id": "meteor",  "prompt": "a flaming meteor falling from the sky, fire impact" },
-      { "id": "freeze",  "prompt": "an icy freeze nova spreading frost, blue" },
-      { "id": "thunder", "prompt": "a thunderstorm lightning strike, electric" }
+      { "id": "meteor", "prompt": "a flaming meteor falling from the sky, fire impact" },
+      { "id": "freeze", "prompt": "an icy freeze nova spreading frost, blue" },
+      { "id": "thunder", "prompt": "a thunderstorm lightning strike, electric" },
+      { "id": "judgment", "prompt": "a holy judgment sigil striking enemies with radiant light" },
+      { "id": "sealarray", "prompt": "a magical seal array binding enemies with runes" }
     ],
     "core": [
       { "id": "goddess", "prompt": "a beautiful guardian goddess in white and gold robes, radiant holy halo, serene protective pose, divine light" }
+    ],
+    "tiles": [
+      { "id": "grass1", "prompt": "a seamless top-down grass terrain tile, fantasy tower defense" },
+      { "id": "grass2", "prompt": "a seamless top-down darker grass terrain tile, fantasy tower defense" },
+      { "id": "grass3", "prompt": "a seamless top-down mossy grass terrain tile, fantasy tower defense" },
+      { "id": "path", "prompt": "a seamless top-down dirt path tile for a fantasy tower defense map" },
+      { "id": "rock", "prompt": "a top-down decorative rock prop for a fantasy tower defense map" },
+      { "id": "bush", "prompt": "a top-down decorative bush prop for a fantasy tower defense map" },
+      { "id": "tree", "prompt": "a top-down decorative tree prop for a fantasy tower defense map" }
     ]
   }
 }

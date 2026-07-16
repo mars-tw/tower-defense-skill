@@ -1,8 +1,8 @@
-# 無盡塔防 · Endless Tower Defense
+﻿# 無盡塔防 · Endless Tower Defense
 
 [![CI & Deploy Pages](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version 0.6.6](https://img.shields.io/badge/version-0.6.6-blue.svg)](package.json)
+[![Version 0.6.7](https://img.shields.io/badge/version-0.6.7-blue.svg)](package.json)
 [![Play Online](https://img.shields.io/badge/Play-GitHub%20Pages-brightgreen.svg)](https://mars-tw.github.io/tower-defense-skill/)
 
 ![無盡塔防封面](assets/cover.png)
@@ -11,7 +11,7 @@
 
 **[立即線上遊玩](https://mars-tw.github.io/tower-defense-skill/)**
 
-目前版本：`0.6.6`／PWA 快取版本 `td-r66-v1`（R66）。
+目前版本：`0.6.7`／PWA 快取版本 `td-r67-v1`（R67）。
 
 ## 遊戲畫面
 
@@ -21,6 +21,7 @@
 
 ## 最新特色
 
+- **R67 施法、地圖與新手引導整修**：主動技能改為有效命中才消耗冷卻，觸控可取消；塔陣顧問與實際封路共用格位判定，並加入可重訪實戰教學、程序化音效與音量設定。
 - **R61 十塔統一畫風**：弓箭、加農、寒冰、電磁、毒霧、聖光、引魂、狙擊、奧術與墜星臼砲採一致的 Eastern Dark Fantasy 3/4 視角美術。
 - **R62 敵人真幀動畫**：18 種敵人全數採 atlas 裁切步態，普通敵 4 幀、Boss 6 幀，另有受擊白閃與三幀碎裂死亡反應。
 - **神話英雄卡池**：15 位英雄，包含妲己、魔關羽、孫悟空、哪吒、雷震子、牛魔王、白素貞、二郎神與鍾馗；首抽免費、18 抽傳說保底，重複英雄轉為魂晶。

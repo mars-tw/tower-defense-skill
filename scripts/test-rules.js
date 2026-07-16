@@ -34,6 +34,7 @@ const {
   applyDifficulty,
   distanceToPath,
   canReachPath,
+  pathBlockedCells,
 } = rules;
 
 let failed = 0;
@@ -296,6 +297,33 @@ console.log("\n== R29：策略顧問模式與戰報學習 ==");
     "戰報學習給出 2 條可行調整建議");
 }
 
+console.log("\n== R67：顧問建塔格與實際 blocked path 共用判定 ==");
+{
+  let illegal = [];
+  for (const map of Object.values(cfg.MAPS)) {
+    const blocked = pathBlockedCells(map.path, cfg.GAME.cellSize);
+    for (const diff of Object.values(cfg.DIFFICULTIES)) {
+      for (let wave = 1; wave <= 30; wave++) {
+        const plan = generateWaveQueue(wave, diff, waveRngSeed(wave, 424242, 777));
+        const actions = adviseTowerActions({
+          queue: plan.queue,
+          towers: [],
+          gold: 999,
+          path: map.path,
+          width: 960,
+          height: 640,
+          advisorMode: "control",
+        });
+        for (const action of actions.filter((item) => item.kind === "build")) {
+          const key = `${action.cx},${action.cy}`;
+          if (blocked.has(key)) illegal.push(`${map.id}/${diff.id}/w${wave}/${action.towerId}@${key}`);
+        }
+      }
+    }
+  }
+  assert(illegal.length === 0, `顧問前 30 波建塔建議不落在 blocked path（非法 ${illegal.slice(0, 3).join(", ") || "0"}）`);
+}
+
 console.log("\n== waveSoulReward 即時魂晶總量守恆 ==");
 {
   const cases = [
@@ -339,10 +367,10 @@ console.log("\n== settleRunRewards 死亡結算 ==");
 console.log("\n== applyDifficulty 難度係數 ==");
 {
   const brutal = applyDifficulty({ hp: 100, hpScale: 2, gold: 100, goldBonus: 200, goddessHp: 100, other: 7 }, cfg.DIFFICULTIES.brutal);
-  assert(brutal.hp === 150 && brutal.hpScale === 3, "嚴酷 hpMul 套用到 hp/hpScale");
-  assert(brutal.gold === 85 && brutal.goldBonus === 170, "嚴酷 goldMul 套用到 gold/goldBonus");
+  assert(brutal.hp === 142 && brutal.hpScale === 2.84, "嚴酷 hpMul 套用到 hp/hpScale");
+  assert(brutal.gold === 88 && brutal.goldBonus === 176, "嚴酷 goldMul 套用到 gold/goldBonus");
   assert(brutal.goddessHp === 80 && brutal.other === 7, "嚴酷 goddessMul 套用且無關欄位保留");
-  assert(applyDifficulty(100, cfg.DIFFICULTIES.endless) === 130, "數字 base 預設套用 hpMul");
+  assert(applyDifficulty(100, cfg.DIFFICULTIES.endless) === 122, "數字 base 預設套用 hpMul");
 }
 
 console.log("\n== generateWaveQueue 可重現與主題偏置 ==");

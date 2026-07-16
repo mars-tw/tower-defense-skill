@@ -58,21 +58,8 @@
   }
   function markPathCells(path) {
     blocked.clear();
-    for (let i = 0; i < path.length - 1; i++) {
-      const a = path[i], b = path[i + 1];
-      const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 10);
-      for (let s = 0; s <= steps; s++) {
-        const x = a.x + (b.x - a.x) * (s / steps);
-        const y = a.y + (b.y - a.y) * (s / steps);
-        // 只禁路徑本身覆蓋到的格（含因路寬跨到的相鄰格），不擴整圈，
-        // 讓玩家能緊貼路徑建塔、射程搆得到。
-        blocked.add(cellKey(Math.floor(x / CELL), Math.floor(y / CELL)));
-        blocked.add(cellKey(Math.floor((x - CELL * 0.4) / CELL), Math.floor(y / CELL)));
-        blocked.add(cellKey(Math.floor((x + CELL * 0.4) / CELL), Math.floor(y / CELL)));
-        blocked.add(cellKey(Math.floor(x / CELL), Math.floor((y - CELL * 0.4) / CELL)));
-        blocked.add(cellKey(Math.floor(x / CELL), Math.floor((y + CELL * 0.4) / CELL)));
-      }
-    }
+    const shared = TDRules.pathBlockedCells ? TDRules.pathBlockedCells(path, CELL) : new Set();
+    for (const key of shared) blocked.add(key);
   }
 
   // ===== 遊戲狀態 =====
@@ -84,13 +71,14 @@
   let forceEnemyAtlasFallback = false;
   let reducedEffectsCache;
   let audioMutedCache;
+  let audioVolumeCache;
   const MAX_PARTICLES = 220;
   const MAX_TEXT_PARTICLES = 42;
   const MAX_COIN_PARTICLES = 8;
   const MAX_RING_PARTICLES = 14;
   const MAX_ACTIVE_SFX = 10;
-  const SFX_MIN_GAP = { fire: 0.024, hit: 0.018, kill: 0.035, wave: 0.12, boss: 0.22, leak: 0.12 };
-  const SFX_PRIORITY = { fire: 0, hit: 0, kill: 0, wave: 2, boss: 3, leak: 3 };
+  const SFX_MIN_GAP = { fire: 0.024, hit: 0.018, kill: 0.035, wave: 0.12, boss: 0.22, leak: 0.12, build: 0.06, skill: 0.10, ui: 0.04 };
+  const SFX_PRIORITY = { fire: 0, hit: 0, kill: 0, build: 1, ui: 1, wave: 2, skill: 2, boss: 3, leak: 3 };
   const PARTICLE_PRIORITY = { decor: 0, text: 1, warning: 3 };
   const FX_TEXTURES = {
     fire: "assets/particles/kenney-fire.png",
@@ -151,8 +139,25 @@
     try { localStorage.setItem("td_audio_muted", v ? "1" : "0"); } catch {}
     return getJuiceSettings();
   }
+  function audioVolume() {
+    if (audioVolumeCache !== undefined) return audioVolumeCache;
+    try {
+      const raw = Number(localStorage.getItem("td_audio_volume"));
+      audioVolumeCache = Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0.8;
+    } catch { audioVolumeCache = 0.8; }
+    return audioVolumeCache;
+  }
+  function setAudioVolume(v) {
+    const next = Math.max(0, Math.min(1, Number(v)));
+    audioVolumeCache = Number.isFinite(next) ? next : 0.8;
+    try { localStorage.setItem("td_audio_volume", String(audioVolumeCache)); } catch {}
+    if (audioState.master) {
+      try { audioState.master.gain.value = audioVolumeCache; } catch {}
+    }
+    return getJuiceSettings();
+  }
   function getJuiceSettings() {
-    return { reducedEffects: reducedEffectsEnabled(), audioMuted: audioMuted(), audioUnlocked: !!audioState.unlocked };
+    return { reducedEffects: reducedEffectsEnabled(), audioMuted: audioMuted(), audioUnlocked: !!audioState.unlocked, audioVolume: audioVolume() };
   }
   const audioState = { ctx: null, master: null, unlocked: false, active: 0, activeVoices: [], lastByKind: {} };
   function markAudioUnlockState() {
@@ -169,7 +174,7 @@
       const ctx2 = audioState.ctx;
       if (!audioState.master) {
         audioState.master = ctx2.createGain();
-        audioState.master.gain.value = 0.8;
+        audioState.master.gain.value = audioVolume();
         audioState.master.connect(ctx2.destination);
       }
       if (ctx2.state === "suspended" && ctx2.resume) {
@@ -256,6 +261,9 @@
       wave: [660, 0.16, "sine", 0.055],
       boss: [90, 0.34, "sawtooth", 0.075],
       leak: [140, 0.20, "square", 0.06],
+      build: [740, 0.08, "triangle", 0.04],
+      skill: [880, 0.18, "sawtooth", 0.05],
+      ui: [520, 0.05, "sine", 0.025],
     };
     const spec = map[kind];
     if (!spec) return;
@@ -1533,23 +1541,38 @@
   function castSkill(skillId, x, y) {
     const sk = SKILLS[skillId];
     if (!sk || state.skillCooldowns[skillId] > 0) return false;
+    const impactX = Number.isFinite(x) ? x : W / 2;
+    const impactY = Number.isFinite(y) ? y : H / 2;
+    const targets = state.enemies.filter((e) => !e._dead && !e._leaked && Math.hypot(e.x - impactX, e.y - impactY) <= sk.radius);
+    if (!targets.length) {
+      flashText(impactX, impactY - 18, "沒有目標", { color: "#f87171", size: 14, big: true });
+      ring(impactX, impactY, "#f87171", Math.min(70, Math.max(34, sk.radius * 0.35)));
+      log(`${sk.name} 沒有命中目標，未進入冷卻。`, "bad");
+      notifyUI();
+      return false;
+    }
     state.skillCooldowns[skillId] = sk.cooldown;
     state.skillCasts = (state.skillCasts || 0) + 1;
-    for (const e of state.enemies) {
-      if (e._dead) continue;
-      if (Math.hypot(e.x - x, e.y - y) <= sk.radius) {
-        const mult = elementMultiplier(sk.element, e.element);
-        applyDamage(e, sk.damage * mult, { source: "skill", element: sk.element });
-        if (e._reflectedLastHit) continue;
-        if (sk.freezeDur) e.frozenUntil = state.clock + sk.freezeDur;
-        if (sk.rootDur) e.frozenUntil = state.clock + sk.rootDur;
-        if (sk.vuln) markVulnerable(e, sk.vuln.mult, sk.vuln.duration);
-        if (e.hp <= 0) killEnemy(e);
+    let appliedHits = 0;
+    for (const e of targets) {
+      const mult = elementMultiplier(sk.element, e.element);
+      const dealt = applyDamage(e, sk.damage * mult, { source: "skill", element: sk.element });
+      if (e._reflectedLastHit) continue;
+      if (sk.freezeDur) e.frozenUntil = state.clock + sk.freezeDur;
+      if (sk.rootDur) e.frozenUntil = state.clock + sk.rootDur;
+      if (sk.vuln) markVulnerable(e, sk.vuln.mult, sk.vuln.duration);
+      if (appliedHits < 5) {
+        burst(e.x, e.y, sk.color, 12);
+        if (FX_PROFILES[sk.element]) texturedImpact(sk.element, e.x, e.y, sk.color, { fxKind: `skill-hit-${sk.element}` });
       }
+      if (dealt > 0) damageNumber(e.x, e.y, dealt, mult);
+      appliedHits++;
+      if (e.hp <= 0) killEnemy(e);
     }
-    if (FX_PROFILES[sk.element]) texturedImpact(sk.element, x, y, sk.color, { fxKind: `skill-${sk.element}` });
-    burst(x, y, sk.color, 40); ring(x, y, sk.color, sk.radius > 200 ? 180 : sk.radius + 30); // V2：技能擴張環
-    log(`施放 ${sk.name}！`);
+    playSfx("skill");
+    if (FX_PROFILES[sk.element]) texturedImpact(sk.element, impactX, impactY, sk.color, { fxKind: `skill-${sk.element}` });
+    burst(impactX, impactY, sk.color, 40); ring(impactX, impactY, sk.color, sk.radius > 200 ? 180 : sk.radius + 30); // V2：技能擴張環
+    log(`施放 ${sk.name}，命中 ${targets.length} 個目標！`);
     notifyUI();
     return true;
   }
@@ -1612,6 +1635,7 @@
     state.buildGhost = null;
     state.buildMenuTarget = null;
     state.mouse = null;
+    playSfx("build");
     log(`建造 ${def.name}！`);
     notifyUI();
     return true;
@@ -2859,11 +2883,14 @@
 
   function handleTap(p, isTouch) {
     if (state.pendingSkill) {
-      castSkill(state.pendingSkill, p.x, p.y);
-      state.pendingSkill = null;
-      state.buildMenuTarget = null;
-      state.selectedGoddess = false;
-      canvas.style.cursor = "default";
+      const casted = castSkill(state.pendingSkill, p.x, p.y);
+      if (casted) {
+        state.pendingSkill = null;
+        state.buildMenuTarget = null;
+        state.selectedGoddess = false;
+        canvas.style.cursor = "default";
+        notifyUI();
+      }
       return;
     }
     if (state.selectedTowerType) { handleBuildTap(p, isTouch); return; }
@@ -3034,7 +3061,7 @@
     startWave,
     selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; },
     cancelBuild: () => { state.selectedTowerType = null; state.buildGhost = null; state.advisorBuildConfirm = false; },
-    selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "crosshair"; } },
+    selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "crosshair"; playSfx("ui"); } },
     upgradeSelected: () => { if (state.selectedTower) upgradeTower(state.selectedTower); },
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
@@ -3052,7 +3079,9 @@
     getPerformanceStatus,
     setReducedEffects,
     setAudioMuted,
+    setAudioVolume,
     getJuiceSettings,
+    playSfx,
     togglePause,                   // 暫停（D10）
     setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
     cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },

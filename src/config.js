@@ -152,8 +152,8 @@ const GAME = {
   waveBonusGrowth: 1.12, // 波獎勵指數成長：bonus = base * growth^wave（提高，給金錢指數出口對抗血量指數）
   bossEveryWaves: 5,   // 每 5 波出 Boss
   hpGrowthEarly: 0.15, // 前 10 波血量成長率
-  hpGrowthLate: 0.10,  // 第 11 波起血量成長率（降低，消除後期斷崖）
-  bossHpMul: 1.0,      // Boss 額外血量倍率
+  hpGrowthLate: 0.085, // 第 11 波起血量成長率（R67：消除 W12 暴衝與後期斷崖）
+  bossHpMul: 0.82,     // Boss 額外血量倍率（R67：降低 Boss 後大幅掉落）
   spawnInterval: 0.8,  // 同波敵人生成間隔(秒)
 };
 
@@ -249,10 +249,10 @@ const DIFFICULTIES = {
             hpMul: 1.0, goldMul: 1.0, goddessMul: 1.0, bossEvery: 5,
             desc: "主流玩家能過，輕鬆上手享受塔防樂趣。" },
   brutal: { id: "brutal", label: "嚴酷", emoji: "🔥", color: "#f97316",
-            hpMul: 1.5, goldMul: 0.85, goddessMul: 0.8, bossEvery: 4,
+            hpMul: 1.42, goldMul: 0.88, goddessMul: 0.8, bossEvery: 4,
             desc: "敵人更強、資源更緊、Boss 更頻繁。需要真正研究搭配才過得了——值得寫攻略！" },
   endless:{ id: "endless", label: "無盡煉獄", emoji: "💀", color: "#dc2626",
-            hpMul: 1.3, goldMul: 0.9, goddessMul: 0.7, bossEvery: 3,
+            hpMul: 1.22, goldMul: 0.94, goddessMul: 0.7, bossEvery: 3,
             desc: "極限挑戰，比拼最高波數。撐得越久越強，看你能撐到第幾波？" },
 };
 
@@ -264,7 +264,7 @@ const EVENT_WAVES = {
   elite:   { id: "elite",   label: "精英波", emoji: "💪", color: "#a855f7",
              desc: "少量高血精英", speedMul: 0.8, hpMul: 2.5, countMul: 0.5, goldMul: 1.6 },
   swarm:   { id: "swarm",   label: "蟲潮波", emoji: "🦇", color: "#7c3aed",
-             desc: "大量快速小怪", speedMul: 1.3, hpMul: 0.6, countMul: 2.0, goldMul: 1.1, forceType: "bat" },
+             desc: "大量快速小怪", speedMul: 1.3, hpMul: 0.8, countMul: 2.0, goldMul: 1.1, forceType: "bat" },
   treasure:{ id: "treasure",label: "寶藏波", emoji: "💰", color: "#facc15",
              desc: "擊殺獲得大量金錢", speedMul: 1.0, hpMul: 0.8, countMul: 0.8, goldMul: 3.0 },
   rift:    { id: "rift",    label: "裂界波", emoji: "🌀", color: "#c084fc",

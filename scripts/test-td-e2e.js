@@ -723,8 +723,19 @@ async function run() {
       const skillHotkey = await page.evaluate(() => ({
         pendingSkill: window.TD.state().pendingSkill,
         cursor: document.getElementById("game").style.cursor,
+        cancelVisible: !document.getElementById("skillCancelBtn").hidden,
       }));
-      assert(skillHotkey.pendingSkill === "meteor" && skillHotkey.cursor === "crosshair", "按 Q 進入隕石術施放模式");
+      assert(skillHotkey.pendingSkill === "meteor" && skillHotkey.cursor === "crosshair" && skillHotkey.cancelVisible,
+        "按 Q 進入隕石術施放模式且顯示觸控取消");
+
+      await page.click("#skillCancelBtn");
+      const skillCancelBtn = await page.evaluate(() => ({
+        pendingSkill: window.TD.state().pendingSkill,
+        hidden: document.getElementById("skillCancelBtn").hidden,
+        cursor: document.getElementById("game").style.cursor,
+      }));
+      assert(!skillCancelBtn.pendingSkill && skillCancelBtn.hidden && skillCancelBtn.cursor === "default",
+        "觸控取消按鈕解除技能瞄準且不進入冷卻");
 
       await page.keyboard.press("Escape");
       await page.evaluate(() => {
@@ -738,6 +749,28 @@ async function run() {
       }));
       assert(!cooldownHotkey.pendingSkill && cooldownHotkey.log.includes("冷卻中"), "技能冷卻中按 Q 不進入施放模式並提示");
       await page.evaluate(() => { window.TD.state().skillCooldowns.meteor = 0; window.__tdUI(); });
+
+      const skillSpendGate = await page.evaluate(() => {
+        const st = window.TD.state();
+        st.enemies = [];
+        st.skillCooldowns.meteor = 0;
+        const beforeEmpty = st.skillCasts || 0;
+        const emptyCast = window.TD.debug.castSkill("meteor", 32, 32);
+        const afterEmpty = { cooldown: st.skillCooldowns.meteor, casts: st.skillCasts || 0, log: document.getElementById("log").innerText };
+        const target = window.TD.debug.spawnEnemy("slime", { x: 240, y: 240, wp: 1, hp: 100, maxHp: 100, speed: 0 });
+        const beforeHit = st.skillCasts || 0;
+        const hitCast = window.TD.debug.castSkill("meteor", 240, 240);
+        const afterHit = { cooldown: st.skillCooldowns.meteor, casts: st.skillCasts || 0, hp: target.hp, particles: st.particles.length };
+        st.skillCooldowns.meteor = 0;
+        st.enemies = [];
+        window.__tdUI();
+        return { emptyCast, beforeEmpty, afterEmpty, hitCast, beforeHit, afterHit };
+      });
+      assert(skillSpendGate.emptyCast === false && skillSpendGate.afterEmpty.cooldown === 0 &&
+        skillSpendGate.afterEmpty.casts === skillSpendGate.beforeEmpty && skillSpendGate.afterEmpty.log.includes("未進入冷卻") &&
+        skillSpendGate.hitCast === true && skillSpendGate.afterHit.cooldown > 0 &&
+        skillSpendGate.afterHit.casts === skillSpendGate.beforeHit + 1 && skillSpendGate.afterHit.hp < 100 && skillSpendGate.afterHit.particles > 0,
+        `技能只在有效命中後消耗冷卻與統計（${JSON.stringify(skillSpendGate.afterEmpty)} / ${JSON.stringify(skillSpendGate.afterHit)}）`);
 
       await page.keyboard.press("Tab");
       const tabSmoke1 = await page.evaluate(() => {

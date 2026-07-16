@@ -17,6 +17,9 @@
   let codexWasPaused = false;
   let codexTab = "world";
   let settingsWasPaused = false;
+  let tutorialWasPaused = false;
+  let tutorialFirstRun = false;
+  let tutorialStepIndex = 0;
   let advisorCollapsed = false;
   let advisorHidden = false;
   let advisorMode = "control";
@@ -33,6 +36,38 @@
   let textSize = loadTextSize();
   let drainedIntroCount = 0;
   const hudLast = { gold: null, goddessHp: null };
+  const TUTORIAL_STEPS = [
+    {
+      title: "建塔與開波",
+      body: "先選下方建塔列的攻擊塔，再點路徑旁的合法格。手機會先顯示幽靈預覽，再點同一格確認。",
+      tip: "第一波前至少要有一座塔；顧問建議會避開路徑格並指向可建造位置。",
+    },
+    {
+      title: "元素克制",
+      body: "火克冰、冰克雷、雷克火。下一波卡片會顯示主元素與敵人資訊，缺克制塔時會出現警告。",
+      tip: "冰系敵人優先補火塔，雷系或高速敵人優先補寒冰塔，火系敵人交給電磁塔。",
+    },
+    {
+      title: "升級、支援與女神",
+      body: "點已建造的塔可升級或賣出；聖光塔、引魂燈塔是支援塔，主力成形後再放。點終點女神可升級生命與反擊。",
+      tip: "女神漏怪會扣血，升級會回滿生命；不要把所有金錢都花在支援塔上。",
+    },
+    {
+      title: "英雄與魂晶",
+      body: "抽英雄消耗跨局魂晶，英雄上場後會自動作戰，也能從英雄列表指定守點。",
+      tip: "戰敗仍會保留魂晶與英雄進度；第二位英雄通常比單塔升級更能穩住中期。",
+    },
+    {
+      title: "詞綴與地圖",
+      body: "每局有地圖詞綴，會改變射程、敵血、金錢或塔傷。難度與地圖會影響起始資源、Boss 頻率與排行榜紀錄。",
+      tip: "濃霧要靠近路徑建塔；餘震要分散主力；豐收可提前升級主塔。",
+    },
+    {
+      title: "主動技能",
+      body: "選技能後點戰場施放；只有命中有效目標才消耗冷卻與統計。瞄準中可按 Esc 或下方 × 取消。",
+      tip: "隕石適合砸密集點；冰封和雷暴要等敵人上場後再確認，空場不會進冷卻。",
+    },
+  ];
 
   function updateHudNumber(id, value) {
     const el = $(id);
@@ -1142,6 +1177,8 @@
       const span = b.querySelector(".cdtext");
       span.textContent = cd > 0 ? Math.ceil(cd) + "s" : "就緒";
     });
+    const skillCancel = $("skillCancelBtn");
+    if (skillCancel) skillCancel.hidden = !st.pendingSkill;
 
     // 開始按鈕：只有波間可按，並顯示下一波預告（D4）
     const startBtn = $("startBtn");
@@ -1337,7 +1374,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r37-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r67-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }
@@ -1380,12 +1417,15 @@
     const status = TD.getJuiceSettings ? TD.getJuiceSettings() : { reducedEffects: false, audioMuted: false, audioUnlocked: false };
     const reduced = $("reducedEffectsToggle");
     const mute = $("audioMuteToggle");
+    const volume = $("audioVolumeRange");
     document.documentElement.classList.toggle("reduced-effects", !!status.reducedEffects);
     if (reduced) reduced.checked = !!status.reducedEffects;
     if (mute) mute.checked = !!status.audioMuted;
+    if (volume) volume.value = String(Math.round((status.audioVolume == null ? 0.8 : status.audioVolume) * 100));
     const box = $("juiceStatus");
     if (box) {
-      box.textContent = `特效 ${status.reducedEffects ? "減量" : "完整"}，音效 ${status.audioMuted ? "靜音" : (status.audioUnlocked ? "已解鎖" : "首次操作後啟用")}`;
+      const volumeText = Math.round((status.audioVolume == null ? 0.8 : status.audioVolume) * 100);
+      box.textContent = `特效 ${status.reducedEffects ? "減量" : "完整"}，音效 ${status.audioMuted ? "靜音" : (status.audioUnlocked ? "已解鎖" : "首次操作後啟用")}，音量 ${volumeText}%`;
     }
   }
 
@@ -1696,6 +1736,13 @@
   $("progressClose").onclick = () => { closeProgressOverlay(); };
   $("codexClose").onclick = () => { closeCodexOverlay(); };
   $("settingsClose").onclick = () => { closeSettingsOverlay(); };
+  if ($("skillCancelBtn")) {
+    $("skillCancelBtn").onclick = () => {
+      TD.cancelSelect();
+      if (TD.playSfx) TD.playSfx("ui");
+      refreshUI();
+    };
+  }
   $("heroDetailClose").onclick = () => { closeHeroDetail(); };
   $("restartBtn").onclick = restartRun;
   $("upgBtn").onclick = () => { TD.upgradeSelected(); refreshUI(); };
@@ -1720,6 +1767,12 @@
   if ($("audioMuteToggle")) {
     $("audioMuteToggle").onchange = (ev) => {
       if (TD.setAudioMuted) TD.setAudioMuted(!!ev.target.checked);
+      renderJuiceSettings();
+    };
+  }
+  if ($("audioVolumeRange")) {
+    $("audioVolumeRange").oninput = (ev) => {
+      if (TD.setAudioVolume) TD.setAudioVolume(Number(ev.target.value) / 100);
       renderJuiceSettings();
     };
   }
@@ -1752,6 +1805,11 @@
     if (isShown("heroDetailOverlay")) {
       if (e.code === "Escape") { e.preventDefault(); closeHeroDetail(); }
       else if (e.code !== "Tab") e.preventDefault();
+      return;
+    }
+    if (isShown("tutorial")) {
+      if (e.code === "Escape") { e.preventDefault(); closeTutorialOverlay({ markSeen: true, showDifficulty: tutorialFirstRun }); }
+      else if (e.code !== "Tab") { e.preventDefault(); }
       return;
     }
     if (isShown("settingsOverlay")) {
@@ -1911,35 +1969,114 @@
     selectedBoardDiff = TD.getDifficulty().id;
   })();
 
+  function markTutorialSeen() {
+    try { localStorage.setItem("td_tutorial_seen", "1"); } catch {}
+  }
+
+  function renderTutorialStep() {
+    const step = TUTORIAL_STEPS[Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, tutorialStepIndex))];
+    const title = $("tutorialTitle");
+    const progress = $("tutorialProgress");
+    const content = $("tutorialStep");
+    const tip = $("tutorialTip");
+    if (title) title.textContent = `🏰 ${step.title}`;
+    if (progress) progress.textContent = `${tutorialStepIndex + 1} / ${TUTORIAL_STEPS.length}`;
+    if (content) {
+      content.innerHTML = `
+        <div class="tutorial-step-title">${step.title}</div>
+        <div class="tutorial-step-body">${step.body}</div>`;
+    }
+    if (tip) tip.textContent = step.tip;
+    const prev = $("tutorialPrev");
+    const next = $("tutorialNext");
+    if (prev) prev.disabled = tutorialStepIndex <= 0;
+    if (next) next.textContent = tutorialStepIndex >= TUTORIAL_STEPS.length - 1 ? "完成" : "下一步";
+  }
+
+  function openTutorialOverlay(options) {
+    const opts = options || {};
+    tutorialFirstRun = !!opts.firstRun;
+    tutorialStepIndex = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, Number(opts.step) || 0));
+    const st = TD.state();
+    const shouldPauseRun = !tutorialFirstRun && (st.running || st.wave > 0 || st.enemies.length > 0 || st.spawnQueue.length > 0);
+    tutorialWasPaused = !!st.paused;
+    if (shouldPauseRun) {
+      TD.setPaused(true);
+      syncPauseButton(true);
+    }
+    renderTutorialStep();
+    $("tutorial").classList.add("show");
+    focusSoon($("tutorialNext"));
+  }
+
+  function closeTutorialOverlay(opts) {
+    const options = opts || {};
+    $("tutorial").classList.remove("show");
+    if (options.markSeen) markTutorialSeen();
+    if (!tutorialWasPaused && !TD.state().over) {
+      TD.setPaused(false);
+      syncPauseButton(false);
+    }
+    if (tutorialFirstRun && options.showDifficulty) {
+      renderDifficulties();
+      $("diffOverlay").classList.add("show");
+      focusSoon(document.querySelector(".diff-opt"));
+    } else {
+      focusSoon($("tutorialBtn") || $("settingsBtn"));
+    }
+    tutorialFirstRun = false;
+  }
+
+  function startQuickTutorialRun() {
+    closeTutorialOverlay({ markSeen: true });
+    TD.setDifficulty("normal");
+    TD.setMap("plains");
+    try { localStorage.setItem("td_difficulty", "normal"); } catch {}
+    const meta = loadMeta();
+    meta.lastMap = "plains";
+    saveMeta(meta);
+    deployedThisGame = new Set();
+    TD.newGame();
+    renderRoster();
+    refreshUI();
+  }
+
+  function openAdvancedAfterTutorial() {
+    closeTutorialOverlay({ markSeen: true });
+    renderDifficulties();
+    $("diffOverlay").classList.add("show");
+    focusSoon(document.querySelector(".diff-opt"));
+  }
+
+  function bindTutorialControls() {
+    $("tutorialPrev").onclick = () => {
+      tutorialStepIndex = Math.max(0, tutorialStepIndex - 1);
+      renderTutorialStep();
+    };
+    $("tutorialNext").onclick = () => {
+      if (tutorialStepIndex >= TUTORIAL_STEPS.length - 1) {
+        if (tutorialFirstRun) closeTutorialOverlay({ markSeen: true, showDifficulty: true });
+        else closeTutorialOverlay({ markSeen: true });
+        return;
+      }
+      tutorialStepIndex++;
+      renderTutorialStep();
+    };
+    $("tutorialClose").onclick = () => closeTutorialOverlay({ markSeen: true, showDifficulty: tutorialFirstRun });
+    $("tutorialQuick").onclick = startQuickTutorialRun;
+    $("tutorialAdvanced").onclick = openAdvancedAfterTutorial;
+    if ($("tutorialBtn")) $("tutorialBtn").onclick = () => openTutorialOverlay({ firstRun: false });
+    if ($("tutorialSettingsBtn")) $("tutorialSettingsBtn").onclick = () => openTutorialOverlay({ firstRun: false });
+  }
+
   (function setupTutorial() {
+    bindTutorialControls();
     let seen = false;
     const currentMeta = loadMeta();
     const hasSave = (currentMeta.games || 0) > 0 || (currentMeta.bestWave || 0) > 0 || (currentMeta.gachaCount || 0) > 0 || (currentMeta.totalKills || 0) > 0 || (currentMeta.soulCrystal || 0) > 0;
     try { seen = localStorage.getItem("td_tutorial_seen") === "1"; } catch {}
-    function markSeen() {
-      try { localStorage.setItem("td_tutorial_seen", "1"); } catch {}
-    }
     if (!seen && !hasSave) {
-      $("tutorial").classList.add("show");
-      focusSoon($("tutorialQuick"));
-      $("tutorialQuick").onclick = () => {
-        $("tutorial").classList.remove("show");
-        markSeen();
-        TD.setDifficulty("normal");
-        TD.setMap("plains");
-        try { localStorage.setItem("td_difficulty", "normal"); } catch {}
-        const meta = loadMeta();
-        meta.lastMap = "plains";
-        saveMeta(meta);
-        TD.newGame();
-        refreshUI();
-      };
-      $("tutorialAdvanced").onclick = () => {
-        $("tutorial").classList.remove("show");
-        markSeen();
-        renderDifficulties(); $("diffOverlay").classList.add("show");
-        focusSoon(document.querySelector(".diff-opt"));
-      };
+      openTutorialOverlay({ firstRun: true });
     } else {
       // 看過引導：直接顯示難度選擇
       renderDifficulties(); $("diffOverlay").classList.add("show");

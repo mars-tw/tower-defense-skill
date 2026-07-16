@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r66-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r67-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -160,6 +160,7 @@
   .gacha-meta { font-size: 11px; color: var(--ink-dim); text-align: center; margin-top: -4px; }
   .board-btn { background: linear-gradient(180deg,#facc15,#f59e0b); color: #241707; width: 100%; }
   .codex-btn { position: relative; background: linear-gradient(180deg,#c084fc,#7c3aed); color: #fff; width: 100%; }
+  .tutorial-btn { background: linear-gradient(180deg,#7dd3fc,#0284c7); color: #04131d; width: 100%; }
   .install-btn { background: linear-gradient(180deg,#38bdf8,#0284c7); color: #04131d; width: 100%; }
   .codex-btn.has-new::after {
     content: "NEW!"; position: absolute; right: 8px; top: -7px; border-radius: 999px;
@@ -515,6 +516,8 @@
     border: 1px solid var(--border-hi); border-radius: 10px; background: var(--surface-2);
     color: var(--ink); padding: 9px 10px; font-weight: 900; cursor: pointer; }
   .juice-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .juice-volume { display: grid; gap: 5px; color: var(--ink-dim); font-size: 12px; font-weight: 800; }
+  .juice-volume input { width: 100%; min-height: 32px; accent-color: var(--accent); }
   .save-code { width: 100%; min-height: 96px; resize: vertical; border-radius: 10px;
     border: 1px solid var(--border-hi); background: rgba(6,10,8,.8); color: var(--ink);
     padding: 9px; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; user-select: text; }
@@ -545,9 +548,13 @@
     align-items: center; justify-content: center; z-index: 120; padding: 16px; }
   .tutorial-overlay.show { display: flex; }
   .tutorial-card { background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
-    border: 1px solid var(--border-hi); border-radius: 18px; padding: 24px 28px; max-width: 440px;
+    border: 1px solid var(--border-hi); border-radius: 18px; padding: 24px 28px; max-width: 520px;
     box-shadow: var(--shadow-pop); }
-  .tutorial-card h2 { color: var(--accent); font-size: 24px; margin-bottom: 14px; text-align: center; }
+  .tutorial-card h2 { color: var(--accent); font-size: 24px; margin-bottom: 6px; text-align: center; }
+  .tutorial-progress { color: var(--ink-meta); font-size: 12px; font-weight: 900; text-align: center; margin-bottom: 12px; }
+  .tutorial-step { display: grid; gap: 8px; margin-bottom: 14px; }
+  .tutorial-step-title { color: var(--gold); font-size: 15px; font-weight: 900; }
+  .tutorial-step-body { color: var(--ink); font-size: 13px; line-height: 1.55; }
   .tutorial-card ol { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
   .tutorial-card li { font-size: 14px; line-height: 1.5; color: var(--ink); padding-left: 4px; }
   .tutorial-card li b { color: var(--gold); }
@@ -555,7 +562,8 @@
     padding: 10px 12px; border-radius: 10px; margin-bottom: 16px; }
   .tutorial-card button { width: 100%; background: linear-gradient(180deg,#4ade80,#22c55e); color: #06210f;
     border: none; padding: 13px; border-radius: 12px; font-size: 16px; font-weight: 800; cursor: pointer; }
-  .tutorial-actions { display: grid; gap: 8px; }
+  .tutorial-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tutorial-actions .wide { grid-column: 1 / -1; }
   .tutorial-card button.secondary { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border-hi); }
 
   /* 難度選擇（鉤子）*/
@@ -844,6 +852,13 @@
   #skillList .skill-btn.active { box-shadow: 0 0 0 3px rgba(250,204,21,.55), 0 0 18px var(--skill-color,#facc15); }
   #skillList .skill-btn[data-hotkey] { padding-right: 4px; }
   #skillList .skill-btn[data-hotkey]::after { top: -1px; right: -1px; z-index: 3; min-width: 14px; padding: 0 3px; font-size: 8px; }
+  .skill-cancel {
+    display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    border: 1px solid rgba(248,113,113,.58); border-radius: 50%; background: rgba(127,29,29,.86);
+    color: #fee2e2; font-size: 24px; line-height: 1; font-weight: 900; cursor: pointer;
+    box-shadow: 0 0 0 2px rgba(248,113,113,.15), 0 5px 14px rgba(0,0,0,.38);
+  }
+  .skill-cancel[hidden] { display: none !important; }
 
   .scene-controls .hud-core { display: flex; flex: 0 0 auto; align-items: stretch; gap: 5px; }
   .scene-controls .controls { flex-wrap: nowrap; }
@@ -1028,6 +1043,7 @@
           <div class="skill-group">
             <span class="dock-label skill-title">✨ 技能</span>
             <div id="skillList" class="skill-dock" data-testid="skill-dock" role="toolbar" aria-label="技能控制盤"></div>
+            <button type="button" class="skill-cancel" id="skillCancelBtn" aria-label="取消技能瞄準" title="取消技能瞄準" hidden>×</button>
           </div>
           <div class="hud-core">
             <div class="controls wave-start">
@@ -1072,6 +1088,7 @@
         <div class="drawer-body">
           <button class="act board-btn" id="boardBtn" aria-label="開啟排行榜與成就">🏆 排行榜/成就</button>
           <button class="act codex-btn" id="codexBtn" aria-label="開啟神魔誌">📜 神魔誌</button>
+          <button class="act tutorial-btn" id="tutorialBtn" aria-label="開啟實戰引導">❔ 實戰引導</button>
           <button class="act install-btn" id="installBtn" hidden aria-label="安裝無盡塔防到主畫面">📲 安裝到主畫面</button>
           <div class="shortcut-help">快捷鍵：1-0 建塔 · Q/W/E/R/A 技能 · Enter 下一波 · T 加速 · H 抽英雄</div>
         </div>
@@ -1152,7 +1169,16 @@
           <label class="juice-toggle"><input type="checkbox" id="reducedEffectsToggle"> 減少特效</label>
           <label class="juice-toggle"><input type="checkbox" id="audioMuteToggle"> 靜音</label>
         </div>
+        <label class="juice-volume">音量
+          <input type="range" id="audioVolumeRange" min="0" max="100" step="5" aria-label="音量">
+        </label>
         <div class="settings-status" id="juiceStatus"></div>
+      </section>
+      <section class="settings-section">
+        <h3>教學</h3>
+        <div class="update-actions">
+          <button type="button" id="tutorialSettingsBtn">開啟實戰引導</button>
+        </div>
       </section>
       <section class="settings-section">
         <h3>版本與更新</h3>
@@ -1212,11 +1238,16 @@
   <!-- 首次遊玩引導（D3）-->
   <div class="tutorial-overlay" id="tutorial" role="dialog" aria-modal="true" aria-label="新手教學">
     <div class="tutorial-card">
-      <h2>🏰 如何遊玩</h2>
-      <p class="tut-tip">選一座塔蓋在路徑旁，再開始下一波。怪物漏到終點會攻擊女神；戰敗拿魂晶抽英雄，下局更強。</p>
+      <h2 id="tutorialTitle">🏰 如何遊玩</h2>
+      <div class="tutorial-progress" id="tutorialProgress">1 / 6</div>
+      <div class="tutorial-step" id="tutorialStep"></div>
+      <p class="tut-tip" id="tutorialTip">選一座塔蓋在路徑旁，再開始下一波。怪物漏到終點會攻擊女神；戰敗拿魂晶抽英雄，下局更強。</p>
       <div class="tutorial-actions">
+        <button class="secondary" id="tutorialPrev">上一步</button>
+        <button id="tutorialNext">下一步</button>
+        <button class="secondary" id="tutorialClose">關閉</button>
         <button id="tutorialQuick">快速開始（普通＋翠綠平原）</button>
-        <button class="secondary" id="tutorialAdvanced">進階選項：選難度 / 地圖</button>
+        <button class="secondary wide" id="tutorialAdvanced">進階選項：選難度 / 地圖</button>
       </div>
     </div>
   </div>
@@ -1239,18 +1270,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r66-v1"></script>
-  <script src="src/heroes.js?v=td-r66-v1"></script>
-  <script src="src/rules.js?v=td-r66-v1"></script>
-  <script src="src/lore.js?v=td-r66-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r66-v1"></script>
-  <script src="src/hero-animation.js?v=td-r66-v1"></script>
-  <script src="src/game.js?v=td-r66-v1"></script>
-  <script src="src/ui.js?v=td-r66-v1"></script>
+  <script src="src/config.js?v=td-r67-v1"></script>
+  <script src="src/heroes.js?v=td-r67-v1"></script>
+  <script src="src/rules.js?v=td-r67-v1"></script>
+  <script src="src/lore.js?v=td-r67-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r67-v1"></script>
+  <script src="src/hero-animation.js?v=td-r67-v1"></script>
+  <script src="src/game.js?v=td-r67-v1"></script>
+  <script src="src/ui.js?v=td-r67-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r66-v1";
+      const PWA_VERSION = "td-r67-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

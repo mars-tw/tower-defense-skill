@@ -473,6 +473,44 @@
     return true;
   }
 
+  function themeEnemyWeight(type, wave) {
+    const enemy = cfg.ENEMIES[type];
+    if (!enemy) return 0;
+    let weight = 1;
+    if (enemy.shield) weight *= 0.72;
+    if (enemy.hp >= 110) weight *= 0.62;
+    if (enemy.hp >= 145) weight *= 0.44;
+    if ((type === "lavagolem" || type === "warden") && wave < 16) weight *= 0.42;
+    if (enemy.speed >= 90) weight *= 1.18;
+    return Math.max(0.08, weight);
+  }
+
+  function pickWeightedEnemy(pool, wave, rand) {
+    const weighted = pool.map((type) => ({ type, weight: themeEnemyWeight(type, wave) })).filter((item) => item.weight > 0);
+    const total = weighted.reduce((sum, item) => sum + item.weight, 0);
+    if (total <= 0) return pool[Math.floor(rand() * pool.length)];
+    let roll = rand() * total;
+    for (const item of weighted) {
+      roll -= item.weight;
+      if (roll <= 0) return item.type;
+    }
+    return weighted[weighted.length - 1].type;
+  }
+
+  function bossWaveIndex(wave, bossEvery) {
+    return Math.max(1, Math.floor(safeNumber(wave, 1) / Math.max(1, safeNumber(bossEvery, cfg.GAME.bossEveryWaves || 5))));
+  }
+
+  function bossWaveCountMul(wave, bossEvery) {
+    const index = bossWaveIndex(wave, bossEvery);
+    return Math.min(0.68, 0.50 + index * 0.04 + Math.max(0, index - 1) * 0.04);
+  }
+
+  function bossHpMultiplierForWave(wave, bossEvery) {
+    const base = safeNumber(cfg.GAME.bossHpMul, 1);
+    return base * Math.min(1.32, 1 + (bossWaveIndex(wave, bossEvery) - 1) * 0.10);
+  }
+
   function generateWaveQueue(wave, difficulty, rng, affixInput) {
     const w = Math.max(1, Math.floor(safeNumber(wave, 1)));
     const diff = normalizeDifficulty(difficulty);
@@ -487,7 +525,7 @@
     const rand = makeRng(rng, w);
 
     let baseCount = 5 + Math.floor(w * 1.2);
-    if (isBoss) baseCount = Math.floor(baseCount * 0.5);
+    if (isBoss) baseCount = Math.floor(baseCount * bossWaveCountMul(w, bossEvery));
     if (event) baseCount = Math.max(2, Math.round(baseCount * event.countMul));
 
     const affixHpMul = affix ? safeNumber(affix.enemyHpMul, 1) : 1;
@@ -498,7 +536,7 @@
       if (event && event.forceType) {
         type = event.forceType;
       } else if (themePool && themePool.length && rand() < 0.55) {
-        type = themePool[Math.floor(rand() * themePool.length)];
+        type = pickWeightedEnemy(themePool, w, rand);
       } else {
         type = pickDefaultEnemy(w, rand());
       }
@@ -524,7 +562,7 @@
 
     if (isBoss) {
       const bossType = (Math.floor(w / bossEvery) % 2 === 0) ? "yaksha" : "boss";
-      queue.push({ type: bossType, hpScale: hpScale * (cfg.GAME.bossHpMul || 1.0) * affixHpMul, affix: affix ? affix.id : null });
+      queue.push({ type: bossType, hpScale: hpScale * bossHpMultiplierForWave(w, bossEvery) * affixHpMul, affix: affix ? affix.id : null });
     }
     return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale: hpScale * affixHpMul, affix, queue };
   }
@@ -760,10 +798,12 @@
     const range = towerRangeFor(type, 1, affixInput);
     const weak = weakestCoverageSample(towers, path, affixInput);
     const occupied = new Set(towers.map((tw) => `${tw.cx},${tw.cy}`));
+    const blocked = pathBlockedCells(path, cell);
     let best = null;
     for (let cy = 0; cy < Math.ceil(height / cell); cy++) {
       for (let cx = 0; cx < Math.ceil(width / cell); cx++) {
         if (occupied.has(`${cx},${cy}`)) continue;
+        if (blocked.has(`${cx},${cy}`)) continue;
         const x = cx * cell + cell / 2;
         const y = cy * cell + cell / 2;
         if (x < 0 || y < 0 || x >= width || y >= height) continue;
@@ -1208,6 +1248,33 @@
     return distanceToPath(px, py, path) <= Math.max(0, safeNumber(range, 0)) + 1e-9;
   }
 
+  function pathBlockedCells(path, cellSize, options) {
+    const cell = Math.max(1, Math.floor(safeNumber(cellSize, cfg.GAME && cfg.GAME.cellSize || 48)));
+    const step = Math.max(2, safeNumber(options && options.step, 10));
+    const halfWidth = cell * safeNumber(options && options.pathHalfWidthCell, 0.4);
+    const cells = new Set();
+    if (!Array.isArray(path) || path.length < 2) return cells;
+    const add = (x, y) => {
+      cells.add(`${Math.floor(x / cell)},${Math.floor(y / cell)}`);
+    };
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], b = path[i + 1];
+      if (!a || !b || !isFiniteNumber(a.x) || !isFiniteNumber(a.y) || !isFiniteNumber(b.x) || !isFiniteNumber(b.y)) continue;
+      const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / step);
+      for (let s = 0; s <= steps; s++) {
+        const t = steps <= 0 ? 0 : s / steps;
+        const x = a.x + (b.x - a.x) * t;
+        const y = a.y + (b.y - a.y) * t;
+        add(x, y);
+        add(x - halfWidth, y);
+        add(x + halfWidth, y);
+        add(x, y - halfWidth);
+        add(x, y + halfWidth);
+      }
+    }
+    return cells;
+  }
+
   return {
     META_VERSION,
     META_DEFAULT,
@@ -1239,5 +1306,6 @@
     distancePointToSegment,
     distanceToPath,
     canReachPath,
+    pathBlockedCells,
   };
 });

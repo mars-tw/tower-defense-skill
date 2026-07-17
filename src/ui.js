@@ -151,8 +151,17 @@
     const minRange = t.minRange ? ` · 盲區 ${t.minRange}` : "";
     return `傷 ${t.damage} · 程 ${t.range}${minRange} · 速 ${t.fireRate}/秒${extra}${control}`;
   }
-  function assetIcon(group, id, klass) {
-    return `<span class="${klass} asset-ico" aria-hidden="true"><img src="assets/${group}/${id}.png" alt="" loading="lazy" draggable="false"></span>`;
+  function assetIcon(group, id, klass, source) {
+    return `<span class="${klass} asset-ico" aria-hidden="true"><img src="${source || `assets/${group}/${id}.png`}" alt="" loading="lazy" draggable="false"></span>`;
+  }
+  function towerTierIndex(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    return value >= 7 ? 2 : value >= 4 ? 1 : 0;
+  }
+  function towerArt(tower, level, klass) {
+    const sprites = tower && tower.sprites;
+    const source = sprites && sprites[towerTierIndex(level)];
+    return assetIcon("towers", tower.id, klass, source);
   }
   const towerList = $("towerList");
   Object.values(TOWERS).forEach((t) => {
@@ -164,7 +173,7 @@
     btn.title = shortcut + (t.desc || t.name);
     btn.setAttribute("aria-label", `${t.name}：${shortcut}${t.desc || stats}`);
     btn.style.setProperty("--tower-color", t.color || "#4ade80");
-    btn.innerHTML = `${assetIcon("towers", t.id, "ico")}<span class="tshort">${TOWER_SHORT_NAMES[t.id] || t.name.slice(0, 1)}</span><span class="cost">${t.cost}</span>`;
+    btn.innerHTML = `${towerArt(t, 1, "ico")}<span class="tshort">${TOWER_SHORT_NAMES[t.id] || t.name.slice(0, 1)}</span><span class="cost">${t.cost}</span>`;
     btn.onclick = () => {
       const st = TD.state();
       if (st.selectedTowerType === t.id) { TD.cancelBuild(); }
@@ -295,7 +304,7 @@
       btn.style.setProperty("--wheel-color", t.color || "#facc15");
       btn.title = `${t.name} · ${t.cost} 金幣`;
       btn.setAttribute("aria-label", `在此建造${t.name}，花費 ${t.cost} 金幣`);
-      btn.innerHTML = `${assetIcon("towers", t.id, "wheel-ico")}<span class="wheel-cost">${t.cost}</span>`;
+      btn.innerHTML = `${towerArt(t, 1, "wheel-ico")}<span class="wheel-cost">${t.cost}</span>`;
       btn.onclick = (ev) => {
         ev.stopPropagation();
         if (TD.buildTowerAt) TD.buildTowerAt(t.id, target.x, target.y);
@@ -447,8 +456,7 @@
   }
 
   function heroAvatar(hero) {
-    if (!hero.sprite) return hero.emoji;
-    return `<img src="${hero.sprite}" alt="${hero.name}" onerror="this.replaceWith(document.createTextNode('${hero.emoji}'))">`;
+    return `<img src="${hero.portrait}" alt="${hero.name}" loading="lazy" draggable="false">`;
   }
 
   function heroProgressFor(id, meta) {
@@ -1226,7 +1234,7 @@
         statLine = `傷害 ${Math.round(effective)}${buff > 0 ? `（聖光 +${Math.round(buff * 100)}%）` : ""} · 射程 ${Math.round(TD.towerStat(tw, "range"))}${blind}${poison}${blindNote}`;
       }
       $("selInfo").innerHTML = `
-        <b>${def.emoji} ${def.name}</b> Lv.${tw.level}<br>
+        <b class="sel-tower-title">${towerArt(def, tw.level, "sel-tower-art")}<span>${def.name} Lv.${tw.level}</span></b><br>
         ${statLine}`;
       const cost = TD.upgradeCost(tw);
       $("upgBtn").textContent = maxed ? "已滿級" : `升級 (${cost}💰)`;
@@ -1383,7 +1391,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r69-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r70-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }

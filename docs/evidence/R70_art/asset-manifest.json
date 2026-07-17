@@ -1,0 +1,1833 @@
+{
+  "schema_version": "td-r70-wave1-art.v1",
+  "model_slug": "gpt-image-2",
+  "interface": "built-in image_gen",
+  "prompt_version": "td-r70-wave1-v1.0",
+  "calibration_pipeline": "VISUAL_REFRESH_PILOT/tools_visual",
+  "assets": [
+    {
+      "kind": "portrait",
+      "slug": "knight",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 聖騎士 (knight)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: blue and silver plate armor, blond hair, sword and shield; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#08f805",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/knight-idle.png",
+          "sha256": "883f2b4d8dd6aeb22b9955ed042a3f71c274093998c4b6f27f8a67a704357d4b"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/knight.png",
+          "sha256": "b2cda07fa03e5fd4cd5cf5e7e6242fdb82bf82a658d6bebe7c975db2296c8f1d"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/knight.png",
+          "sha256": "63096576497e297aa74233f690fd1bb8c068f01264a6d989c99371e4ddfa018d"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/knight.png",
+          "sha256": "5069cc35912da74b5f180b7e8b78815cce4de2ec906f8fe2ef7adb2ee0e69dc5"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/knight.png",
+          "sha256": "5dc7725e63e39ff8465c4b26725a6b109f09ced69bfdda636f83343a3b7ca3e4"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/knight.png",
+          "sha256": "21e084660470a29d35e3a13728d92a28ed0e67ef20da48e0c3e8a287a3b52c05"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "archer",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 遊俠 (archer)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: green ranger leathers, brown hair, longbow and quiver; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #ff00ff chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#ff00ff",
+      "estimated_matte": "#f902f7",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/archer-idle.png",
+          "sha256": "0dea9a391a78519f6b5f5ca3262dc6f8d550bc2091bef207a2a8af51bed2292b"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/archer.png",
+          "sha256": "b02035b8912cb4fa0217b52c06448ebea1811a60558c2aae6672e88661dcdacf"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/archer.png",
+          "sha256": "e7a84516ed5ab57227f438405f329499ef01fdd40a2bc90e3af63b8ca0a89a69"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/archer.png",
+          "sha256": "5afb20295cdee2724033e55b0709d63790fdbc53c6067598848054cf9f4024e1"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/archer.png",
+          "sha256": "506d426770f3e1f0e5a72bbbe7c4250d9c4c9f5731a3593e90a8649a8de891ea"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/archer.png",
+          "sha256": "9eb8331eb98cfd1486c641e71511bd3a1a1b127025495df94f47e143640176f4"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "mage",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 大法師 (mage)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: red-orange fire robes, hood, flame staff; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0af807",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/mage-idle.png",
+          "sha256": "85fa543406f5cb0b4b1260a88814e47c9ee56409307d771f2a65e4787d53daa6"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/mage.png",
+          "sha256": "668cebfe475149c494d52f729970b30c59be9f6e038398fd7b96055c3b2c5f48"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/mage.png",
+          "sha256": "755f628b545eac19767e02db1beb758b24cc673501c99d5f552b39cf0b7ef1cf"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/mage.png",
+          "sha256": "74aed4a005a2a08249a5eb72ad59ca842e91e358f95354cc7d6e4be8c8f6547f"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/mage.png",
+          "sha256": "94610beeebd18aadcd3a8670041f3228252401f3a865f01bd4cd1da59bb44b82"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/mage.png",
+          "sha256": "10750e31ccaac69f26a7a527f60064879d522707a471d68044bb917847e6686a"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "iceMage",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 冰霜法師 (iceMage)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: blue-white frost robes, silver hair, ice staff; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#08f107",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/iceMage-idle.png",
+          "sha256": "78607517b55b03ec9c6541f36a206e98c545ccaa7a01272e688a6b2a0264d10f"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/iceMage.png",
+          "sha256": "c239b668f0731a2cfae762ae59a8b5a971e305a030a0edd451f3890e930e1d93"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/iceMage.png",
+          "sha256": "c1efc243c076a1703fe4762cd8d8c8d01805c3cb7f39079b1de3782b588a3c2e"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/iceMage.png",
+          "sha256": "87ee47d72a3e44b30eecd658b0864b0b8e7710e087687267c7ab5d1de3b387cf"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/iceMage.png",
+          "sha256": "4719b74f032096c296134900770388307831b942f42a6072556526b1f5e89b79"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/iceMage.png",
+          "sha256": "635fa0b8046806943e619b780f426a916277bcac7fa1779365adf9c048a859f3"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "valkyrie",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 女武神 (valkyrie)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: gold winged armor, white hair, lightning spear; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0ff112",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/valkyrie-idle.png",
+          "sha256": "0257b2430112c7ff8d781908c95da06598a0090cf6d328cbdd48b8c875719a04"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/valkyrie.png",
+          "sha256": "1dc70309a570c5cfbf2db7be72e2ea799e6a5f739051d1a25bd26b586eb26639"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/valkyrie.png",
+          "sha256": "96169689932146a791a365cbfa1bb3223808607d304ccb7aeeccd996fb10ef19"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/valkyrie.png",
+          "sha256": "4ade4105af5b27952efd07b374176bee3a4d011855705303ab98ed5faeb64faa"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/valkyrie.png",
+          "sha256": "e30882e6e81a0cd6c873541ed2eaa6b21406d4e026bfeb10dde948514da692cc"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/valkyrie.png",
+          "sha256": "816c34af010df8d2a2da26de22bdecdc41eed3da0ebeed7f17c44aeaba4c0365"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "cleric",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 牧師 (cleric)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: white-gold holy robes, hood and cross staff; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0bf70e",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/cleric-idle.png",
+          "sha256": "8e7c2fe324f783d188ba2d695ec6e57225a1c7cb6013a9a3cd59cb759ac62f29"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/cleric.png",
+          "sha256": "19057ae64230846f78123cc1cd680e6027b7135af8442433c413bcb4c8c7b8f2"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/cleric.png",
+          "sha256": "4824a59891253ecc8b9c37bc341f791a4c94abfe7d0d5af086fd4f45892e8e28"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/cleric.png",
+          "sha256": "05d85699928c2dd14c497c9272209826eb927914f0a054f5cb538467ba189d9a"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/cleric.png",
+          "sha256": "5d608fdf53019a96ee36552fb916a7931bd3981848b6ceec0b6f12ddc30119c8"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/cleric.png",
+          "sha256": "a3458f12aafdd8ad42a96e12ccf327e1829d474acfe12abe8f3917919948db13"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "daji",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 妲己 (daji)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: red fox-spirit robes, nine-tail silhouette and fire orb; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#03f903",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/daji-idle.png",
+          "sha256": "df778cfeeac159ecbd3800448612b5d96dd3650cb5c3e766ed90244dab5c48db"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/daji.png",
+          "sha256": "d9abd91c27b257aeb5e2ba07f78931c337e985526b795ed911a164f32bd9c143"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/daji.png",
+          "sha256": "680fb22acaa312560628824ac2e99f4deb4955eec893cdc21d5ae4f9f17caafb"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/daji.png",
+          "sha256": "7f8e7ad35b5ffae4b5101de6f79555c620df99c2a75d461d0f096ffc1489e458"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/daji.png",
+          "sha256": "3cf5b1e1d7b70490e20ab664bfc26a95b3e1c49d194c3c276098c260d3f1523e"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/daji.png",
+          "sha256": "49fec600b0a0f60a3a5721e78eacef4a67e03edb897fa85e08e4920b82c28693"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "guanyu",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 魔關羽 (guanyu)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: dark green-red armor, long beard and crescent blade; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#04f909",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/guanyu-idle.png",
+          "sha256": "0fb1325b082a38287b316d11d5e80d745160ba5037098f0850ade43ef1338d9a"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/guanyu.png",
+          "sha256": "1d9a4af2a166a5cfcdd1d3e642641578745c7632aeef506b00360e0e3d7b90b4"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/guanyu.png",
+          "sha256": "662d783e036556b724cd10ec1625056b3a62b8d7ffd0b0ac4300b4fea2437798"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/guanyu.png",
+          "sha256": "5da971af9ec690ff2c2a91b728bf9e170e27b64b7a3364f8aeb25c2c54049e9e"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/guanyu.png",
+          "sha256": "b390b14e2195a6736909d2b3830d05a5300b86a7e03f06ab8d1e50b3b368c00f"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/guanyu.png",
+          "sha256": "b26a68b08709a63e2f2bdc30e19def09d4567d0525d1e86f84118da6b022dfcc"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "wukong",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 孫悟空 (wukong)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: monkey king armor, golden staff and thunder ribbons; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#03f908",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/wukong-idle.png",
+          "sha256": "fc8e50641b0f000f1a3964b75febffc3635ebaca9872d2792f7b9820f26bfd8f"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/wukong.png",
+          "sha256": "b2da69375545dff3a9dd0f53ff2883a5741db5776b8b648178a0288684333e36"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/wukong.png",
+          "sha256": "6b8e00065cf505448eac3a92a5b5d8a09cae8bcaa135eafb1c43044ef1a5a454"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/wukong.png",
+          "sha256": "b074de537306f97e536a02fd626af0bfe7f01988798ee5279d0d409559d8a333"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/wukong.png",
+          "sha256": "363443aa47492f67f7b1660b7daa64990d0812c6e07cc2573bf4155efa0f5222"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/wukong.png",
+          "sha256": "93a0b9d5d5bbb9ceac08c2e123bc7a7b5fae7562160e62964ac7021bc0440be7"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "nezha",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 哪吒 (nezha)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: youthful flame-wheel hero, red ribbons and spear; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#04f80d",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/nezha-idle.png",
+          "sha256": "20b1cd54e547556f1051d1e9da7d67f1452f2290efceff315ab0f4240aeac6af"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/nezha.png",
+          "sha256": "cb502c8c382517ce17d64d73df2917333fd3d8f4663862f96f28c05713cb9d24"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/nezha.png",
+          "sha256": "f041b4bd4035600e970c0dfdef96abb8a7083e66bab23d59ce8cf7c51ba78f28"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/nezha.png",
+          "sha256": "c418358a8dc3b849a1414c174f86b3c7900b04c58213d87faa12e75ac6580d7a"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/nezha.png",
+          "sha256": "f2984e6e71d9d0131e15808206abd0a0780efee20e9f4904cc2a9e7daf5e977c"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/nezha.png",
+          "sha256": "c8766524637f4cbdd287f842582efc5debe1cb5e99813a71424eb0caccf47701"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "leizhenzi",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 雷震子 (leizhenzi)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: purple-gold storm armor, feathered wings and lightning bow; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#03f902",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/leizhenzi-idle.png",
+          "sha256": "2b8c74b2645af0ac511a86c8c5ce5f7f5499fe837f68b5e5d6ea979345d1b945"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/leizhenzi.png",
+          "sha256": "82b1ccdde0d5078045e3751834720910b564db86a6468f90d3dab0aa49d7d660"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/leizhenzi.png",
+          "sha256": "54cf17522d6bbc1f72bcbaafa49abc929344a5a1b8c85bdb107c761a839ded12"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/leizhenzi.png",
+          "sha256": "da7253c393081d855be0d43b32ea8316f4662f94a349745145d527765da255cb"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/leizhenzi.png",
+          "sha256": "783e1d8e271961bab56ff03d2891fddbc82ee8c35264946cdbb4aa45aff419f8"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/leizhenzi.png",
+          "sha256": "f2a99fd6a8d0e70ddeda00f0eaaa6c3bc78e0bf5ac5a0da20d8ba0f18ccb5786"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "niumowang",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 牛魔王 (niumowang)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: horned black-red heavy armor and massive axe; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0cf70e",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/niumowang-idle.png",
+          "sha256": "8c6b688ea92df300c26d01750fd941bc867efb5b8e4c41d6452e5d3832e4e3b7"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/niumowang.png",
+          "sha256": "20b9cef8e0d774a9790e77d7c1da3ae91119702e00bd999c098caaf5bb3d4012"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/niumowang.png",
+          "sha256": "61059d8512b2f5556e3794c4e8744c48d47ad23564a4a378af3ec7d484565ac1"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/niumowang.png",
+          "sha256": "22869a819a286c3bd0b17ea57ac777713e094b1e0ae214033c44b51902cb0d98"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/niumowang.png",
+          "sha256": "68ca87f4a85316b023960cf5359a3b4e38155bc3ebe3d95d49d1efc7ec85f551"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/niumowang.png",
+          "sha256": "5f9b300b214956a27be71d5081d75011d1c1422cee35553e8dbd6b1d4c0e9e56"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "baisuzhen",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 白素貞 (baisuzhen)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: pale blue-white serpent spirit robes and frost magic; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#03f705",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/baisuzhen-idle.png",
+          "sha256": "acc223ad3cc23e1f905c876eb930374f9a3ec124e44985fa3dbbb8cd6346b52e"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/baisuzhen.png",
+          "sha256": "ff77d9d02edffb663afc268939ad1565b1eabe046b03e27b3f6b9f11c6ea319e"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/baisuzhen.png",
+          "sha256": "a7d17aa2fb21b8924688036353ac1339729de8b1e40be68d7a9aa8bc196b2b3b"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/baisuzhen.png",
+          "sha256": "aa01776a851a4a7e868509ac58135bfaaa544b7ade75ac28a210b171deb692c7"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/baisuzhen.png",
+          "sha256": "a984cc8770602bf9ab8897b3c565966a37a87098c1456c00d519f3c25facde32"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/baisuzhen.png",
+          "sha256": "eb7ee38893af39e893a1723a3abdd15ca52286dfda68d0b819eba5825a57399d"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "erlangshen",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 二郎神 (erlangshen)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: three-eyed celestial warrior, dark gold armor and spear; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#04f905",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/erlangshen-idle.png",
+          "sha256": "64c8c06d50c03d36f9b04a56bdb5e605091907c49ed275ac1d2e0cdfb3fc90df"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/erlangshen.png",
+          "sha256": "9081007abe188f39d5c544ef7e0eb3799869ae684b55f0020d311fa27ebe083a"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/erlangshen.png",
+          "sha256": "557046e597b1c227868294fc09271b87aaf6b034ae26fd6c62a210184ba56640"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/erlangshen.png",
+          "sha256": "58ec724a385a11991489172e814a32b7e704ecf4127b57cad197a0f807667df9"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/erlangshen.png",
+          "sha256": "60f60f746f8286c12bdb6ea450c489cae4d7abf32130ce32b832af9d7b39c5ea"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/erlangshen.png",
+          "sha256": "32661ef1fd0ba0261857f392c7addaa37ecb0ed7fe9e90c51b3e1ff61c178a5a"
+        }
+      }
+    },
+    {
+      "kind": "portrait",
+      "slug": "zhongkui",
+      "prompt": "Use case: stylized-concept\nAsset type: 1024x1024 game UI portrait cutout for Endless Tower Defense\nInput images: Image 1 is the authoritative idle-atlas identity reference for 鍾馗 (zhongkui)\nPrimary request: create a polished waist-up portrait of the exact referenced hero; preserve the atlas identity, costume, colors, face, weapon and elemental motif\nSubject: demon-quelling judge, dark red robes, talismans and sword; heroic three-quarter pose with face and primary identity symbol unobstructed\nStyle/medium: Eastern dark fantasy pixel-painted game art matching the supplied atlas; limited R65 palette; crisp clusters and a dark 1px native outline after downsampling\nComposition/framing: centered square bust, subject inside the central 82%, generous clear padding, readable at 34px\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: uniform background with no shadow, gradient, texture, reflection or floor; no text, badge, frame, watermark or emoji; no photorealism, soft painting or vector edge; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#03f903",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/heroes/zhongkui-idle.png",
+          "sha256": "ffa46ac9b0da829e27980dd49104c90f733d1b36e2813e350e84bd2408dc537d"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/portraits/zhongkui.png",
+          "sha256": "e08e4e88b55ba223d6fb4076a93ed8b1d36a019b85368e6fd1a74d163e3ea611"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/portraits/zhongkui.png",
+          "sha256": "62ac620a2b8ca9db111b01eaabc54d7c3085e04678784f0bcc6decfd182c71bd"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/portraits/zhongkui.png",
+          "sha256": "08392260a24fa00dc8b3c09391d917d62c113dc8d948b8fb3fd4662ca57bf2e8"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/portraits/zhongkui.png",
+          "sha256": "f387ff69b8199b430b0afac8a1164a30fda480600f92d53b0d16772f9b061868"
+        },
+        "runtime": {
+          "path": "assets/heroes/portraits/zhongkui.png",
+          "sha256": "d0ac51ea2a6c91d8b93cb775a791c11e6368512b88e65586a8a2eb89ed8a6071"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "arrow-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 arrow tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same crossbow archer tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#06f90f",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/arrow-r61.png",
+          "sha256": "57301524065cc72a1b5e0b47357207133650e2a2e122657bb51e52098d17c3ce"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/arrow.png",
+          "sha256": "b3f56e6e75ee06b66d7216f3444a1bdf51ce6189d28ea9e736c54b6d19dca33c"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/arrow-tier1.png",
+          "sha256": "1ff8679e20a58f28cc2843e815632df03e043154e457d11678d458232f6d5d86"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/arrow-tier1.png",
+          "sha256": "ce4841e606d52867a58ad2843d2d41159646af0dabfc4b80cedd50047e8783a2"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/arrow-tier1.png",
+          "sha256": "37454130c3df8329dadeb04380b33523e97b236cd810bd8c7baa57cd00cd50fa"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/arrow-tier1.png",
+          "sha256": "f09c36884e8cf459e0f1f2f706b1882dccef64913b31ad502225cd34840d4f59"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/arrow-opaque.png",
+          "sha256": "462ba0736e6195b84390e3770d160fd2b9f26ebdd28f17f573f5a33fe62b748b"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "arrow-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 arrow tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same crossbow archer tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#06f910",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/arrow-r61.png",
+          "sha256": "57301524065cc72a1b5e0b47357207133650e2a2e122657bb51e52098d17c3ce"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/arrow.png",
+          "sha256": "b3f56e6e75ee06b66d7216f3444a1bdf51ce6189d28ea9e736c54b6d19dca33c"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/arrow-tier2.png",
+          "sha256": "3d42c385f7fff7c17791722ab85580db654f720e2a03febd09f333ad915e8f1b"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/arrow-tier2.png",
+          "sha256": "de62419561c8ed9f8453fa9f767144e4f670b9e4f8c610eaaacb281493b4aafe"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/arrow-tier2.png",
+          "sha256": "f61325d67fb104a4515d44ccd0823d1857af7fce5d4247a8bd230727e421267f"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/arrow-tier2.png",
+          "sha256": "bdc1c14dfe3f1276aa2a43e32f5efdec840f633d995c248f1c2c1d4ae5a79762"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/arrow-opaque.png",
+          "sha256": "462ba0736e6195b84390e3770d160fd2b9f26ebdd28f17f573f5a33fe62b748b"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "arrow-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 arrow tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same crossbow archer tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#06f910",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/arrow-r61.png",
+          "sha256": "57301524065cc72a1b5e0b47357207133650e2a2e122657bb51e52098d17c3ce"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/arrow.png",
+          "sha256": "b3f56e6e75ee06b66d7216f3444a1bdf51ce6189d28ea9e736c54b6d19dca33c"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/arrow-tier3.png",
+          "sha256": "f9e7f9f6ff991b57b801a6eb15cba6dc89b421ce994c2132055b3016a2cce9d2"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/arrow-tier3.png",
+          "sha256": "3d59c6d17cbdec184994bed521a41441f1aafa5013d63be56a5bb2c23070106c"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/arrow-tier3.png",
+          "sha256": "d0fe8134fc0faf944ee96b3ca2ecf7261d791198ab270991b971c96d1080b620"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/arrow-tier3.png",
+          "sha256": "770bb00ebf33424ffbe7dba805bdde7ae6e03ea636b8d039cbf58b248792f444"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/arrow-opaque.png",
+          "sha256": "462ba0736e6195b84390e3770d160fd2b9f26ebdd28f17f573f5a33fe62b748b"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "cannon-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 cannon tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same heavy iron cannon tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#04f906",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/cannon-r61.png",
+          "sha256": "e9151e9bc006cf11b0b92179cbc20ad5b5409e58c630d7ac0c72ac8a3db778c0"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/cannon.png",
+          "sha256": "d52dea4a84c98e766960c6f993c74b04728f626f342b49a9e022e8d01673c472"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/cannon-tier1.png",
+          "sha256": "1ba7b78ec0915e350089e17d6c5bc1bcb81dd90b84353d470a88412e43195b3e"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/cannon-tier1.png",
+          "sha256": "9fe02ddf37a30b48290f6827a18dba4fd77c3b1d2ed27405ead6eaf8bb6e1e9b"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/cannon-tier1.png",
+          "sha256": "16e26709927d0bf7635819070ac57dc3ea91e8b6bab3387af8557ef33b929704"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/cannon-tier1.png",
+          "sha256": "a849bae14083ae24ee994e6dbc52cbcb16aae42aec60daf71b660f573e884eda"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/cannon-opaque.png",
+          "sha256": "f97ee8d99771aa619b845cfb1769ca14f6c9a07fc8d9e5dbf8f0c18e2e626d13"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "cannon-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 cannon tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same heavy iron cannon tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#04f906",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/cannon-r61.png",
+          "sha256": "e9151e9bc006cf11b0b92179cbc20ad5b5409e58c630d7ac0c72ac8a3db778c0"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/cannon.png",
+          "sha256": "d52dea4a84c98e766960c6f993c74b04728f626f342b49a9e022e8d01673c472"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/cannon-tier2.png",
+          "sha256": "60892bd5b5fb5b0a9f7318ae42d27483235bf686f73bb0116270528c44099f6c"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/cannon-tier2.png",
+          "sha256": "b40eed25388d71ebcbebb901a477b4b7c320b061c7a236790f713cd85c675010"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/cannon-tier2.png",
+          "sha256": "4ea3cdf35c1c5e280f5775f1cf9adfe1aa1ca3a1b23e3d2d11545e29844270f3"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/cannon-tier2.png",
+          "sha256": "2fdb67238e93b9f0ecee0b5d1783b4d4478aad0c4cd86efabc7809e14b351192"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/cannon-opaque.png",
+          "sha256": "f97ee8d99771aa619b845cfb1769ca14f6c9a07fc8d9e5dbf8f0c18e2e626d13"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "cannon-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 cannon tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same heavy iron cannon tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#04f906",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/cannon-r61.png",
+          "sha256": "e9151e9bc006cf11b0b92179cbc20ad5b5409e58c630d7ac0c72ac8a3db778c0"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/cannon.png",
+          "sha256": "d52dea4a84c98e766960c6f993c74b04728f626f342b49a9e022e8d01673c472"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/cannon-tier3.png",
+          "sha256": "8f58cdc6ab9856bdc2c7f7d63b44e7516f4843d7b2bb599748b3b7e65089f02c"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/cannon-tier3.png",
+          "sha256": "7ad7a064748bf672c4d0e2fa20c17beb718b1df2cc6256351d81351d50f268e7"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/cannon-tier3.png",
+          "sha256": "d396e42f2c7c508177959b7faef45b2a36fc847e180277a5915520191a5356ec"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/cannon-tier3.png",
+          "sha256": "199002e5410c7e6504dcc7c0f879b4d8cf70e6540e1cfe07499f96f7be752f0e"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/cannon-opaque.png",
+          "sha256": "f97ee8d99771aa619b845cfb1769ca14f6c9a07fc8d9e5dbf8f0c18e2e626d13"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "frost-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 frost tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same blue ice-crystal tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#07f50d",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/frost-r61.png",
+          "sha256": "c8cb8355a0de499e64ef80f6fcf6719b5a5a85cefd34cf7f2bff9acf79d514cf"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/frost.png",
+          "sha256": "399eb2d28d6d6cd68834053ad3bb0a728632a25aee912b7564c5d85b08e3c995"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/frost-tier1.png",
+          "sha256": "7284a5e09a4dbc4526ada6169056c8b8ee616b7935ea42e47718ddd8558f2f6e"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/frost-tier1.png",
+          "sha256": "4e06fa1ee5052875f51649ae6ac5c1337186c8318361bae45ea9df36cdc01400"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/frost-tier1.png",
+          "sha256": "96a5089174627124886ed400f3efe5e7d9aa415e6234a504c18cac15617fbbbd"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/frost-tier1.png",
+          "sha256": "9f66c9adc3daea7449d8ff04878e30a318c6208333a09ace629070b9f74da5cb"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/frost-opaque.png",
+          "sha256": "d6f1c81b17eb8d97e9b4930ec3e8b52ece84c5f4c11397cda136ecb5616e9257"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "frost-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 frost tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same blue ice-crystal tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#07f50d",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/frost-r61.png",
+          "sha256": "c8cb8355a0de499e64ef80f6fcf6719b5a5a85cefd34cf7f2bff9acf79d514cf"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/frost.png",
+          "sha256": "399eb2d28d6d6cd68834053ad3bb0a728632a25aee912b7564c5d85b08e3c995"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/frost-tier2.png",
+          "sha256": "724356ab8aa3ffc2121ecf999f59d290f18518f10757a72af2161bd690d5d10d"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/frost-tier2.png",
+          "sha256": "34146329a11b7191043d677a55f771386dfbd635568883e91cbecad891b009de"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/frost-tier2.png",
+          "sha256": "d7f93b1de7ef4c0330aa16f7e6e1b8c0b1e20ec3ae02c3be69ffddc44553473b"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/frost-tier2.png",
+          "sha256": "e9f7fb6b15baff21c6c33b6c369e422eef1912c6e65eafa9a443a57bbaae4ed0"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/frost-opaque.png",
+          "sha256": "d6f1c81b17eb8d97e9b4930ec3e8b52ece84c5f4c11397cda136ecb5616e9257"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "frost-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 frost tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same blue ice-crystal tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#07f50d",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/frost-r61.png",
+          "sha256": "c8cb8355a0de499e64ef80f6fcf6719b5a5a85cefd34cf7f2bff9acf79d514cf"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/frost.png",
+          "sha256": "399eb2d28d6d6cd68834053ad3bb0a728632a25aee912b7564c5d85b08e3c995"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/frost-tier3.png",
+          "sha256": "53157b0a2400f6378dd84af73ddd224a74829f387d50392aadd6e049617dcd0b"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/frost-tier3.png",
+          "sha256": "2a1be5404107a43dd0ad2099f87a48f7af1a2d626ab90261b7b0f5339b3ba103"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/frost-tier3.png",
+          "sha256": "fa78b78bd18e935c017520baad84828cf41628c217734420374f1717517b8194"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/frost-tier3.png",
+          "sha256": "9b259b96349260b9f0be817118282b01847387aae2ae2c96f4ea9101c37943d2"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/frost-opaque.png",
+          "sha256": "d6f1c81b17eb8d97e9b4930ec3e8b52ece84c5f4c11397cda136ecb5616e9257"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "tesla-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 tesla tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same golden lightning coil tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#05f90c",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/tesla-r61.png",
+          "sha256": "63099e8acbbd51fb1d216e72a361d8e5470c2fac6a065ef5e26f5abde43223f1"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/tesla.png",
+          "sha256": "cf08563c7e63899c611142c727377805e8afe626d7cdd9c79e68ca49e7ca3896"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/tesla-tier1.png",
+          "sha256": "7a5b2cbace2a31d976864189144f1cd861d9db44d05399d7b895c9c216770e32"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/tesla-tier1.png",
+          "sha256": "b8134fe1d997b1c292509ca42706c82d70564ce739ed9721b60347fd00824cb8"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/tesla-tier1.png",
+          "sha256": "4559d17b865db0343ed05a4c4c53a19d874b0345eacc31c17cde37c06e2d40c1"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/tesla-tier1.png",
+          "sha256": "92a305f2e1adb0d4be7e78a9138e37787d8d57c14d4e2fd357f31199c92506dc"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/tesla-opaque.png",
+          "sha256": "8fa2a241fce94c20e8490acbfc6d183a690c5d46b16841bd019946631ded43b0"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "tesla-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 tesla tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same golden lightning coil tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#05f90c",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/tesla-r61.png",
+          "sha256": "63099e8acbbd51fb1d216e72a361d8e5470c2fac6a065ef5e26f5abde43223f1"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/tesla.png",
+          "sha256": "cf08563c7e63899c611142c727377805e8afe626d7cdd9c79e68ca49e7ca3896"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/tesla-tier2.png",
+          "sha256": "2a92caf36fcef490dac695c2c19ed8ed183472dd01ce96ad2902947816227f58"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/tesla-tier2.png",
+          "sha256": "9efcf5367fefc8efc9414e846023792e5de67022ca3ff451efe5c2919eb9997d"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/tesla-tier2.png",
+          "sha256": "73b6164ca6dcb6b18339731c24abbd361041ff9c13adc4abaefc2009a4cd224f"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/tesla-tier2.png",
+          "sha256": "4d89d3a309a84b7c5b58fbc7c5bce1177b5bbdb5fa3555d2c6934fac8c982e92"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/tesla-opaque.png",
+          "sha256": "8fa2a241fce94c20e8490acbfc6d183a690c5d46b16841bd019946631ded43b0"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "tesla-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 tesla tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same golden lightning coil tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#05f80c",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/tesla-r61.png",
+          "sha256": "63099e8acbbd51fb1d216e72a361d8e5470c2fac6a065ef5e26f5abde43223f1"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/tesla.png",
+          "sha256": "cf08563c7e63899c611142c727377805e8afe626d7cdd9c79e68ca49e7ca3896"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/tesla-tier3.png",
+          "sha256": "4271e37b64ae2c87d847c4e74a11b36169d4c74770894b8e240ec8e8794cd6f5"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/tesla-tier3.png",
+          "sha256": "22301185de66cd618ed6d3cc99468b07df3c8a864d6095711be9942c121fa187"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/tesla-tier3.png",
+          "sha256": "9079a31b6be4d35edb75c1f942ce59b66576eb5b52a1f26aa82f164770935889"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/tesla-tier3.png",
+          "sha256": "6402a9e1aa301fdb0eff1d84966be7d0104c6f21f322e67bc6a24836828b8473"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/tesla-opaque.png",
+          "sha256": "8fa2a241fce94c20e8490acbfc6d183a690c5d46b16841bd019946631ded43b0"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "poison-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 poison tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same green alchemical poison tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #ff00ff chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#ff00ff",
+      "estimated_matte": "#f802f8",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/poison-r61.png",
+          "sha256": "0bc51f54a92ecaa83948131cdf65f3799f9c4abf8aa4edca5274ea26741ea01b"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/poison.png",
+          "sha256": "bc987ad439abbe42df3453d9e2550524679e46b79046f8af283116d52f910543"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/poison-tier1.png",
+          "sha256": "38910d868720904331e8a4c3b6e32ff70e126486a173f7c551b0a1191361af76"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/poison-tier1.png",
+          "sha256": "594a119ff2b6928df4c35846de26072f30de4f6113d2adb945ee010e4438f63e"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/poison-tier1.png",
+          "sha256": "692ce9fd0bfca262f0d8de0df7eb9b33ea8cd8b10c2b2d346b4a2a39b5eaa7ec"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/poison-tier1.png",
+          "sha256": "8eef7380568e548fe8892073997d174efc0091d8c9e64d6d14d825017ca7ef84"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/poison-opaque.png",
+          "sha256": "5626f256eff19b1c68fc5d1c2dd8457f351783c6760c85d53942098a85b74b23"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "poison-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 poison tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same green alchemical poison tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #ff00ff chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#ff00ff",
+      "estimated_matte": "#f802f7",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/poison-r61.png",
+          "sha256": "0bc51f54a92ecaa83948131cdf65f3799f9c4abf8aa4edca5274ea26741ea01b"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/poison.png",
+          "sha256": "bc987ad439abbe42df3453d9e2550524679e46b79046f8af283116d52f910543"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/poison-tier2.png",
+          "sha256": "4921020500fe90a1913cd06db7a052d74733eb628c816c9ea903c04fd9c43318"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/poison-tier2.png",
+          "sha256": "455ee299e5ada84411e0b7d78e1c881a74ef96c426df0604c365450e6391bc37"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/poison-tier2.png",
+          "sha256": "9d33353f3d591ac500cf2955f2da2488ccbb7140a1501de6fb42c4ea8d12db68"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/poison-tier2.png",
+          "sha256": "185b5864bcc36c88d849b05f934b3a593551e56159df55f277b72f2e56435575"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/poison-opaque.png",
+          "sha256": "5626f256eff19b1c68fc5d1c2dd8457f351783c6760c85d53942098a85b74b23"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "poison-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 poison tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same green alchemical poison tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #ff00ff chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#ff00ff",
+      "estimated_matte": "#f902f8",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/poison-r61.png",
+          "sha256": "0bc51f54a92ecaa83948131cdf65f3799f9c4abf8aa4edca5274ea26741ea01b"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/poison.png",
+          "sha256": "bc987ad439abbe42df3453d9e2550524679e46b79046f8af283116d52f910543"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/poison-tier3.png",
+          "sha256": "2700b21dc39472c118181780fc600834b44eda0da476f43e7cf278b3f1bcdfe8"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/poison-tier3.png",
+          "sha256": "e66d9208d62fc0be54615a764a00190da972debcb1f13fdecd674091ba6dacd0"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/poison-tier3.png",
+          "sha256": "30ae23a27372cd71d0d0bb010203693cba8848d78bb2bd787d5a42c337ee73e5"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/poison-tier3.png",
+          "sha256": "57a2646539d9a8fee50883ef2bed0a165d33f4a318a952c46ffab45d403031b6"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/poison-opaque.png",
+          "sha256": "5626f256eff19b1c68fc5d1c2dd8457f351783c6760c85d53942098a85b74b23"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "support-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 support tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same golden holy support tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0ff708",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/support-r61.png",
+          "sha256": "001749d38b2a6d6d2b1b81c757855e88f55c068bd3646a5ead01c64dd5b5088d"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/support.png",
+          "sha256": "30dc0fdb95e548c873d9aefcd1269fd857d03697dcc03a006a51d38b40a3d835"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/support-tier1.png",
+          "sha256": "702190aa817997b0fff5716e3c0aad9d4a65819ed3fc14fbed7e29bd0f22e089"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/support-tier1.png",
+          "sha256": "5f91e524b7238d140fd7eeef89ef8ae87df87254e0b93b4fcb17e4c9f432bf3f"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/support-tier1.png",
+          "sha256": "fd9af42f242c1e9b66fed36f27693037e88dfa8e540f457cc00376b849c06892"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/support-tier1.png",
+          "sha256": "134862ae853fe1a10d5b7e6c0fd474c6c5745d2510414f713f534fe6af5ff862"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/support-opaque.png",
+          "sha256": "3eb5454caef5779132dfe6f88bd97e027784a70f0cf36c46800fed8b0c43df6d"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "support-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 support tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same golden holy support tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0ff709",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/support-r61.png",
+          "sha256": "001749d38b2a6d6d2b1b81c757855e88f55c068bd3646a5ead01c64dd5b5088d"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/support.png",
+          "sha256": "30dc0fdb95e548c873d9aefcd1269fd857d03697dcc03a006a51d38b40a3d835"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/support-tier2.png",
+          "sha256": "c4f1f88cd2cfb6e6bf4eb1aa95af12630a5a851aa021531720307a377d21ff40"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/support-tier2.png",
+          "sha256": "0b2bad5ff02696424e5b46b82f208c894b4c55e71fc1c1ff63ec57e7687dae06"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/support-tier2.png",
+          "sha256": "f967aa37e701a80532a04a5d7ab61680b29ee9a471597a7761829876b4ed34d2"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/support-tier2.png",
+          "sha256": "6bd27aee42acda4b953770d343ebe1991f5b44e6ece9f57054915eb2d4999430"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/support-opaque.png",
+          "sha256": "3eb5454caef5779132dfe6f88bd97e027784a70f0cf36c46800fed8b0c43df6d"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "support-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 support tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same golden holy support tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0ff709",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/support-r61.png",
+          "sha256": "001749d38b2a6d6d2b1b81c757855e88f55c068bd3646a5ead01c64dd5b5088d"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/support.png",
+          "sha256": "30dc0fdb95e548c873d9aefcd1269fd857d03697dcc03a006a51d38b40a3d835"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/support-tier3.png",
+          "sha256": "81a1fb500d5f206d978f7575d797da8fbbd20d508be3c10ceacbeb2ab6b156d0"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/support-tier3.png",
+          "sha256": "1aea5f7ca25d17a91c674ae797f1d013496650e9b7036c5ef15ca59b180fdf27"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/support-tier3.png",
+          "sha256": "6e66e3d33031180e980414272a9a1bbc25e1d09699e314dc64e898994a7ee53f"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/support-tier3.png",
+          "sha256": "fcfe326f833b5bf0536e6abf5f59c120f30aa07bd84e887048867612e79224ec"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/support-opaque.png",
+          "sha256": "3eb5454caef5779132dfe6f88bd97e027784a70f0cf36c46800fed8b0c43df6d"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "beacon-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 beacon tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same crimson spirit-lantern beacon tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#09f409",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/beacon-r61.png",
+          "sha256": "b0dfbc4c826a63d8187881ea3112a2b292af7d375f61e90daad3d20be17d08f0"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/beacon.png",
+          "sha256": "8bacab269e503885149358e3db09ea8ca3ea18eaf40a85528f68019bcfa7de54"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/beacon-tier1.png",
+          "sha256": "8808a099fc1765db97e69ffa759c56e98518409c1c552b1efcc92d8543fd4ffd"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/beacon-tier1.png",
+          "sha256": "810e35dc45d36894decd4b01cc014afaa3126300365ceff2146d4c7b90fa8b5c"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/beacon-tier1.png",
+          "sha256": "70a1d3d0502e2592fa204679743752674cb3275e17220446c8cb97b798b5dbc7"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/beacon-tier1.png",
+          "sha256": "7de314839357ab451e7656cb96b9a79b426dc517e9aa6ca557297b62ca0b0f0d"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/beacon-opaque.png",
+          "sha256": "5270fc2117fb15e4845b858b32a9d2e3a596bcc264c813b45f7572bf42dddcfb"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "beacon-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 beacon tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same crimson spirit-lantern beacon tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0af40a",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/beacon-r61.png",
+          "sha256": "b0dfbc4c826a63d8187881ea3112a2b292af7d375f61e90daad3d20be17d08f0"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/beacon.png",
+          "sha256": "8bacab269e503885149358e3db09ea8ca3ea18eaf40a85528f68019bcfa7de54"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/beacon-tier2.png",
+          "sha256": "277037f08afd59d140419ab34f1a389f877d0d8a87e43cf8c5329f8c4a6b689b"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/beacon-tier2.png",
+          "sha256": "dc7817515901518852452061ee6f0fa85c5cc02f8b357da996326c56f9a89f74"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/beacon-tier2.png",
+          "sha256": "02447876fabf318f436dd41f71d3202951c7829ebc1af3d24b9743f618a01dc3"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/beacon-tier2.png",
+          "sha256": "575431f9a4fccc1d65649ff207cc6fce87ad99ea27ef50728189abef052a06c9"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/beacon-opaque.png",
+          "sha256": "5270fc2117fb15e4845b858b32a9d2e3a596bcc264c813b45f7572bf42dddcfb"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "beacon-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 beacon tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same crimson spirit-lantern beacon tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#09f309",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/beacon-r61.png",
+          "sha256": "b0dfbc4c826a63d8187881ea3112a2b292af7d375f61e90daad3d20be17d08f0"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/beacon.png",
+          "sha256": "8bacab269e503885149358e3db09ea8ca3ea18eaf40a85528f68019bcfa7de54"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/beacon-tier3.png",
+          "sha256": "be3903d14bbd093a34d5370311514320861d1d74272e6dd0d1f87cc50942ff6b"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/beacon-tier3.png",
+          "sha256": "4ac443841e97c410acdaeb2657a06a89cf172d7fea66830b836962baf276b177"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/beacon-tier3.png",
+          "sha256": "181aa24221b1b8dfc9a14e2836af6f4158cfb45ce2dedd9b4999542d9d5b75f2"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/beacon-tier3.png",
+          "sha256": "5cc35197b635b5d75ba35f59a5564c997fc43bad36ab10f1022d43ce43d65c92"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/beacon-opaque.png",
+          "sha256": "5270fc2117fb15e4845b858b32a9d2e3a596bcc264c813b45f7572bf42dddcfb"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "sniper-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 sniper tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same long-range precision ballista tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0ff80d",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/sniper-r61.png",
+          "sha256": "ffd092c0c57f87e6ba2036ce1b86446a1f192f2acd6ffab642cb9329f461841e"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/sniper.png",
+          "sha256": "4c519e612de61b8e538a86f4e3fe9b9d66b9ca46ea6f0d284e11dac60dd9a3a6"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/sniper-tier1.png",
+          "sha256": "f103449c333340f04e2d6a3e4c99785fe79c90e68d264e432e668380ef384308"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/sniper-tier1.png",
+          "sha256": "c7b652f664f4447ae29a9478610a9c48d9c8053bde2614a6be55850aab662150"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/sniper-tier1.png",
+          "sha256": "ec6fd1863b2672463ab94e76ad3ed14d01c3d63eaccaaa9b8d61fd135b6eb627"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/sniper-tier1.png",
+          "sha256": "e8c8586f4a95d4dc2686958c9ce5a8628e423087441b761b350fe0aa4d57d3be"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/sniper-opaque.png",
+          "sha256": "51b8146cc4c22750d56e9e3ce1218e2b2de2fdf67e04f5a74a1994a6c1493753"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "sniper-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 sniper tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same long-range precision ballista tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0ff80d",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/sniper-r61.png",
+          "sha256": "ffd092c0c57f87e6ba2036ce1b86446a1f192f2acd6ffab642cb9329f461841e"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/sniper.png",
+          "sha256": "4c519e612de61b8e538a86f4e3fe9b9d66b9ca46ea6f0d284e11dac60dd9a3a6"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/sniper-tier2.png",
+          "sha256": "be4213d250ff6b18269376235ca08fe92c7124ffdaecd8b70995891a5af9988f"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/sniper-tier2.png",
+          "sha256": "826793fa80bbff93512f0a5b0b2ebf23e5f711db0fc5601fa0735be7d5bedf50"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/sniper-tier2.png",
+          "sha256": "38199fb5aae8833aebd9664678ecd79f2ca80b43b3723197c398eba51fa20d30"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/sniper-tier2.png",
+          "sha256": "e706880c6ed002086d916da73bc1799af13d865f7ed5af88a9396a36116a7171"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/sniper-opaque.png",
+          "sha256": "51b8146cc4c22750d56e9e3ce1218e2b2de2fdf67e04f5a74a1994a6c1493753"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "sniper-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 sniper tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same long-range precision ballista tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#0ff80c",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/sniper-r61.png",
+          "sha256": "ffd092c0c57f87e6ba2036ce1b86446a1f192f2acd6ffab642cb9329f461841e"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/sniper.png",
+          "sha256": "4c519e612de61b8e538a86f4e3fe9b9d66b9ca46ea6f0d284e11dac60dd9a3a6"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/sniper-tier3.png",
+          "sha256": "a05bfd40d97a70135e7167105f0b06e3c197c0ebbc576245d4cf88e69e74c8c3"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/sniper-tier3.png",
+          "sha256": "171f33a37158e706aa62dd84d90e0db44c132a614da60b40555ebac39344cd91"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/sniper-tier3.png",
+          "sha256": "c828081ed8b0fb6c72581d8a493fa43421db67c79e455a75ef3ce45c2fc452b4"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/sniper-tier3.png",
+          "sha256": "b675f8e21e385138346ac6e76fafa2bba3f19367fe6561ba07450c04648b4c9a"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/sniper-opaque.png",
+          "sha256": "51b8146cc4c22750d56e9e3ce1218e2b2de2fdf67e04f5a74a1994a6c1493753"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "arcane-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 arcane tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same violet arcane crystal obelisk tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#12f210",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/arcane-r61.png",
+          "sha256": "558a379dcb5465d3a1093e22ae44cae368a125adc2c94bea6d3d0180b386a0e2"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/arcane.png",
+          "sha256": "1028ebf54164b56b0aa772bc88ed7fe59defac87b32dfa2da5d4d4808c523e2c"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/arcane-tier1.png",
+          "sha256": "3544fc2fbb0bb5e8befbec69f5e31ea7bf808a26914752c19dfccb4d7838dde1"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/arcane-tier1.png",
+          "sha256": "ba4e9b891c03472d5857d6829a8221319ea0e8c3e1d9705473b5c73ffe91648b"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/arcane-tier1.png",
+          "sha256": "b50fc6a452526be87820dbbb6669eb706fdc585c9c55deee98e70b6c421547ba"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/arcane-tier1.png",
+          "sha256": "ecec696a4cac2ee5550956b4840ca7b7b6eae74f163da6933ac643ebb3d06d48"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/arcane-opaque.png",
+          "sha256": "9c7f6116c87f2f64ab93be4a6f01df84727a41cf76526c5041569d207a287cbb"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "arcane-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 arcane tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same violet arcane crystal obelisk tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#12f211",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/arcane-r61.png",
+          "sha256": "558a379dcb5465d3a1093e22ae44cae368a125adc2c94bea6d3d0180b386a0e2"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/arcane.png",
+          "sha256": "1028ebf54164b56b0aa772bc88ed7fe59defac87b32dfa2da5d4d4808c523e2c"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/arcane-tier2.png",
+          "sha256": "9a8a2e121981204068442df510c20b171b758c1e222d8bbd4fc14d30647b6968"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/arcane-tier2.png",
+          "sha256": "afb4112cbf1955ddd594d3e14045509da83b4ddcbb230e758a17a30db0706526"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/arcane-tier2.png",
+          "sha256": "abd81bb97eb1f7b980ff46f3a5a4150e3911c6bc5f093b7a84cc96f5454016b5"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/arcane-tier2.png",
+          "sha256": "06a07cd6a744e5850bacf6bc076d8395fecfada0d5729d9a2b81f641409b8b86"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/arcane-opaque.png",
+          "sha256": "9c7f6116c87f2f64ab93be4a6f01df84727a41cf76526c5041569d207a287cbb"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "arcane-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 arcane tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same violet arcane crystal obelisk tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#12f210",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/arcane-r61.png",
+          "sha256": "558a379dcb5465d3a1093e22ae44cae368a125adc2c94bea6d3d0180b386a0e2"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/arcane.png",
+          "sha256": "1028ebf54164b56b0aa772bc88ed7fe59defac87b32dfa2da5d4d4808c523e2c"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/arcane-tier3.png",
+          "sha256": "6b4ddbdea913e9773cd9aee833fec6227b35b5de014849dce33fb9580c00c8e2"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/arcane-tier3.png",
+          "sha256": "3ab7ebad58723fb61e3763d83186461452d0a96878df0b32898f6e1194f48bcb"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/arcane-tier3.png",
+          "sha256": "ed0ac6f82a5bd57ae0ab72f69bb394f63d815ae0bd3fa9c92393657f33eb4c75"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/arcane-tier3.png",
+          "sha256": "eee95faf014e15708119a553dda7527b018c9e6c5c578962771a10148d017023"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/arcane-opaque.png",
+          "sha256": "9c7f6116c87f2f64ab93be4a6f01df84727a41cf76526c5041569d207a287cbb"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "mortar-tier1",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 mortar tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same short-barrel bronze mortar tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#08f90e",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/mortar-r61.png",
+          "sha256": "43cce97095dd6487137a18f430a4af9e6bf994d543e20d70acda6ab781f91d75"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/mortar.png",
+          "sha256": "5791d8c597047c4e948efa01239e2ecb44d50a48d539a07b87281691751ce747"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/mortar-tier1.png",
+          "sha256": "f5b7b8572bb7b72f4055a37d422d1ae696dbc93961d8845672ee08609d69e580"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/mortar-tier1.png",
+          "sha256": "9330e0303a08ee5dbef4a94659fc6ff7ed0c032c79a821df1138e35e767b9d56"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/mortar-tier1.png",
+          "sha256": "e2be693147d02f2713ee55d5c97ef791c6a408b1e75fe97a7e5c5f982a405ec9"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/mortar-tier1.png",
+          "sha256": "dea4c43d8f29086c37bd705531e8ad1ab179e82ea264d1ca2ca7c8469cf5b870"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/mortar-opaque.png",
+          "sha256": "a8bb97151f08fafec36d6221c1ad6c82c6e3be596d3c35aee135c42a2a1a2595"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "mortar-tier2",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 mortar tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same short-barrel bronze mortar tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#08f90e",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/mortar-r61.png",
+          "sha256": "43cce97095dd6487137a18f430a4af9e6bf994d543e20d70acda6ab781f91d75"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/mortar.png",
+          "sha256": "5791d8c597047c4e948efa01239e2ecb44d50a48d539a07b87281691751ce747"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/mortar-tier2.png",
+          "sha256": "dead5801e5f0ba923348abedee0d9e9d13c7b00a5d391dd9be7d80d41c9a4186"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/mortar-tier2.png",
+          "sha256": "1ce5df698e7aa2b3388275750c4a00fb11c3e13e136f483740ea5f4ce0b8057e"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/mortar-tier2.png",
+          "sha256": "3e1163a5dc8031e7883864f9f147dc91f964ca22a9bf80f6545edf1ad58adeea"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/mortar-tier2.png",
+          "sha256": "f6c4d6c18fdd88af6b912dfa92debdd352988d2964d1a23a77c5b79386e90736"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/mortar-opaque.png",
+          "sha256": "a8bb97151f08fafec36d6221c1ad6c82c6e3be596d3c35aee135c42a2a1a2595"
+        }
+      }
+    },
+    {
+      "kind": "tower_tier",
+      "slug": "mortar-tier3",
+      "prompt": "Use case: stylized-concept\nAsset type: three-tier tower progression contact sheet for Endless Tower Defense\nInput images: Image 1 is the authoritative R61 mortar tower identity reference; Image 2 is the authoritative R65 limited-palette reference\nPrimary request: show the same short-barrel bronze mortar tower in exactly three equal columns from left to right for Lv1-3, Lv4-6 and Lv7+; no labels or text\nSubject: left tier is shortest and restrained; middle tier is visibly taller with an enlarged barrel or core plus one banner; right tier is tallest with the largest barrel or core plus twin banners or a crown; preserve tower identity while making all three silhouettes clearly different\nStyle/medium: Eastern dark fantasy pixel art tower defense, three-quarter orthographic view, mythic Chinese silhouette, limited R65 palette, crisp 1px native outline after downsampling\nComposition/framing: 1536x1024 landscape contact sheet, three equal isolated columns, same camera, base alignment and common scale, generous padding, no overlap\nScene/backdrop: perfectly flat solid #00ff00 chroma-key background for local removal\nConstraints: readable at a 36px cell from silhouette alone; progression must rely on height, barrel, core and banners, never LV text; no text, numbers, emoji, watermark, photorealism, soft painting, cast shadow, floor, gradient or texture; do not use the matte color in the subject",
+      "requested_matte": "#00ff00",
+      "estimated_matte": "#08f90e",
+      "references": [
+        {
+          "path": "docs/evidence/R70_art/references/towers/mortar-r61.png",
+          "sha256": "43cce97095dd6487137a18f430a4af9e6bf994d543e20d70acda6ab781f91d75"
+        },
+        {
+          "path": "docs/evidence/R70_art/references/r65-palette-strip.png",
+          "sha256": "45509dfc762414478c84888eb5b0d954adf4fe5610037ea5ce4538fd864970ec"
+        }
+      ],
+      "artifacts": {
+        "generated_source": {
+          "path": "docs/evidence/R70_art/generated_sources/tower_contact_sheets/mortar.png",
+          "sha256": "5791d8c597047c4e948efa01239e2ecb44d50a48d539a07b87281691751ce747"
+        },
+        "opaque_master": {
+          "path": "docs/evidence/R70_art/masters_opaque/towers/mortar-tier3.png",
+          "sha256": "5ba0890b4beb2d51339c83a7cf20b4eca7a7dac4184db592720d026443dff588"
+        },
+        "mask": {
+          "path": "docs/evidence/R70_art/masks/towers/mortar-tier3.png",
+          "sha256": "d8edd30cf7fa32f037bae9fa7f7f3a07198b8c5d2fd7062c4cf042c8554a018a"
+        },
+        "rgba_master": {
+          "path": "docs/evidence/R70_art/rgba_master/towers/mortar-tier3.png",
+          "sha256": "c4358c1d68d0a5fe20ddd938c92b36ff9122ec846b3b6222c3028c99f672b730"
+        },
+        "runtime": {
+          "path": "assets/towers/tiers/mortar-tier3.png",
+          "sha256": "e1aab031811c62487480d3fa60571aab2ea03d8f6632eebe16c28824543f685c"
+        },
+        "contact_sheet": {
+          "path": "docs/evidence/R70_art/contact_sheets/mortar-opaque.png",
+          "sha256": "a8bb97151f08fafec36d6221c1ad6c82c6e3be596d3c35aee135c42a2a1a2595"
+        }
+      }
+    }
+  ],
+  "alpha_gate": {
+    "checked": 45,
+    "passed": 45,
+    "failed": []
+  },
+  "silhouette_gate": {
+    "pass": true,
+    "path": "docs/evidence/R70_art/gates/tower-silhouette.json"
+  }
+}

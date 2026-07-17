@@ -16,6 +16,7 @@ function heroSprites(id) {
   return { down: `assets/heroes/${id}/down.png`, up: `assets/heroes/${id}/up.png`,
            left: `assets/heroes/${id}/left.png`, right: `assets/heroes/${id}/right.png` };
 }
+function heroPortrait(id) { return `assets/heroes/portraits/${id}.png`; }
 
 // 英雄稀有度（抽卡權重；越稀有越強）
 const HERO_RARITY = {
@@ -78,6 +79,7 @@ const HEROES = {
              hp: 175, atk: 24, speed: 62, range: 105, atkRate: 1.0, color: "#c084fc",
              desc: "封魔判官，以判筆與符劍鎮住群魔。", sprite: "assets/heroes/zhongkui.png", splash: 34 },
 };
+Object.values(HEROES).forEach((hero) => { hero.portrait = heroPortrait(hero.id); });
 
 // 英雄升級曲線：每級數值成長
 const HERO_LEVEL = {

@@ -21,37 +21,40 @@ function elementMultiplier(atkEl, defEl) {
 // ===== 砲塔定義 =====
 // range 射程(px)、damage 傷害、fireRate 每秒射擊數、cost 造價、splash 範圍傷害半徑
 // slow 減速(0~1)、pierce 穿透數、element 元素
+function towerTierSprites(id) {
+  return Object.freeze([1, 2, 3].map((tier) => `assets/towers/tiers/${id}-tier${tier}.png`));
+}
 const TOWERS = {
   arrow:  { id: "arrow",  name: "弓箭塔", emoji: "🏹", element: "physical",
             range: 130, damage: 10, fireRate: 2.0, cost: 50, color: "#a3a3a3",
-            desc: "單體高射速，便宜萬用。" },
+            sprites: towerTierSprites("arrow"), desc: "單體高射速，便宜萬用。" },
   cannon: { id: "cannon", name: "加農砲", emoji: "💣", element: "fire",
             range: 120, damage: 26, fireRate: 0.75, cost: 100, splash: 50, color: "#f97316",
-            desc: "範圍爆破，對成群敵人有效。" },
+            sprites: towerTierSprites("cannon"), desc: "範圍爆破，對成群敵人有效。" },
   frost:  { id: "frost",  name: "寒冰塔", emoji: "❄️", element: "ice",
             range: 125, damage: 11, fireRate: 1.45, cost: 70, slow: 0.5, color: "#38bdf8",
-            desc: "便宜控場核心，減速敵人讓全隊多打幾輪。" },
+            sprites: towerTierSprites("frost"), desc: "便宜控場核心，減速敵人讓全隊多打幾輪。" },
   tesla:  { id: "tesla",  name: "電磁塔", emoji: "⚡", element: "thunder",
             range: 120, damage: 14, fireRate: 1.4, cost: 130, pierce: 3, color: "#facc15",
-            desc: "閃電連鎖，貫穿多個敵人。" },
+            sprites: towerTierSprites("tesla"), desc: "閃電連鎖，貫穿多個敵人。" },
   poison: { id: "poison", name: "毒霧塔", emoji: "☠️", element: "physical",
             range: 120, damage: 7, fireRate: 1.15, cost: 90, poisonDps: 6, poisonDuration: 4, poisonMaxStacks: 3, color: "#22c55e",
-            desc: "命中附加可疊加毒素，持續咬血。" },
+            sprites: towerTierSprites("poison"), desc: "命中附加可疊加毒素，持續咬血。" },
   support:{ id: "support",name: "聖光塔", emoji: "✨", element: "physical",
             range: 150, damage: 0, fireRate: 0, cost: 110, support: true, buff: 0.20, buffPerLevel: 0.04, color: "#fde047",
-            desc: "不攻擊，強化範圍內其他塔的傷害。" },
+            sprites: towerTierSprites("support"), desc: "不攻擊，強化範圍內其他塔的傷害。" },
   beacon: { id: "beacon", name: "引魂燈塔", emoji: "🏮", element: "physical",
             range: 145, damage: 0, fireRate: 0, cost: 115, support: true, reveal: true, slowAura: 0.15, color: "#fb7185",
-            desc: "不攻擊，範圍內敵人暴露並小幅減速；與寒冰塔取較強減速。" },
+            sprites: towerTierSprites("beacon"), desc: "不攻擊，範圍內敵人暴露並小幅減速；與寒冰塔取較強減速。" },
   sniper: { id: "sniper", name: "狙擊塔", emoji: "🎯", element: "physical",
             range: 140, damage: 58, fireRate: 0.55, cost: 145, color: "#94a3b8",
-            desc: "長管弩炮鎖定遠距離目標，單發傷害極高。" },
+            sprites: towerTierSprites("sniper"), desc: "長管弩炮鎖定遠距離目標，單發傷害極高。" },
   arcane: { id: "arcane", name: "奧術塔", emoji: "🔮", element: "physical",
             range: 130, damage: 15, fireRate: 1.4, cost: 105, vuln: { mult: 1.2, duration: 3 }, color: "#a855f7",
-            desc: "秘紋水晶標記敵人，使後續攻擊造成更多傷害。" },
+            sprites: towerTierSprites("arcane"), desc: "秘紋水晶標記敵人，使後續攻擊造成更多傷害。" },
   mortar: { id: "mortar", name: "墜星臼砲", emoji: "☄️", element: "fire",
             range: 170, minRange: 70, damage: 74, fireRate: 0.32, cost: 160, splash: 72, color: "#fb923c",
-            targetPriority: "midpath",
+            targetPriority: "midpath", sprites: towerTierSprites("mortar"),
             desc: "超慢高爆火砲，最短射程內無法攻擊，適合炸中後段密集敵群。" },
 };
 // 升級：每級提升傷害與射程，造價遞增。Lv.10 給後期金錢出口，costMul 讓 7~10 級明顯昂貴但仍可追求。

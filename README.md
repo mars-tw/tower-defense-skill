@@ -2,7 +2,7 @@
 
 [![CI & Deploy Pages](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version 0.6.9](https://img.shields.io/badge/version-0.6.9-blue.svg)](package.json)
+[![Version 0.7.0](https://img.shields.io/badge/version-0.7.0-blue.svg)](package.json)
 [![Play Online](https://img.shields.io/badge/Play-GitHub%20Pages-brightgreen.svg)](https://mars-tw.github.io/tower-defense-skill/)
 
 ![無盡塔防封面](assets/cover.png)
@@ -11,7 +11,7 @@
 
 **[立即線上遊玩](https://mars-tw.github.io/tower-defense-skill/)**
 
-目前版本：`0.6.9`／PWA 快取版本 `td-r69-v1`（R69）。
+目前版本：`0.7.0`／PWA 快取版本 `td-r70-v1`（R70）。
 
 ## 遊戲畫面
 
@@ -21,6 +21,7 @@
 
 ## 最新特色
 
+- **R70 Wave 1 視覺量產**：15 位英雄以 atlas identity 產製 UI 肖像，全面取代 emoji 頭像；10 塔加入 Lv1–3／4–6／7+ 三級剪影外觀，並以 45/45 alpha gate、contact sheet 與 hash manifest 守門。
 - **R69 稽核清理**：美術生成清單同步 10 塔、18 敵、15 英雄與 3 地圖；英雄生成提示改透明背景，並補上顧問恢復、戰鬥 log 展開與手機建塔短名。
 - **R68 地圖完整顯示**：戰場與建塔/技能/波次控制改為保留空間的版面列；矮寬裝置採側置 dock，直式手機採底部 dock，960×640 棋盤在所有守門視口完整可見且不被 UI 覆蓋。
 - **R67 施法、地圖與新手引導整修**：主動技能改為有效命中才消耗冷卻，觸控可取消；塔陣顧問與實際封路共用格位判定，並加入可重訪實戰教學、程序化音效與音量設定。

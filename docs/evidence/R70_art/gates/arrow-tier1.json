@@ -1,0 +1,131 @@
+{
+  "path": "C:\\Users\\digimkt\\Desktop\\遊戲\\tower-defense\\assets\\towers\\tiers\\arrow-tier1.png",
+  "profile": "cutout",
+  "expected_size": [
+    128,
+    128
+  ],
+  "pass": true,
+  "metrics": {
+    "alpha_occupancy": 0.147217,
+    "fully_opaque_fraction": 0.110229,
+    "corner_alpha_max": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "corner_alpha_min": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "visible_bbox": [
+      39,
+      61,
+      88,
+      123
+    ],
+    "bbox_margins": [
+      39,
+      61,
+      40,
+      5
+    ],
+    "transparent_rgb_nonzero_fraction": 0.0,
+    "edge_pixel_count": 909,
+    "rgb_fringe_fraction": 0.0,
+    "low_alpha_edge_pixel_count": 393,
+    "matte_complement_policy": "detached_only",
+    "matte_complement_fraction_all_low_alpha": 0.0,
+    "matte_complement_fraction_detached": 0.0,
+    "complement_artifact_fraction": 0.0
+  },
+  "checks": [
+    {
+      "name": "magic_bytes",
+      "pass": true,
+      "actual": "89504e470d0a1a0a",
+      "requirement": "89504e470d0a1a0a"
+    },
+    {
+      "name": "decoded_format",
+      "pass": true,
+      "actual": "PNG",
+      "requirement": "PNG"
+    },
+    {
+      "name": "dimensions",
+      "pass": true,
+      "actual": [
+        128,
+        128
+      ],
+      "requirement": "128x128"
+    },
+    {
+      "name": "rgba_mode",
+      "pass": true,
+      "actual": "RGBA",
+      "requirement": "RGBA"
+    },
+    {
+      "name": "four_corners_transparent",
+      "pass": true,
+      "actual": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "requirement": "all corner alpha <= 8"
+    },
+    {
+      "name": "alpha_occupancy",
+      "pass": true,
+      "actual": 0.147217,
+      "requirement": "0.003 <= occupancy <= 0.780"
+    },
+    {
+      "name": "visible_bbox",
+      "pass": true,
+      "actual": [
+        39,
+        61,
+        88,
+        123
+      ],
+      "requirement": "non-empty visible bounding box"
+    },
+    {
+      "name": "bbox_padding",
+      "pass": true,
+      "actual": [
+        39,
+        61,
+        40,
+        5
+      ],
+      "requirement": "at least 1 px clear on every side"
+    },
+    {
+      "name": "transparent_rgb_zeroed",
+      "pass": true,
+      "actual": 0.0,
+      "requirement": "nonzero RGB in alpha=0 pixels <= 0.001"
+    },
+    {
+      "name": "rgb_fringe",
+      "pass": true,
+      "actual": 0.0,
+      "requirement": "key-like semi-transparent edge pixels <= 0.020"
+    },
+    {
+      "name": "decontamination_complement_artifact",
+      "pass": true,
+      "actual": 0.0,
+      "requirement": "detached saturated matte-complement pixels among alpha 1..95 <= 0.020"
+    }
+  ]
+}

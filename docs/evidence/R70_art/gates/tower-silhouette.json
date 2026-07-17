@@ -1,0 +1,245 @@
+{
+  "pass": true,
+  "towers": [
+    {
+      "tower": "arrow",
+      "pass": true,
+      "heights": [
+        62,
+        98,
+        116
+      ],
+      "widths": [
+        49,
+        72,
+        64
+      ],
+      "bbox_areas": [
+        3038,
+        7056,
+        7424
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.146449,
+        0.13169
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "cannon",
+      "pass": true,
+      "heights": [
+        62,
+        90,
+        116
+      ],
+      "widths": [
+        52,
+        77,
+        68
+      ],
+      "bbox_areas": [
+        3224,
+        6930,
+        7888
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.144439,
+        0.142061
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "frost",
+      "pass": true,
+      "heights": [
+        60,
+        90,
+        116
+      ],
+      "widths": [
+        46,
+        66,
+        57
+      ],
+      "bbox_areas": [
+        2760,
+        5940,
+        6612
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.107085,
+        0.118038
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "tesla",
+      "pass": true,
+      "heights": [
+        63,
+        97,
+        116
+      ],
+      "widths": [
+        45,
+        70,
+        67
+      ],
+      "bbox_areas": [
+        2835,
+        6790,
+        7772
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.13101,
+        0.107279
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "poison",
+      "pass": true,
+      "heights": [
+        63,
+        85,
+        116
+      ],
+      "widths": [
+        58,
+        67,
+        55
+      ],
+      "bbox_areas": [
+        3654,
+        5695,
+        6380
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.097701,
+        0.132306
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "support",
+      "pass": true,
+      "heights": [
+        67,
+        96,
+        116
+      ],
+      "widths": [
+        47,
+        66,
+        52
+      ],
+      "bbox_areas": [
+        3149,
+        6336,
+        6032
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.12485,
+        0.101448
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "beacon",
+      "pass": true,
+      "heights": [
+        73,
+        96,
+        116
+      ],
+      "widths": [
+        58,
+        67,
+        56
+      ],
+      "bbox_areas": [
+        4234,
+        6432,
+        6496
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.092473,
+        0.143247
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "sniper",
+      "pass": true,
+      "heights": [
+        71,
+        94,
+        116
+      ],
+      "widths": [
+        62,
+        73,
+        55
+      ],
+      "bbox_areas": [
+        4402,
+        6862,
+        6380
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.103583,
+        0.125406
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "arcane",
+      "pass": true,
+      "heights": [
+        69,
+        99,
+        116
+      ],
+      "widths": [
+        48,
+        61,
+        64
+      ],
+      "bbox_areas": [
+        3312,
+        6039,
+        7424
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.121071,
+        0.079486
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    },
+    {
+      "tower": "mortar",
+      "pass": true,
+      "heights": [
+        64,
+        92,
+        116
+      ],
+      "widths": [
+        59,
+        85,
+        74
+      ],
+      "bbox_areas": [
+        3776,
+        7820,
+        8584
+      ],
+      "adjacent_alpha_mask_diff": [
+        0.160665,
+        0.180422
+      ],
+      "requirements": "strictly increasing height; tier2 area > tier1; tier3 area >= 85% of tier2; adjacent alpha-mask diff >= 0.03"
+    }
+  ]
+}

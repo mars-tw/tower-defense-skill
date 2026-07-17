@@ -2331,7 +2331,7 @@
     ctx.setLineDash([]);
     ctx.save();
     ctx.globalAlpha = 0.55;
-    drawSprite(`assets/towers/${def.id}.png`, def.emoji, preview.x, preview.y, CELL * 0.7);
+    drawSprite(towerSpritePath(def, 1), "", preview.x, preview.y, CELL * 0.7);
     ctx.restore();
     if (!preview.ok && preview.reason) {
       const labelX = Math.max(78, Math.min(W - 78, preview.x));
@@ -2414,7 +2414,15 @@
   function drawSprite(path, emoji, x, y, size, color) {
     const im = getImg(path);
     if (im && im.complete && im.naturalWidth > 0) { usePixelArt(ctx); ctx.drawImage(im, x - size / 2, y - size / 2, size, size); }
-    else { ctx.font = size * 0.8 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(emoji, x, y); }
+    else if (emoji) { ctx.font = size * 0.8 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(emoji, x, y); }
+  }
+  function towerTierIndex(level) {
+    const value = Math.max(1, Math.floor(Number(level) || 1));
+    return value >= 7 ? 2 : value >= 4 ? 1 : 0;
+  }
+  function towerSpritePath(def, level) {
+    const sprites = def && def.sprites;
+    return sprites && sprites[towerTierIndex(level)] ? sprites[towerTierIndex(level)] : "";
   }
   function towerVisualStyle(level) {
     const lv = Math.max(1, Math.floor(Number(level) || 1));
@@ -2542,7 +2550,7 @@
     ctx.globalAlpha = 1;
     ctx.strokeStyle = def.color; ctx.lineWidth = 1.5 + progress * 3; ctx.stroke();
     ctx.restore();
-    drawSprite(`assets/towers/${tw.type}.png`, def.emoji, tw.x, tw.y, spriteSize);
+    drawSprite(towerSpritePath(def, lv), "", tw.x, tw.y, spriteSize);
 
     // 塔頂能量寶石：尺寸、亮度與外框階數同步升級，遠看即可辨認塔級。
     const gemY = tw.y - spriteSize * 0.27;

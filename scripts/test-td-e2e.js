@@ -592,7 +592,20 @@ async function run() {
       document.querySelector('#nextWaveCard [data-advisor-mode="control"]').click();
       const actions = [...document.querySelectorAll("#nextWaveCard [data-advisor-action]")];
       actions[1].click();
-      const text = document.getElementById("selPanel").innerText;
+      // R71 互鎖後面板詳情可能延後一幀渲染；輪詢等待完整內容，避免 CI 慢機讀到半成品（真回歸時輪詢仍會逾時失敗）
+      const waitPanel = async () => {
+        const deadline = Date.now() + 3000;
+        while (Date.now() < deadline) {
+          const t = document.getElementById("selPanel").innerText;
+          const ok = st.selectedTower === st.towers[0]
+            && !document.getElementById("selPanel").classList.contains("hidden")
+            && t.includes("Lv.1");
+          if (ok) return t;
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        return document.getElementById("selPanel").innerText;
+      };
+      const text = await waitPanel();
       const result = {
         selected: st.selectedTower === st.towers[0],
         highlighted: st.advisorUpgradeTarget === st.towers[0],

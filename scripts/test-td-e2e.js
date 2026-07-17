@@ -570,7 +570,7 @@ async function run() {
     assert(advisorBuildConfirmR29.frostBuilt && advisorBuildConfirmR29.towerCount === 2 && advisorBuildConfirmR29.confirm === false,
       "顧問幽靈塔再點確認後成功建造，且離開確認狀態");
 
-    const advisorUpgradeR29 = await page.evaluate(() => {
+    const advisorUpgradeR29 = await page.evaluate(async () => {
       const savedMeta = localStorage.getItem("td_meta_v1");
       const savedHeroes = localStorage.getItem("td_heroes_owned_v1");
       const restore = () => {

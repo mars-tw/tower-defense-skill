@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r70-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r71-v1" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -66,6 +66,8 @@
       max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
     gap: 8px;
   }
+  .app-shell { display: contents; }
+  .app-shell[aria-hidden="true"] { pointer-events: none; }
   h1 { font-size: 22px; letter-spacing: 2px; font-weight: 900; color: var(--accent);
     text-shadow: 0 0 18px rgba(74,222,128,.45), 0 2px 4px rgba(0,0,0,.6); }
 
@@ -549,7 +551,7 @@
   @keyframes heroRise { 0%{transform:translateY(40px) scale(.5);opacity:0} 100%{transform:translateY(0) scale(1);opacity:1} }
 
   /* ===== 首次遊玩引導（D3）===== */
-  .tutorial-overlay { position: fixed; inset: 0; background: rgba(6,12,10,.9); display: none;
+  .tutorial-overlay { position: fixed; inset: 0; background: #06100b; display: none;
     align-items: center; justify-content: center; z-index: 120; padding: 16px; }
   .tutorial-overlay.show { display: flex; }
   .tutorial-card { background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
@@ -613,6 +615,12 @@
   .map-opt .dbest { display: block; font-size: 11px; color: var(--gold); font-weight: 700; margin-top: 4px; }
   .map-hint { font-size: 12px; color: var(--ink-dim); line-height: 1.5; background: rgba(74,222,128,.08);
     padding: 10px 12px; border-radius: 10px; }
+
+  .advisor-backdrop { display: none; position: fixed; inset: 0; z-index: 60; background: #06100b; }
+  body.r71-modal-open .mission-toast,
+  body.r71-modal-open .bond-toast,
+  body.r71-modal-open .oracle-toast,
+  body.r71-modal-open .recovery-toast { display: none !important; }
 
   .series-footer { width: min(960px, 96vw); padding: 4px 8px 8px; color: var(--ink-meta);
     font-size: 12px; text-align: center; }
@@ -949,10 +957,12 @@
     .panel-drawer summary::after { margin-left: 5px; }
     .panel-drawer[open] > .drawer-body {
       position: fixed; z-index: 64; left: max(7px,env(safe-area-inset-left)); right: max(7px,env(safe-area-inset-right));
-      bottom: calc(var(--r64-control-height) + max(8px,env(safe-area-inset-bottom)));
+      bottom: var(--r71-drawer-safe-bottom, calc(var(--r64-control-height) + max(8px,env(safe-area-inset-bottom))));
       max-height: min(52dvh, 430px); overflow-y: auto; border: 1px solid var(--border-hi); border-radius: 13px;
       background: linear-gradient(180deg,rgba(25,43,32,.99),rgba(7,17,11,.99)); box-shadow: 0 12px 36px rgba(0,0,0,.7);
     }
+    body.r71-advisor-modal .advisor-backdrop { display: block; }
+    body.r71-advisor-modal .intel-drawer[open] > .drawer-body { z-index: 64; }
     .scene-controls {
       position: fixed; left: max(5px,env(safe-area-inset-left)); right: max(5px,env(safe-area-inset-right));
       bottom: max(4px,env(safe-area-inset-bottom)); transform: none; width: auto; height: var(--r64-control-height);
@@ -1095,6 +1105,7 @@
 </style>
 </head>
 <body>
+  <div class="app-shell" id="appShell">
   <h1>🏰 無盡塔防 · ENDLESS TOWER DEFENSE 🏰</h1>
 
   <div class="hud" id="hud">
@@ -1200,6 +1211,9 @@
     <a href="https://mars-tw.github.io/pixel-idle-farm-skill/" target="_blank" rel="noopener">像素農場</a>
     <a href="https://mars-tw.github.io/ashes-convoy/" target="_blank" rel="noopener">末日射擊</a>
   </footer>
+  </div>
+
+  <div class="advisor-backdrop" id="advisorBackdrop" aria-hidden="true"></div>
 
   <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="戰敗結算">
     <h2>💀 防線崩潰</h2>
@@ -1366,18 +1380,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r70-v1"></script>
-  <script src="src/heroes.js?v=td-r70-v1"></script>
-  <script src="src/rules.js?v=td-r70-v1"></script>
-  <script src="src/lore.js?v=td-r70-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r70-v1"></script>
-  <script src="src/hero-animation.js?v=td-r70-v1"></script>
-  <script src="src/game.js?v=td-r70-v1"></script>
-  <script src="src/ui.js?v=td-r70-v1"></script>
+  <script src="src/config.js?v=td-r71-v1"></script>
+  <script src="src/heroes.js?v=td-r71-v1"></script>
+  <script src="src/rules.js?v=td-r71-v1"></script>
+  <script src="src/lore.js?v=td-r71-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r71-v1"></script>
+  <script src="src/hero-animation.js?v=td-r71-v1"></script>
+  <script src="src/game.js?v=td-r71-v1"></script>
+  <script src="src/ui.js?v=td-r71-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r70-v1";
+      const PWA_VERSION = "td-r71-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

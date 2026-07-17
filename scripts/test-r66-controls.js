@@ -1,9 +1,10 @@
-/* td R66 control reachability guard. */
+/* td R66 control reachability guard, extended by R71 modal/floating-layer exclusivity. */
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
+const EVIDENCE = path.join(ROOT, "docs", "evidence", "R71_menu");
 const MIME = {
   ".html": "text/html",
   ".js": "application/javascript",
@@ -19,6 +20,10 @@ const VIEWPORTS = [
   { w: 1366, h: 600 },
   { w: 1280, h: 640 },
   { w: 390, h: 844 },
+];
+const R71_VIEWPORTS = [
+  { w: 1366, h: 600, name: "desktop-1366x600" },
+  { w: 390, h: 844, name: "mobile-390x844", mobile: true },
 ];
 
 let failed = 0;
@@ -124,6 +129,73 @@ function auditModalInPage(selector) {
   });
 }
 
+function auditR71LayerInPage(layerId) {
+  const modalIds = ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay"];
+  const shell = document.getElementById("appShell");
+  const layer = document.getElementById(layerId);
+  const background = [
+    document.getElementById("startBtn"), document.getElementById("speed1"),
+    ...document.querySelectorAll("#towerList .tower-btn"),
+  ].filter(Boolean).map((el) => {
+    const rect = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return {
+      id: el.id || el.dataset.type,
+      selfHit: hit === el || el.contains(hit),
+      hit: hit ? (hit.id || hit.className || hit.tagName) : "none",
+    };
+  });
+  const color = layer ? getComputedStyle(layer).backgroundColor : "";
+  const rgba = color.match(/[\d.]+/g) || [];
+  return {
+    layerId,
+    shown: modalIds.filter((id) => document.getElementById(id).classList.contains("show")),
+    shellInert: !!shell && shell.inert,
+    shellHidden: !!shell && shell.getAttribute("aria-hidden") === "true",
+    background,
+    backgroundColor: color,
+    opaque: rgba.length < 4 || Number(rgba[3]) === 1,
+  };
+}
+
+function auditAdvisorLayerInPage() {
+  function rectFor(el) {
+    const rect = el.getBoundingClientRect();
+    return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height };
+  }
+  function overlap(a, b) {
+    return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+      Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  }
+  const drawerEl = document.querySelector(".intel-drawer > .drawer-body");
+  const advisorEl = document.querySelector(".advisor-row");
+  const dockEl = document.getElementById("sceneControls");
+  const drawer = rectFor(drawerEl), advisor = rectFor(advisorEl), dock = rectFor(dockEl);
+  const background = [
+    document.getElementById("startBtn"), document.getElementById("speed1"),
+    ...document.querySelectorAll("#towerList .tower-btn"),
+  ].map((el) => {
+    const rect = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return { id: el.id || el.dataset.type, selfHit: hit === el || el.contains(hit), hit: hit ? (hit.id || hit.className || hit.tagName) : "none" };
+  });
+  const advisorButtons = [...advisorEl.querySelectorAll("button")].map((el) => {
+    const rect = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return { label: el.textContent.trim(), hit: hit === el || el.contains(hit) };
+  });
+  return {
+    drawer, advisor, dock,
+    drawerDockOverlap: overlap(drawer, dock),
+    advisorDockOverlap: overlap(advisor, dock),
+    mobileModal: document.body.classList.contains("r71-advisor-modal"),
+    backdropVisible: getComputedStyle(document.getElementById("advisorBackdrop")).display !== "none",
+    battlefieldInert: document.getElementById("battlefieldStage").inert,
+    background,
+    advisorButtons,
+  };
+}
+
 async function run() {
   let chromium;
   try { ({ chromium } = require("playwright")); }
@@ -133,7 +205,76 @@ async function run() {
   const port = server.address().port;
   const base = `http://127.0.0.1:${port}/index.html`;
   const browser = await chromium.launch();
+  const r71Measurements = [];
   try {
+    fs.mkdirSync(EVIDENCE, { recursive: true });
+    for (const vp of R71_VIEWPORTS) {
+      console.log(`\n== R71 modal exclusivity ${vp.w}x${vp.h} ==`);
+      const context = await browser.newContext({
+        viewport: { width: vp.w, height: vp.h },
+        hasTouch: !!vp.mobile,
+        isMobile: !!vp.mobile,
+      });
+      const page = await context.newPage();
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.addInitScript(() => localStorage.clear());
+      await page.goto(base, { waitUntil: "domcontentloaded", timeout: 90000 });
+      await page.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 60000 });
+      await page.waitForTimeout(250);
+
+      const tutorial = await page.evaluate(auditR71LayerInPage, "tutorial");
+      assert(tutorial.shown.length === 1 && tutorial.shown[0] === "tutorial" && tutorial.shellInert && tutorial.shellHidden,
+        `${vp.w}x${vp.h} tutorial is the sole modal and background shell is inert`);
+      assert(tutorial.background.every((item) => !item.selfHit),
+        `${vp.w}x${vp.h} tutorial blocks background HUD/dock elementFromPoint self hits`);
+      assert(tutorial.opaque, `${vp.w}x${vp.h} tutorial backdrop is visually opaque (${tutorial.backgroundColor})`);
+      await page.screenshot({ path: path.join(EVIDENCE, `${vp.name}-tutorial.png`) });
+
+      await page.locator("#tutorialAdvanced").click({ noWaitAfter: true, timeout: 90000 });
+      await page.waitForTimeout(100);
+      const difficulty = await page.evaluate(auditR71LayerInPage, "diffOverlay");
+      assert(difficulty.shown.length === 1 && difficulty.shown[0] === "diffOverlay" && difficulty.shellInert &&
+        difficulty.background.every((item) => !item.selfHit), `${vp.w}x${vp.h} difficulty modal is exclusive and blocks background self hits`);
+
+      await page.locator(".diff-opt").first().click({ noWaitAfter: true, timeout: 90000 });
+      await page.waitForTimeout(100);
+      const map = await page.evaluate(auditR71LayerInPage, "mapOverlay");
+      assert(map.shown.length === 1 && map.shown[0] === "mapOverlay" && map.shellInert &&
+        map.background.every((item) => !item.selfHit), `${vp.w}x${vp.h} map modal is exclusive and blocks background self hits`);
+
+      await page.locator(".map-opt").first().click({ noWaitAfter: true, timeout: 90000 });
+      await page.waitForTimeout(150);
+      await page.locator("#settingsBtn").click({ noWaitAfter: true, timeout: 90000 });
+      await page.waitForTimeout(100);
+      const settings = await page.evaluate(auditR71LayerInPage, "settingsOverlay");
+      assert(settings.shown.length === 1 && settings.shown[0] === "settingsOverlay" && settings.shellInert &&
+        settings.background.every((item) => !item.selfHit), `${vp.w}x${vp.h} settings modal is exclusive and blocks background self hits`);
+      await page.locator("#settingsClose").click({ noWaitAfter: true, timeout: 90000 });
+      await page.waitForTimeout(100);
+
+      let advisor;
+      if (vp.mobile) {
+        await page.locator("#intelDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await page.waitForTimeout(150);
+        advisor = await page.evaluate(auditAdvisorLayerInPage);
+        assert(advisor.mobileModal && advisor.backdropVisible && advisor.battlefieldInert &&
+          advisor.background.every((item) => !item.selfHit), `${vp.w}x${vp.h} advisor floating layer blocks background HUD/dock self hits`);
+        assert(advisor.drawerDockOverlap <= 1 && advisor.advisorDockOverlap <= 1,
+          `${vp.w}x${vp.h} advisor panel reserves dock click area (drawer ${advisor.drawerDockOverlap.toFixed(1)}px² / advisor ${advisor.advisorDockOverlap.toFixed(1)}px²)`);
+        assert(advisor.advisorButtons.length > 0 && advisor.advisorButtons.every((item) => item.hit),
+          `${vp.w}x${vp.h} advisor controls remain hit-test reachable`);
+        await page.screenshot({ path: path.join(EVIDENCE, `${vp.name}-advisor.png`) });
+      } else {
+        advisor = await page.evaluate(auditAdvisorLayerInPage);
+        assert(advisor.drawerDockOverlap <= 1 && advisor.advisorDockOverlap <= 1,
+          `${vp.w}x${vp.h} desktop advisor stays outside dock click area`);
+      }
+      assert(errors.length === 0, `${vp.w}x${vp.h} R71 modal flow has no pageerror${errors.length ? " - " + errors.join(" | ") : ""}`);
+      r71Measurements.push({ viewport: `${vp.w}x${vp.h}`, tutorial, difficulty, map, settings, advisor, errors });
+      await context.close();
+    }
+
     for (const vp of VIEWPORTS) {
       console.log(`\n== R66 controls ${vp.w}x${vp.h} ==`);
       const isMobile = vp.w <= 560;
@@ -148,7 +289,7 @@ async function run() {
         localStorage.setItem("td_tutorial_seen", "1");
       });
       await page.goto(base, { waitUntil: "domcontentloaded", timeout: 90000 });
-      await page.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 60000 });
       await page.waitForTimeout(250);
 
       const diffShown = await page.evaluate(() => document.getElementById("diffOverlay").classList.contains("show"));
@@ -186,6 +327,7 @@ async function run() {
     await browser.close();
     server.close();
   }
+  fs.writeFileSync(path.join(EVIDENCE, "modal-interlock-measurements.json"), JSON.stringify(r71Measurements, null, 2) + "\n");
   if (failed > 0) { console.error(`\nR66 control guard failed: ${failed}`); process.exit(1); }
   console.log("\nR66 control guard passed.");
 }

@@ -138,8 +138,8 @@ async function run() {
           return !!(reg && reg.active);
         }, null, { timeout: 30000 });
         await swPage.reload({ waitUntil: "networkidle" });
-        // 版本 bump 後 SW 重裝，冷 CI 機取得 controller 的 handoff 可能超過 12s；放寬避免偽逾時
-        await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 30000 });
+        // 版本 bump 後 SW 重裝，冷 CI／高負載機取得 controller 的 handoff 可能偏慢；仍保留 controller 硬守門。
+        await swPage.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 90000 });
         await swPage.waitForFunction(async (v) => (await caches.keys()).some((key) => key.includes(v)), SW_VERSION, { timeout: 30000 });
         await swContext.setOffline(true);
         await swPage.reload({ waitUntil: "domcontentloaded" });
@@ -270,6 +270,12 @@ async function run() {
       saveManagerR33.goodOk === true && saveManagerR33.afterGoodCrystal === 88 && saveManagerR33.decodedRunSeed === 246813579 && saveManagerR33.afterGoodRunSeed === 246813579 && saveManagerR33.backupCrystal === 33 &&
       saveManagerR33.heroes.includes("archer") && saveManagerR33.heroes.includes("cleric") && !saveManagerR33.heroes.includes("__bad"),
       "R33 存檔管家可匯出 Base64、拒絕壞資料、穩定往返 runSeed、成功匯入前自動備份並清洗英雄清單");
+
+    // R71 modal 互斥會在設定開啟時關閉教學；重新走真正的首次載入路徑再驗快速開始。
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await page.waitForFunction(() => window.TD && window.TD.state);
+    await sleep(300);
     const quickIntro = await page.evaluate(() => ({
       tutorialShown: document.getElementById("tutorial").classList.contains("show"),
       quickText: document.getElementById("tutorialQuick").textContent,

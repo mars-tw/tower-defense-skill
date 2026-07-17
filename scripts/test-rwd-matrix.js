@@ -137,8 +137,14 @@ async function run() {
             const panel = document.getElementById("selPanel");
             const deck = document.querySelector('[data-testid="mobile-control-deck"]');
             const blockers = ["tutorial", "diffOverlay", "mapOverlay"].map((id) => document.getElementById(id)).filter(Boolean);
-            const blockerDisplay = blockers.map((el) => el.style.display);
-            blockers.forEach((el) => { el.style.display = "none"; });
+            const blockerShown = blockers.map((el) => el.classList.contains("show"));
+            const shell = document.getElementById("appShell");
+            const shellWasInert = shell.inert;
+            const shellWasHidden = shell.getAttribute("aria-hidden");
+            blockers.forEach((el) => el.classList.remove("show"));
+            shell.inert = false;
+            shell.removeAttribute("aria-hidden");
+            document.body.classList.remove("r71-modal-open");
             panel.classList.remove("hidden");
             const panelStyle = getComputedStyle(panel);
             const deckStyle = getComputedStyle(deck);
@@ -177,7 +183,11 @@ async function run() {
               hitId: hit ? (hit.id || hit.tagName) : "none",
             };
             panel.classList.add("hidden");
-            blockers.forEach((el, i) => { el.style.display = blockerDisplay[i]; });
+            blockers.forEach((el, i) => el.classList.toggle("show", blockerShown[i]));
+            shell.inert = shellWasInert;
+            if (shellWasHidden == null) shell.removeAttribute("aria-hidden");
+            else shell.setAttribute("aria-hidden", shellWasHidden);
+            document.body.classList.toggle("r71-modal-open", shellWasInert);
             return guard;
           });
           if (!mobileGuard.fullMap || !mobileGuard.sceneUpgrade || !mobileGuard.reservedDeck || !mobileGuard.controlsClear) {

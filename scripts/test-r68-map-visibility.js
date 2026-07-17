@@ -113,7 +113,7 @@ async function run() {
         localStorage.setItem("td_tutorial_seen", "1");
       });
       await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: "domcontentloaded", timeout: 90000 });
-      await page.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 60000 });
       await page.locator(".diff-opt").first().click({ noWaitAfter: true, timeout: 90000 });
       await page.locator(".map-opt").first().click({ noWaitAfter: true, timeout: 90000 });
       await page.waitForTimeout(250);

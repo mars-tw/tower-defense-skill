@@ -215,9 +215,73 @@
     return !!el && el.classList.contains("show");
   }
 
+  const R71_MODAL_IDS = ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay"];
+
+  function setR71Inert(el, enabled) {
+    if (!el) return;
+    if (enabled) {
+      el.inert = true;
+      el.dataset.r71Inert = "1";
+    } else if (el.dataset.r71Inert === "1") {
+      el.inert = false;
+      delete el.dataset.r71Inert;
+    }
+  }
+
+  function syncAdvisorGeometry() {
+    const dock = $("sceneControls");
+    if (!dock || !window.matchMedia("(max-width: 900px)").matches) {
+      document.documentElement.style.removeProperty("--r71-drawer-safe-bottom");
+      return;
+    }
+    const dockRect = dock.getBoundingClientRect();
+    const safeBottom = Math.max(8, window.innerHeight - dockRect.top + 8);
+    document.documentElement.style.setProperty("--r71-drawer-safe-bottom", `${Math.ceil(safeBottom)}px`);
+  }
+
+  function syncR71ModalState() {
+    const blocking = isBlockingOverlayOpen();
+    document.body.classList.toggle("r71-modal-open", blocking);
+    const shell = $("appShell");
+    if (shell) {
+      shell.inert = blocking;
+      if (blocking) shell.setAttribute("aria-hidden", "true");
+      else shell.removeAttribute("aria-hidden");
+    }
+
+    const intelDrawer = document.querySelector(".intel-drawer");
+    const advisorModal = !blocking && window.matchMedia("(max-width: 900px)").matches &&
+      !!intelDrawer && intelDrawer.open && !!intelDrawer.querySelector(".advisor-row");
+    document.body.classList.toggle("r71-advisor-modal", advisorModal);
+    [
+      $("hud"), $("battlefieldStage"), document.querySelector("h1"), $("log"),
+      document.querySelector(".hero-drawer"), document.querySelector(".utility-drawer"),
+      document.querySelector(".series-footer"), intelDrawer && intelDrawer.querySelector("summary"),
+      $("affixCard"), $("enemyInfo"), document.querySelector("#nextWaveCard .enemy-chip-row"),
+      document.querySelector("#nextWaveCard .tower-rec-row"),
+    ].forEach((el) => setR71Inert(el, advisorModal));
+  }
+
+  function showExclusiveR71Modal(id) {
+    R71_MODAL_IDS.forEach((otherId) => {
+      if (otherId !== id) $(otherId).classList.remove("show");
+    });
+    $(id).classList.add("show");
+    syncR71ModalState();
+  }
+
+  function hideR71Modal(id) {
+    $(id).classList.remove("show");
+    syncR71ModalState();
+  }
+
   function isBlockingOverlayOpen() {
     return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "codexOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
   }
+
+  const r71OverlayObserver = new MutationObserver(() => syncR71ModalState());
+  ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "codexOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"]
+    .map($).filter(Boolean).forEach((overlay) => r71OverlayObserver.observe(overlay, { attributes: true, attributeFilter: ["class"] }));
 
   function isTextEntryTarget(target) {
     if (!target) return false;
@@ -334,7 +398,10 @@
     stage.style.removeProperty("--r64-canvas-height");
     stage.style.setProperty("--r68-canvas-width", `${Math.max(1, Math.floor(960 * scale))}px`);
     stage.style.setProperty("--r68-canvas-height", `${Math.max(1, Math.floor(640 * scale))}px`);
-    requestAnimationFrame(refreshScenePositions);
+    requestAnimationFrame(() => {
+      refreshScenePositions();
+      syncAdvisorGeometry();
+    });
   }
 
   function syncPauseButton(paused) {
@@ -1088,6 +1155,7 @@
         if (TD.previewAdvisorAction && TD.previewAdvisorAction(action)) refreshUI();
       };
     });
+    syncR71ModalState();
   }
 
   function renderAffixCard() {
@@ -1391,7 +1459,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r70-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r71-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }
@@ -1456,12 +1524,12 @@
     renderJuiceSettings();
     renderPwaSettings();
     setSaveStatus("", true);
-    $("settingsOverlay").classList.add("show");
+    showExclusiveR71Modal("settingsOverlay");
     focusSoon($("settingsClose"));
   }
 
   function closeSettingsOverlay() {
-    $("settingsOverlay").classList.remove("show");
+    hideR71Modal("settingsOverlay");
     if (!settingsWasPaused && !TD.state().over) {
       TD.setPaused(false);
       syncPauseButton(false);
@@ -1939,7 +2007,7 @@
         const nextMeta = loadMeta();
         nextMeta.lastMap = m.id;
         saveMeta(nextMeta);
-        $("mapOverlay").classList.remove("show");
+        hideR71Modal("mapOverlay");
         TD.newGame();
         deployedThisGame = new Set(); renderRoster();
         const el = $("bestWave"); if (el) el.textContent = bestForDiff(TD.getDifficulty().id);
@@ -1965,9 +2033,9 @@
       opt.onclick = () => {
         TD.setDifficulty(d.id);
         try { localStorage.setItem("td_difficulty", d.id); } catch {}
-        $("diffOverlay").classList.remove("show");
+        hideR71Modal("diffOverlay");
         renderMaps();
-        $("mapOverlay").classList.add("show");
+        showExclusiveR71Modal("mapOverlay");
         focusSoon(document.querySelector(".map-opt"));
         const el = $("bestWave"); if (el) el.textContent = bestForDiff(d.id);
         refreshUI();
@@ -2022,13 +2090,13 @@
       syncPauseButton(true);
     }
     renderTutorialStep();
-    $("tutorial").classList.add("show");
+    showExclusiveR71Modal("tutorial");
     focusSoon($("tutorialNext"));
   }
 
   function closeTutorialOverlay(opts) {
     const options = opts || {};
-    $("tutorial").classList.remove("show");
+    hideR71Modal("tutorial");
     if (options.markSeen) markTutorialSeen();
     if (!tutorialWasPaused && !TD.state().over) {
       TD.setPaused(false);
@@ -2036,7 +2104,7 @@
     }
     if (tutorialFirstRun && options.showDifficulty) {
       renderDifficulties();
-      $("diffOverlay").classList.add("show");
+      showExclusiveR71Modal("diffOverlay");
       focusSoon(document.querySelector(".diff-opt"));
     } else {
       focusSoon($("tutorialBtn") || $("settingsBtn"));
@@ -2061,7 +2129,7 @@
   function openAdvancedAfterTutorial() {
     closeTutorialOverlay({ markSeen: true });
     renderDifficulties();
-    $("diffOverlay").classList.add("show");
+    showExclusiveR71Modal("diffOverlay");
     focusSoon(document.querySelector(".diff-opt"));
   }
 
@@ -2083,7 +2151,10 @@
     $("tutorialQuick").onclick = startQuickTutorialRun;
     $("tutorialAdvanced").onclick = openAdvancedAfterTutorial;
     if ($("tutorialBtn")) $("tutorialBtn").onclick = () => openTutorialOverlay({ firstRun: false });
-    if ($("tutorialSettingsBtn")) $("tutorialSettingsBtn").onclick = () => openTutorialOverlay({ firstRun: false });
+    if ($("tutorialSettingsBtn")) $("tutorialSettingsBtn").onclick = () => {
+      closeSettingsOverlay();
+      openTutorialOverlay({ firstRun: false });
+    };
   }
 
   (function setupTutorial() {
@@ -2096,7 +2167,7 @@
       openTutorialOverlay({ firstRun: true });
     } else {
       // 看過引導：直接顯示難度選擇
-      renderDifficulties(); $("diffOverlay").classList.add("show");
+      renderDifficulties(); showExclusiveR71Modal("diffOverlay");
       focusSoon(document.querySelector(".diff-opt"));
     }
   })();
@@ -2120,8 +2191,13 @@
   if (window.matchMedia("(max-width: 900px)").matches) panelDrawers.forEach((drawer) => { drawer.open = false; });
   panelDrawers.forEach((drawer) => {
     drawer.addEventListener("toggle", () => {
-      if (!drawer.open || !window.matchMedia("(max-width: 900px)").matches) return;
-      panelDrawers.forEach((other) => { if (other !== drawer) other.open = false; });
+      if (drawer.open && window.matchMedia("(max-width: 900px)").matches) {
+        panelDrawers.forEach((other) => { if (other !== drawer) other.open = false; });
+      }
+      requestAnimationFrame(() => {
+        syncAdvisorGeometry();
+        syncR71ModalState();
+      });
     });
   });
 
@@ -2132,12 +2208,17 @@
     const host = $("battlefieldScroll");
     if (host) canvasFitObserver.observe(host);
   }
-  window.addEventListener("resize", fitCanvasToStage, { passive: true });
+  window.addEventListener("resize", () => {
+    fitCanvasToStage();
+    syncR71ModalState();
+  }, { passive: true });
   const battlefieldScroll = $("battlefieldScroll");
   if (battlefieldScroll) battlefieldScroll.addEventListener("scroll", refreshScenePositions, { passive: true });
   fitCanvasToStage();
 
   renderRoster();
   refreshUI();
+  syncAdvisorGeometry();
+  syncR71ModalState();
   if (!drainedIntroCount) pushLog("放置砲塔、抽英雄上場守護女神！火克冰、冰克雷、雷克火。");
 })();

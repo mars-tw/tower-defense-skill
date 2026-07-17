@@ -117,3 +117,10 @@ Runtime 後製固定為中心裁切、Pillow Lanczos、WebP quality 82／method 
 ## 最終判定
 
 R72 scope、imagegen 鐵律、C2PA／hash／postprocess、§2／§3／§4、路徑對比、463 E2E、R66、R68、R71、RWD、p95、PWA 離線與角色動畫守門均通過，可交付。
+
+## 總稽核審計附註（Claude，2026-07-17，Grok 複審 NO_P0）
+
+- C2PA 口徑（Grok P1 採納）：對外敘事一律為「密碼學驗證有效（claim signature/data hash 通過），簽發根未納本機 trust store」，不得簡化為「全綠無警告」。
+- p95 與 first-interaction：本輪量測於併發機況（concurrentUntrusted 已標），正式出貨判定依協定由總稽核淨機重測；first-interaction 基線口徑已改單視窗串行（與歷史多視窗量測不可比），淨機重測時一併校正。
+- loading 最短 2.4 秒與「首屏 3 秒焦點」口徑：本輪 3 秒閘覆蓋「loading 主視覺可見」；「可玩」時點=loading 結束（2.4s+資產），實際體感由線上實機驗證確認。
+- 歷史證據（R68/R71）遭測試覆寫已由總稽核還原凍結；R72 起測試輸出一律導向 R72 目錄（TD_EVIDENCE_DIR）。

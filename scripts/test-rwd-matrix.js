@@ -136,7 +136,7 @@ async function run() {
             const host = document.getElementById("battlefieldScroll");
             const panel = document.getElementById("selPanel");
             const deck = document.querySelector('[data-testid="mobile-control-deck"]');
-            const blockers = ["tutorial", "diffOverlay", "mapOverlay"].map((id) => document.getElementById(id)).filter(Boolean);
+            const blockers = ["tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay"].map((id) => document.getElementById(id)).filter(Boolean);
             const blockerShown = blockers.map((el) => el.classList.contains("show"));
             const shell = document.getElementById("appShell");
             const shellWasInert = shell.inert;

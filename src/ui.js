@@ -10,6 +10,47 @@
   const $ = (id) => document.getElementById(id);
   const hasOwn = (obj, key) => !!obj && Object.prototype.hasOwnProperty.call(obj, key);
   const RULES = window.TDRules;
+  const R72_MAP_VISUALS = {
+    plains: {
+      accent: "#2e7d4f",
+      banner: {
+        high: "assets/maps/r72/plains-banner-high.webp?v=63b03393",
+        med: "assets/maps/r72/plains-banner-med.webp?v=b4db6829",
+        low: "assets/maps/r72/plains-banner-low.webp?v=d040c3b6",
+      },
+      loading: {
+        high: "assets/maps/r72/plains-loading-high.webp?v=7a8d1753",
+        med: "assets/maps/r72/plains-loading-med.webp?v=32307665",
+        low: "assets/maps/r72/plains-loading-low.webp?v=822eb164",
+      },
+    },
+    canyon: {
+      accent: "#a65a32",
+      banner: {
+        high: "assets/maps/r72/canyon-banner-high.webp?v=14cbcf2e",
+        med: "assets/maps/r72/canyon-banner-med.webp?v=961ad962",
+        low: "assets/maps/r72/canyon-banner-low.webp?v=41fcb341",
+      },
+      loading: {
+        high: "assets/maps/r72/canyon-loading-high.webp?v=acb28553",
+        med: "assets/maps/r72/canyon-loading-med.webp?v=3781e3a5",
+        low: "assets/maps/r72/canyon-loading-low.webp?v=dcf8ce5b",
+      },
+    },
+    lava: {
+      accent: "#c6422c",
+      banner: {
+        high: "assets/maps/r72/lava-banner-high.webp?v=90e4ef27",
+        med: "assets/maps/r72/lava-banner-med.webp?v=001ec422",
+        low: "assets/maps/r72/lava-banner-low.webp?v=5f51a4a5",
+      },
+      loading: {
+        high: "assets/maps/r72/lava-loading-high.webp?v=5239fc3e",
+        med: "assets/maps/r72/lava-loading-med.webp?v=19175c9e",
+        low: "assets/maps/r72/lava-loading-low.webp?v=25918535",
+      },
+    },
+  };
   let selectedBoardDiff = TD.getDifficulty().id;
   let selectedBoardMap = (TD.getMap && TD.getMap().id) || "plains";
   let progressWasPaused = false;
@@ -24,6 +65,8 @@
   let advisorHidden = false;
   let advisorMode = "control";
   let warningSerial = 0;
+  let r72SelectorSerial = 0;
+  let r72LoadingSerial = 0;
   let recoveryNoticeShown = false;
   const TOWER_HOTKEYS = { arrow: "1", cannon: "2", frost: "3", tesla: "4", poison: "5", support: "6", sniper: "7", arcane: "8", beacon: "9", mortar: "0" };
   const TOWER_SHORT_NAMES = { arrow: "箭", cannon: "砲", frost: "冰", tesla: "電", poison: "毒", support: "輔", sniper: "狙", arcane: "奧", beacon: "標", mortar: "臼" };
@@ -215,7 +258,7 @@
     return !!el && el.classList.contains("show");
   }
 
-  const R71_MODAL_IDS = ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay"];
+  const R71_MODAL_IDS = ["tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay", "settingsOverlay"];
 
   function setR71Inert(el, enabled) {
     if (!el) return;
@@ -276,12 +319,55 @@
   }
 
   function isBlockingOverlayOpen() {
-    return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "codexOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"].some(isShown);
+    return ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "codexOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay"].some(isShown);
   }
 
   const r71OverlayObserver = new MutationObserver(() => syncR71ModalState());
-  ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "codexOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay"]
+  ["gachaOverlay", "progressOverlay", "heroDetailOverlay", "codexOverlay", "settingsOverlay", "overlay", "tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay"]
     .map($).filter(Boolean).forEach((overlay) => r71OverlayObserver.observe(overlay, { attributes: true, attributeFilter: ["class"] }));
+
+  function r72Mark(name) {
+    if (!window.performance || typeof performance.mark !== "function") return;
+    try { performance.clearMarks(name); performance.mark(name); } catch {}
+  }
+
+  function r72Measure(name, start, end) {
+    if (!window.performance || typeof performance.measure !== "function") return;
+    try { performance.clearMeasures(name); performance.measure(name, start, end); } catch {}
+  }
+
+  function r72QualityTier() {
+    const perf = TD.getPerformanceStatus ? TD.getPerformanceStatus() : null;
+    if (perf && perf.quality === "low") return "low";
+    return window.matchMedia("(max-width: 900px)").matches ? "med" : "high";
+  }
+
+  function r72AssetFor(mapId, kind, quality) {
+    const visual = R72_MAP_VISUALS[mapId] || R72_MAP_VISUALS.plains;
+    const group = visual[kind] || visual.banner;
+    return group[quality] || group.med || group.high;
+  }
+
+  function r72ImageReady(image) {
+    if (image.complete && image.naturalWidth > 0) return Promise.resolve(image);
+    return new Promise((resolve, reject) => {
+      image.addEventListener("load", () => resolve(image), { once: true });
+      image.addEventListener("error", () => reject(new Error(`R72 image failed: ${image.currentSrc || image.src}`)), { once: true });
+    });
+  }
+
+  function watchR72SelectorImages(box, serial) {
+    const images = [...box.querySelectorAll(".map-visual img")];
+    Promise.all(images.map(r72ImageReady)).then(() => {
+      if (serial !== r72SelectorSerial) return;
+      box.dataset.r72VisualReady = "true";
+      r72Mark("r72-map-visual-ready");
+      r72Measure("r72-map-visual-duration", "r72-map-select-open", "r72-map-visual-ready");
+    }).catch((error) => {
+      box.dataset.r72VisualReady = "false";
+      box.dataset.r72VisualError = error.message;
+    });
+  }
 
   function isTextEntryTarget(target) {
     if (!target) return false;
@@ -1459,7 +1545,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r71-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r72-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }
@@ -1983,38 +2069,109 @@
     const m = loadMeta();
     return (m.bestByDiff && m.bestByDiff[diffId]) || 0;
   }
+
+  function finishR72MapLoading(serial) {
+    if (serial !== r72LoadingSerial) return;
+    const overlay = $("mapLoadingOverlay");
+    if (!overlay || !overlay.classList.contains("show")) return;
+    overlay.setAttribute("aria-busy", "false");
+    r72Mark("r72-loading-close");
+    hideR71Modal("mapLoadingOverlay");
+    focusSoon($("startBtn"));
+  }
+
+  function beginR72MapRun(mapDef) {
+    const m = mapDef && hasOwn(TD.config.MAPS, mapDef.id) ? mapDef : TD.config.MAPS.plains;
+    const serial = ++r72LoadingSerial;
+    const quality = r72QualityTier();
+    const overlay = $("mapLoadingOverlay");
+    const image = $("mapLoadingImage");
+    const title = $("mapLoadingTitle");
+    const desc = $("mapLoadingDesc");
+    const status = $("mapLoadingStatus");
+    const source = r72AssetFor(m.id, "loading", quality);
+
+    TD.setMap(m.id);
+    const nextMeta = loadMeta();
+    nextMeta.lastMap = m.id;
+    saveMeta(nextMeta);
+
+    title.textContent = m.label;
+    desc.textContent = m.desc;
+    status.textContent = "正在展開既有戰場圖資…";
+    overlay.dataset.mapId = m.id;
+    overlay.dataset.quality = quality;
+    overlay.dataset.r72VisualReady = "false";
+    overlay.removeAttribute("data-r72-visual-error");
+    overlay.setAttribute("aria-busy", "true");
+    image.dataset.mapId = m.id;
+    image.dataset.quality = quality;
+    image.alt = `${m.label}戰場圖`;
+    image.removeAttribute("src");
+
+    r72Mark("r72-loading-open");
+    showExclusiveR71Modal("mapLoadingOverlay");
+    image.src = source;
+
+    // 遊戲狀態同步初始化，loading 只負責視覺轉場，不改玩法或數值時序。
+    TD.newGame();
+    deployedThisGame = new Set();
+    renderRoster();
+    const best = $("bestWave"); if (best) best.textContent = bestForDiff(TD.getDifficulty().id);
+    refreshUI();
+
+    const minimumDisplay = new Promise((resolve) => setTimeout(resolve, 2400));
+    const visualReady = r72ImageReady(image).then(() => {
+      if (serial !== r72LoadingSerial) return;
+      overlay.dataset.r72VisualReady = "true";
+      status.textContent = "路徑確認完成";
+      r72Mark("r72-loading-visual-ready");
+      r72Measure("r72-loading-visual-duration", "r72-loading-open", "r72-loading-visual-ready");
+    });
+    Promise.all([minimumDisplay, visualReady]).then(() => finishR72MapLoading(serial)).catch((error) => {
+      if (serial !== r72LoadingSerial) return;
+      overlay.dataset.r72VisualReady = "false";
+      overlay.dataset.r72VisualError = error.message;
+      status.textContent = "圖資載入失敗，已保留遊戲狀態";
+      minimumDisplay.then(() => finishR72MapLoading(serial));
+    });
+    // 3 秒是硬閘；超時只解除 UI 鎖，測試仍會因 visualReady=false 失敗。
+    setTimeout(() => finishR72MapLoading(serial), 2950);
+  }
+
   function renderMaps() {
     const box = $("mapOptions"); if (!box) return;
     box.innerHTML = "";
+    box.dataset.r72VisualReady = "false";
+    delete box.dataset.r72VisualError;
     const meta = loadMeta();
     const lastMap = hasOwn(TD.config.MAPS, meta.lastMap) ? meta.lastMap : (TD.getMap && TD.getMap().id);
+    const quality = r72QualityTier();
     Object.values(TD.config.MAPS).forEach((m) => {
       const opt = document.createElement("button");
       opt.className = "map-opt" + (m.id === lastMap ? " active" : "");
+      opt.dataset.mapId = m.id;
+      opt.dataset.quality = quality;
+      opt.style.setProperty("--map-accent", (R72_MAP_VISUALS[m.id] || R72_MAP_VISUALS.plains).accent);
       const goldText = m.goldMul === 1 ? "標準資源" : `資源 ${Math.round(m.goldMul * 100)}%`;
       const mapLore = LORE.mapLoreFor ? LORE.mapLoreFor(m.id) : null;
       const loreText = mapLore && Array.isArray(mapLore.lines) ? mapLore.lines.slice(0, 2).join(" ") : "";
       opt.innerHTML = `
-        <span class="demoji">${m.emoji}</span>
+        <span class="map-visual" data-focal-box="0.10,0.27,0.80,0.46">
+          <img src="${r72AssetFor(m.id, "banner", quality)}" alt="${m.label}既有地圖路徑預覽" width="640" height="320" loading="eager" fetchpriority="high" draggable="false" data-map-id="${m.id}" data-quality="${quality}">
+          <span class="map-route-tag">${m.id.toUpperCase()} · ${quality.toUpperCase()}</span>
+        </span>
         <span class="dinfo">
           <span class="dname">${m.label}</span>
           <span class="ddesc">${m.desc}</span>
           ${loreText ? `<span class="ddesc">${loreText}</span>` : ""}
           <span class="dbest">${goldText} · 路徑節點 ${m.path.length}</span>
         </span>`;
-      opt.onclick = () => {
-        TD.setMap(m.id);
-        const nextMeta = loadMeta();
-        nextMeta.lastMap = m.id;
-        saveMeta(nextMeta);
-        hideR71Modal("mapOverlay");
-        TD.newGame();
-        deployedThisGame = new Set(); renderRoster();
-        const el = $("bestWave"); if (el) el.textContent = bestForDiff(TD.getDifficulty().id);
-        refreshUI();
-      };
+      opt.onclick = () => beginR72MapRun(m);
       box.appendChild(opt);
     });
+    const serial = ++r72SelectorSerial;
+    watchR72SelectorImages(box, serial);
   }
   // 渲染難度選擇
   function renderDifficulties() {
@@ -2034,6 +2191,7 @@
         TD.setDifficulty(d.id);
         try { localStorage.setItem("td_difficulty", d.id); } catch {}
         hideR71Modal("diffOverlay");
+        r72Mark("r72-map-select-open");
         renderMaps();
         showExclusiveR71Modal("mapOverlay");
         focusSoon(document.querySelector(".map-opt"));
@@ -2115,15 +2273,8 @@
   function startQuickTutorialRun() {
     closeTutorialOverlay({ markSeen: true });
     TD.setDifficulty("normal");
-    TD.setMap("plains");
     try { localStorage.setItem("td_difficulty", "normal"); } catch {}
-    const meta = loadMeta();
-    meta.lastMap = "plains";
-    saveMeta(meta);
-    deployedThisGame = new Set();
-    TD.newGame();
-    renderRoster();
-    refreshUI();
+    beginR72MapRun(TD.config.MAPS.plains);
   }
 
   function openAdvancedAfterTutorial() {
@@ -2180,7 +2331,7 @@
 
   // R63 自動化驗收場景只呈現戰場，避免首次進入流程遮住動畫證據。
   if (new URLSearchParams(window.location.search).get("r63Evidence")) {
-    ["tutorial", "diffOverlay", "mapOverlay"].forEach((id) => {
+    ["tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay"].forEach((id) => {
       const overlay = $(id);
       if (overlay) overlay.classList.remove("show");
     });
@@ -2218,6 +2369,11 @@
 
   renderRoster();
   refreshUI();
+  window.__tdR72MapVisual = {
+    assets: R72_MAP_VISUALS,
+    qualityTier: r72QualityTier,
+    beginMapRun: beginR72MapRun,
+  };
   syncAdvisorGeometry();
   syncR71ModalState();
   if (!drainedIntroCount) pushLog("放置砲塔、抽英雄上場守護女神！火克冰、冰克雷、雷克火。");

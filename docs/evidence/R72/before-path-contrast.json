@@ -1,0 +1,30 @@
+{
+  "phase": "before",
+  "method": "WCAG relative luminance ratio: path center band <=16px versus adjacent ground annulus 62-92px",
+  "results": [
+    {
+      "mapId": "plains",
+      "pathSamples": 1267,
+      "groundSamples": 2081,
+      "pathLuminance": 0.08864,
+      "groundLuminance": 0.08868,
+      "contrastRatio": 1
+    },
+    {
+      "mapId": "canyon",
+      "pathSamples": 1366,
+      "groundSamples": 1654,
+      "pathLuminance": 0.09275,
+      "groundLuminance": 0.08252,
+      "contrastRatio": 1.077
+    },
+    {
+      "mapId": "lava",
+      "pathSamples": 1206,
+      "groundSamples": 1970,
+      "pathLuminance": 0.07174,
+      "groundLuminance": 0.06151,
+      "contrastRatio": 1.092
+    }
+  ]
+}

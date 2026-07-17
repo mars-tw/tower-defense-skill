@@ -2,7 +2,7 @@
 
 [![CI & Deploy Pages](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version 0.7.1](https://img.shields.io/badge/version-0.7.1-blue.svg)](package.json)
+[![Version 0.7.2](https://img.shields.io/badge/version-0.7.2-blue.svg)](package.json)
 [![Play Online](https://img.shields.io/badge/Play-GitHub%20Pages-brightgreen.svg)](https://mars-tw.github.io/tower-defense-skill/)
 
 ![無盡塔防封面](assets/cover.png)
@@ -11,7 +11,7 @@
 
 **[立即線上遊玩](https://mars-tw.github.io/tower-defense-skill/)**
 
-目前版本：`0.7.1`／PWA 快取版本 `td-r71-v1`（R71）。
+目前版本：`0.7.2`／PWA 快取版本 `td-r72-v1`（R72）。
 
 ## 遊戲畫面
 
@@ -21,6 +21,7 @@
 
 ## 最新特色
 
+- **R72 三地圖選擇與載入視覺**：既有翠綠平原、迂迴峽谷、熔岩峽道各有 imagegen banner 與 loading 真圖，提供 low／med／high 響應式版本；未新增地圖、玩法或解鎖。路徑帶採命令化對比守門，loading 納入 R71 modal 互鎖與 PWA 離線清單。
 - **R71 選單互斥與重疊修復**：教學／難度／地圖／設定開啟時背景 app shell 進入 inert，教學改為不透明遮罩並暫藏戰鬥 toast；手機塔陣顧問依 dock 即時位置保留安全區，浮層開啟時背景控制不得命中。
 - **R70 Wave 1 視覺量產**：15 位英雄以 atlas identity 產製 UI 肖像，全面取代 emoji 頭像；10 塔加入 Lv1–3／4–6／7+ 三級剪影外觀，並以 45/45 alpha gate、contact sheet 與 hash manifest 守門。
 - **R69 稽核清理**：美術生成清單同步 10 塔、18 敵、15 英雄與 3 地圖；英雄生成提示改透明背景，並補上顧問恢復、戰鬥 log 展開與手機建塔短名。
@@ -92,8 +93,10 @@ npm start
 |---|---|
 | `npm start` | 以 Python HTTP server 在連接埠 8000 啟動遊戲 |
 | `npm test` | 執行 config、英雄、規則、排行榜、平衡與世界觀測試 |
-| `npm run test:e2e` | 執行桌機、平板、手機與矮桌機的 Playwright 功能驗證 |
+| `npm run test:e2e` | 執行 R72、R66、R68 與完整 463 項 Playwright 功能驗證 |
+| `npm run test:r72` | 執行地圖素材治理、safe-crop、對比、互鎖與 Fast 3G／4×CPU 守門 |
 | `npm run test:rwd` | 執行 9 種視口的版面、捲動與水平溢出檢查 |
+| `npm run test:perf` | 執行 R68 幀時間／可視效能守門 |
 
 CI 會在 push／pull request 執行單元測試、E2E 與 RWD 守門；`main` 通過後才部署 GitHub Pages。
 

@@ -89,9 +89,9 @@
     ice: "assets/particles/kenney-ice-ring.png",
   };
   const MAP_VISUALS = {
-    plains: { ground: "#0e1a14", tint: "rgba(16,185,129,.12)", breath: "rgba(110,231,183,.12)", detail: "footprints" },
-    canyon: { ground: "#221912", tint: "rgba(180,83,9,.24)", breath: "rgba(251,191,36,.11)", detail: "slabs" },
-    lava: { ground: "#1d1014", tint: "rgba(153,27,27,.32)", breath: "rgba(251,113,133,.12)", detail: "cracks" },
+    plains: { ground: "#0e1a14", tint: "rgba(16,185,129,.12)", breath: "rgba(110,231,183,.12)", pathWash: "rgba(242,200,111,.62)", detail: "footprints" },
+    canyon: { ground: "#221912", tint: "rgba(180,83,9,.24)", breath: "rgba(251,191,36,.11)", pathWash: "rgba(242,228,190,.58)", detail: "slabs" },
+    lava: { ground: "#1d1014", tint: "rgba(153,27,27,.32)", breath: "rgba(251,113,133,.12)", pathWash: "rgba(205,220,228,.60)", detail: "cracks" },
   };
   function reducedFlashEnabled() {
     if (reducedFlashCache !== undefined) return reducedFlashCache;
@@ -2261,6 +2261,18 @@
     if (!state.pathDetailCache) state.pathDetailCache = buildPathDetailCache();
     ctx.drawImage(state.pathDetailCache, 0, 0);
   }
+  function r72PathTile(pathImg) {
+    if (state.pathTileVisualCache) return state.pathTileVisualCache;
+    const c = document.createElement("canvas");
+    c.width = CELL; c.height = CELL;
+    const px = c.getContext("2d");
+    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
+    px.drawImage(pathImg, 0, 0, CELL, CELL);
+    px.fillStyle = visual.pathWash;
+    px.fillRect(0, 0, CELL, CELL);
+    state.pathTileVisualCache = c;
+    return c;
+  }
   function drawPath() {
     // 路徑：先畫底色路（保證可見），再用路徑磚平鋪沿線蓋上
     ctx.strokeStyle = "#3b2f1f"; ctx.lineWidth = CELL * 0.9; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -2271,12 +2283,15 @@
     // 路徑磚塊圖蓋在路徑格上
     const pathImg = getImg("assets/tiles/path.png", true);
     if (pathImg && pathImg.complete && pathImg.naturalWidth > 0 && state.map) {
+      // R72：同一張原始 path PNG 一次性著色後沿用；不增加每幀 draw call 或改 blocked cells。
+      const readablePathTile = r72PathTile(pathImg);
       for (const key of blocked) {
         const [cx, cy] = key.split(",").map(Number);
         if (cx < 0 || cy < 0) continue;
-        ctx.drawImage(pathImg, cx * CELL, cy * CELL, CELL, CELL);
+        ctx.drawImage(readablePathTile, cx * CELL, cy * CELL, CELL, CELL);
       }
     }
+    // R72 玩法可讀性由 map-specific path tile wash 提供；原始素材與碰撞資料維持不變。
     drawPathDetails();
     // 裝飾物（在非路徑格）
     if (state.map) {

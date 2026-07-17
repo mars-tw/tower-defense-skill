@@ -1,0 +1,8 @@
+{
+  "source": "npm-test-e2e.log",
+  "main_e2e_passes": 369,
+  "r66_r68_r71_guard_passes": 94,
+  "requested_e2e_total": 463,
+  "r72_additional_passes": 121,
+  "failures": 0
+}

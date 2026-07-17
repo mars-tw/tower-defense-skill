@@ -4,7 +4,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const EVIDENCE = path.join(ROOT, "docs", "evidence", "R68");
+const EVIDENCE = process.env.TD_EVIDENCE_DIR
+  ? path.resolve(ROOT, process.env.TD_EVIDENCE_DIR)
+  : path.join(ROOT, "docs", "evidence", "R68");
 const MIME = { ".html": "text/html", ".js": "application/javascript", ".json": "application/json",
   ".webmanifest": "application/manifest+json", ".png": "image/png", ".css": "text/css" };
 const TARGETS = [
@@ -50,6 +52,7 @@ async function run() {
       await page.waitForFunction(() => window.TD && window.TD.debug && window.TD.state, null, { timeout: 15000 });
       await page.locator(".diff-opt").first().click();
       await page.locator(".map-opt").first().click();
+      await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
       await page.evaluate(() => {
         const state = window.TD.state();
         state.running = true;

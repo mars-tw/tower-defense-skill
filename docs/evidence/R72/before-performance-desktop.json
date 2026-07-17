@@ -1,0 +1,13 @@
+{
+  "phase": "before",
+  "viewport": "1366x768",
+  "throttle": {
+    "network": "Fast 3G",
+    "cpuRate": 4
+  },
+  "initialInteractiveMs": 5428.9,
+  "mapSelectorReadyAfterClickMs": 5104.1,
+  "mapCount": 3,
+  "mapImageCount": 0,
+  "loadingOverlayCount": 0
+}

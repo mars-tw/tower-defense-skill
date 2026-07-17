@@ -145,7 +145,7 @@ async function run() {
         await swPage.reload({ waitUntil: "domcontentloaded" });
         await swPage.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 12000 });
         swOfflineR44 = await swPage.evaluate(async (swVersion) => {
-          ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay", "progressOverlay"].forEach((id) => {
+          ["tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay", "settingsOverlay", "progressOverlay"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.classList.remove("show");
           });
@@ -284,7 +284,8 @@ async function run() {
     assert(quickIntro.tutorialShown && quickIntro.quickText.includes("快速開始") && quickIntro.advancedText.includes("進階選項"),
       "首次進入顯示快速開始與進階選項");
     await page.click("#tutorialQuick");
-    await sleep(200);
+    await page.waitForFunction(() => document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
+    await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
     const quickState = await page.evaluate(() => ({
       tutorialShown: document.getElementById("tutorial").classList.contains("show"),
       diffShown: document.getElementById("diffOverlay").classList.contains("show"),
@@ -318,6 +319,7 @@ async function run() {
         expectedGold: Math.round(window.TD.config.GAME.startGold * window.TD.config.MAPS.canyon.goldMul),
       };
     });
+    await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
     assert(mapSelect.mapId === "canyon" && mapSelect.pathLen !== mapSelect.plainsLen,
       `地圖選擇後開局路徑不同（${mapSelect.mapId}，節點 ${mapSelect.pathLen} vs ${mapSelect.plainsLen}）`);
     assert(mapSelect.gold === mapSelect.expectedGold,
@@ -2117,7 +2119,7 @@ async function run() {
       assert(quickRect.top >= 0 && quickRect.bottom <= 700,
         `1366×700 新手教學「快速開始」於視口內（top ${Math.round(quickRect.top)}, bottom ${Math.round(quickRect.bottom)}）`);
       await page.click("#tutorialQuick");
-      await sleep(250);
+      await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
     }
     const reachable = await page.evaluate(() => {
       const ids = ["startBtn", "pauseBtn", "settingsBtn", "towerList", "skillList"];

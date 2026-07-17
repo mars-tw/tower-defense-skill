@@ -20,6 +20,12 @@ R70 Wave 1 的肖像與塔 contact sheet 使用內建 `image_gen`／`gpt-image-2
 
 上述專案素材由 mars-tw 隨本專案依 [MIT License](LICENSE) 提供（以權利可授權的範圍為限）。神話人物名稱與傳說題材來自民間故事／古典文學；本專案未使用第三方遊戲角色圖或商標素材。
 
+## R72 地圖選擇與載入視覺
+
+- `docs/evidence/R72/masters/{plains,canyon,lava}-master.png` 由 Codex 內建 imagegen（`gpt-image-2`）生成，使用既有 `assets/cover.png` 與 `docs/evidence/R65_polish/map-before-after.png` 作為世界觀、光線、色盤與路徑材質參考；沒有新增地圖、角色、塔、防守路線或可解鎖內容。
+- 原始 master 保留 C2PA Content Credentials；`docs/evidence/R72/c2pa/` 保存 claim signature、data hash 與 `softwareAgent` 驗證結果。驗證工具為官方 [`c2pa-python`](https://github.com/contentauth/c2pa-python)。
+- `assets/maps/r72/` 的 18 個 WebP runtime 檔由 `tools/r72_map_visual.py` 以固定中心裁切、Lanczos 與 WebP quality 82 產生；完整 SHA-256、尺寸、來源、prompt 與後製參數記錄於 `assets/maps/r72/manifest.json`、`docs/evidence/R72/source-manifest.json` 與 `docs/evidence/R72/prompt-template.md`。
+
 ## Kenney Particle Pack
 
 - 作者：Kenney Vleugels（Kenney.nl）

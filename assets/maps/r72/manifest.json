@@ -1,0 +1,358 @@
+{
+  "schema_version": "td-r72-map-visual.v1",
+  "model_slug": "gpt-image-2",
+  "generation_interface": "Codex built-in imagegen",
+  "generated_date": "2026-07-17",
+  "scope": "existing maps only: selection banners and loading backgrounds; never gameplay Canvas",
+  "maps": [
+    "plains",
+    "canyon",
+    "lava"
+  ],
+  "references": [
+    {
+      "path": "assets/cover.png",
+      "sha256": "f88d5ba9bd0b6fac8e7b1133bc63cd56fd3c19693dfe10e912f78f73dc45aba2"
+    },
+    {
+      "path": "docs/evidence/R65_polish/map-before-after.png",
+      "sha256": "ddc8cb6c70617399fe73d0ed70b5f7304841d50ed2463ad453f5ea17679a9eb8"
+    }
+  ],
+  "sources": [
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "prompt": "Use case: stylized-concept\nAsset type: landscape map-selection banner and loading-screen background for the existing Endless Tower Defense map plains / 翠綠平原\nInput images: Image 1 is the authoritative dark eastern-fantasy sanctum lighting and material reference only; do not copy its title, characters, goddess, towers, or composition. Image 2 is the authoritative R65 runtime palette and path-material reference only; do not copy labels or contact-sheet layout.\nPrimary request: create one environmental portrait of the existing map 翠綠平原; this is UI art only and must never imply a new map, stage, reward, unlock, tower, or gameplay mechanic\nScene/backdrop: ancient emerald grassland with sparse worn stones and low ruined boundary markers; a warm compacted-earth route makes the existing standard winding identity clear\nSubject: one continuous, unmistakable route band crossing from the left edge to the right edge; terrain identity remains visible around it\nStyle/medium: dark eastern-fantasy pixel-painted game environment; crisp material clusters; restrained high-frequency detail; consistent with the supplied references\nComposition/framing: 3:2 landscape master; all route turns and the primary terrain landmark stay inside the central 80% width and central 46% height so deterministic 2:1 and 16:9 center crops remain safe; no important subject at the outer 10%; readable at 320x160\nLighting/mood: controlled sanctum lighting, strong path-versus-terrain luminance separation, quiet edges, no central bloom over the route\nColor palette: #102419 #2E7D4F #6C8C4A #7B5732 #D8A34A plus relic brass accents and deep near-black shadows\nMaterials/textures: tactile grass, worn earth, sparse weathered stone; route surface must have a different value and texture scale from adjacent buildable terrain\nConstraints: no text, letters, numbers, UI, badges, logos, watermarks, characters, enemies, heroes, goddess, towers, weapons, locks, stars, level markers, treasure, reward icons, or new structures; do not hide, break, blur, or overpaint the continuous route; no photorealism; no generic mobile-game splash layout\nAvoid: illegible path, excessive micro-detail in the central route band, bright bloom on the route, title treatment, map expansion, extra destinations",
+      "master_path": "docs/evidence/R72/masters/plains-master.png",
+      "master_sha256": "d2ea42e6c0500667d7ca6ec8b40fca2d03e4c1f1dc7023faec128f2afc9755cb",
+      "c2pa_summary": {
+        "softwareAgent": {
+          "name": "gpt-image",
+          "version": "2.0"
+        },
+        "active_manifest": "urn:c2pa:2207d374-b04e-431e-a0ed-ff7e55fc613f",
+        "validation_state": "Valid",
+        "claim_signature_validated": true,
+        "data_hash_valid": true,
+        "full_report": "docs/evidence/R72/c2pa/plains-manifest.json"
+      }
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "prompt": "Use case: stylized-concept\nAsset type: landscape map-selection banner and loading-screen background for the existing Endless Tower Defense map canyon / 迂迴峽谷\nInput images: Image 1 is the authoritative dark eastern-fantasy sanctum lighting and material reference only; do not copy its title, characters, goddess, towers, or composition. Image 2 is the authoritative R65 runtime palette and path-material reference only; do not copy labels or contact-sheet layout.\nPrimary request: create one environmental portrait of the existing map 迂迴峽谷; this is UI art only and must never imply a new map, stage, reward, unlock, tower, or gameplay mechanic\nScene/backdrop: deep ochre canyon terraces and weathered sandstone shelves; a pale carved-stone route makes the long precise switchback identity clear\nSubject: one continuous, unmistakable route band crossing from the left edge to the right edge; terrain identity remains visible around it\nStyle/medium: dark eastern-fantasy pixel-painted game environment; crisp material clusters; restrained high-frequency detail; consistent with the supplied references\nComposition/framing: 3:2 landscape master; all route turns and the primary canyon landmark stay inside the central 80% width and central 46% height so deterministic 2:1 and 16:9 center crops remain safe; no important subject at the outer 10%; readable at 320x160\nLighting/mood: controlled sanctum lighting, strong path-versus-terrain luminance separation, quiet edges, no central bloom over the route\nColor palette: #1D1511 #6A3827 #A65A32 #D0A060 #E7C98A plus relic brass accents and deep near-black shadows\nMaterials/textures: tactile sandstone, worn carved slabs, sparse dry scrub; route surface must have a different value and texture scale from adjacent buildable terrain\nConstraints: no text, letters, numbers, UI, badges, logos, watermarks, characters, enemies, heroes, goddess, towers, weapons, locks, stars, level markers, treasure, reward icons, or new structures; do not hide, break, blur, or overpaint the continuous route; no photorealism; no generic mobile-game splash layout\nAvoid: illegible path, excessive micro-detail in the central route band, bright bloom on the route, title treatment, map expansion, extra destinations",
+      "master_path": "docs/evidence/R72/masters/canyon-master.png",
+      "master_sha256": "ebd7abfc2d30fd6af46e301377ed04de64d0d477cac9cc5416e8df6aac66968c",
+      "c2pa_summary": {
+        "softwareAgent": {
+          "name": "gpt-image",
+          "version": "2.0"
+        },
+        "active_manifest": "urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379",
+        "validation_state": "Valid",
+        "claim_signature_validated": true,
+        "data_hash_valid": true,
+        "full_report": "docs/evidence/R72/c2pa/canyon-manifest.json"
+      }
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "prompt": "Use case: stylized-concept\nAsset type: landscape map-selection banner and loading-screen background for the existing Endless Tower Defense map lava / 熔岩峽道\nInput images: Image 1 is the authoritative dark eastern-fantasy sanctum lighting and material reference only; do not copy its title, characters, goddess, towers, or composition. Image 2 is the authoritative R65 runtime palette and path-material reference only; do not copy labels or contact-sheet layout.\nPrimary request: create one environmental portrait of the existing map 熔岩峽道; this is UI art only and must never imply a new map, stage, reward, unlock, tower, or gameplay mechanic\nScene/backdrop: obsidian ravine with restrained lava seams confined to outer terrain; a cool ash-stone route makes the winding safe corridor identity clear\nSubject: one continuous, unmistakable route band crossing from the left edge to the right edge; terrain identity remains visible around it\nStyle/medium: dark eastern-fantasy pixel-painted game environment; crisp material clusters; restrained high-frequency detail; consistent with the supplied references\nComposition/framing: 3:2 landscape master; all route turns and the primary ravine landmark stay inside the central 80% width and central 46% height so deterministic 2:1 and 16:9 center crops remain safe; no important subject at the outer 10%; readable at 320x160\nLighting/mood: controlled ember lighting, strong path-versus-terrain luminance separation, quiet edges, no central bloom over the route; lava glow must stay off the route and never obscure it\nColor palette: #160E12 #3B2024 #7A2925 #C6422C #E0B27A plus relic brass accents and deep near-black shadows\nMaterials/textures: tactile obsidian, cool ash stone, restrained magma seams; route surface must have a different value and texture scale from adjacent buildable terrain\nConstraints: no text, letters, numbers, UI, badges, logos, watermarks, characters, enemies, heroes, goddess, towers, weapons, locks, stars, level markers, treasure, reward icons, or new structures; do not hide, break, blur, or overpaint the continuous route; no photorealism; no generic mobile-game splash layout\nAvoid: illegible path, excessive micro-detail in the central route band, bright bloom on the route, lava crossing or covering the route, title treatment, map expansion, extra destinations",
+      "master_path": "docs/evidence/R72/masters/lava-master.png",
+      "master_sha256": "764ea392b68cd5036cb1dbd30c49f945adb935648b21d6672e80843bd701a0cd",
+      "c2pa_summary": {
+        "softwareAgent": {
+          "name": "gpt-image",
+          "version": "2.0"
+        },
+        "active_manifest": "urn:c2pa:abc11dac-e59e-40fa-8e0f-9de685c847f4",
+        "validation_state": "Valid",
+        "claim_signature_validated": true,
+        "data_hash_valid": true,
+        "full_report": "docs/evidence/R72/c2pa/lava-manifest.json"
+      }
+    }
+  ],
+  "runtime_assets": [
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "banner-high",
+      "path": "assets/maps/r72/plains-banner-high.webp",
+      "sha256": "63b03393a324dd3847bd05f47381211e46d76bebf0815fdf3fbe24fcb261db44",
+      "width": 640,
+      "height": 320,
+      "decoded_rgba_bytes": 819200,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 640x320",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "banner-med",
+      "path": "assets/maps/r72/plains-banner-med.webp",
+      "sha256": "b4db6829641f5ffecfc444047f94a0512f0ad7cc0b32325736ac2af8d6a0d304",
+      "width": 480,
+      "height": 240,
+      "decoded_rgba_bytes": 460800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 480x240",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "banner-low",
+      "path": "assets/maps/r72/plains-banner-low.webp",
+      "sha256": "d040c3b6b3fcd9183fb29e0fd7b34ed2bc42156c00e6196f186400fe90e4d258",
+      "width": 320,
+      "height": 160,
+      "decoded_rgba_bytes": 204800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 320x160",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "loading-high",
+      "path": "assets/maps/r72/plains-loading-high.webp",
+      "sha256": "7a8d17532b6fca8e0185f37b29bb108f82c10d26ba630b25630f603e7b46b82a",
+      "width": 1024,
+      "height": 576,
+      "decoded_rgba_bytes": 2359296,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 1024x576",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "loading-med",
+      "path": "assets/maps/r72/plains-loading-med.webp",
+      "sha256": "323076659806e00ae12cb8f53610a3f685f9ba4e64f199ee8973710d7509b4ee",
+      "width": 768,
+      "height": 432,
+      "decoded_rgba_bytes": 1327104,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 768x432",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "loading-low",
+      "path": "assets/maps/r72/plains-loading-low.webp",
+      "sha256": "822eb164df9e27c8eafffbce54ebb5d7c1cc687e49e0ee7651dc052fc7823088",
+      "width": 512,
+      "height": 288,
+      "decoded_rgba_bytes": 589824,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 512x288",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "banner-high",
+      "path": "assets/maps/r72/canyon-banner-high.webp",
+      "sha256": "14cbcf2eb0c8f2785502ee686eb9b4663cc075ff0717913cf9c4adaba1904795",
+      "width": 640,
+      "height": 320,
+      "decoded_rgba_bytes": 819200,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 640x320",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "banner-med",
+      "path": "assets/maps/r72/canyon-banner-med.webp",
+      "sha256": "961ad96244d07bf9d581be2ac0a5196150ae46cf02d2758fdf8dda93e9964cf0",
+      "width": 480,
+      "height": 240,
+      "decoded_rgba_bytes": 460800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 480x240",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "banner-low",
+      "path": "assets/maps/r72/canyon-banner-low.webp",
+      "sha256": "41fcb341519b6e6af1c39a052d589ee673181b1fc7e2ec92b53cc4038ec03bdb",
+      "width": 320,
+      "height": 160,
+      "decoded_rgba_bytes": 204800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 320x160",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "loading-high",
+      "path": "assets/maps/r72/canyon-loading-high.webp",
+      "sha256": "acb285536c0ddb57e031726c531a857d72796ab3a898c2301bbbd1f949639461",
+      "width": 1024,
+      "height": 576,
+      "decoded_rgba_bytes": 2359296,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 1024x576",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "loading-med",
+      "path": "assets/maps/r72/canyon-loading-med.webp",
+      "sha256": "3781e3a5c078ea753bd836ff5439945c68d99d0a47bd9d2fcb2d1d3988c9f8f9",
+      "width": 768,
+      "height": 432,
+      "decoded_rgba_bytes": 1327104,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 768x432",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "loading-low",
+      "path": "assets/maps/r72/canyon-loading-low.webp",
+      "sha256": "dcf8ce5ba0c669b2a087b731741718b1187dcf5f2926ee2b17729413267cedd3",
+      "width": 512,
+      "height": 288,
+      "decoded_rgba_bytes": 589824,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 512x288",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "banner-high",
+      "path": "assets/maps/r72/lava-banner-high.webp",
+      "sha256": "90e4ef27b60941c550ac169f6bbe0635c7ebb0acb2d75e765bb75d6dda3109d1",
+      "width": 640,
+      "height": 320,
+      "decoded_rgba_bytes": 819200,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 640x320",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "banner-med",
+      "path": "assets/maps/r72/lava-banner-med.webp",
+      "sha256": "001ec4228c1e00db079d51f46d471ff24b3f00b829858e56fdd21a561e16325d",
+      "width": 480,
+      "height": 240,
+      "decoded_rgba_bytes": 460800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 480x240",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "banner-low",
+      "path": "assets/maps/r72/lava-banner-low.webp",
+      "sha256": "5f51a4a536597b3f27f73573fdddc3e974f216b56ec2f4dde716e1d993ca1b46",
+      "width": 320,
+      "height": 160,
+      "decoded_rgba_bytes": 204800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 320x160",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "loading-high",
+      "path": "assets/maps/r72/lava-loading-high.webp",
+      "sha256": "5239fc3e1a58fdbfed7e120af8e30a305c2e114097b34e81b7464f5dbd21838d",
+      "width": 1024,
+      "height": 576,
+      "decoded_rgba_bytes": 2359296,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 1024x576",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "loading-med",
+      "path": "assets/maps/r72/lava-loading-med.webp",
+      "sha256": "19175c9e1b0ab220d3cc029a6142ff1e2789b343eb964dd7a9797413104e10b5",
+      "width": 768,
+      "height": 432,
+      "decoded_rgba_bytes": 1327104,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 768x432",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "loading-low",
+      "path": "assets/maps/r72/lava-loading-low.webp",
+      "sha256": "2591853540d2cc610ab9b8631f32e298938c672821cad612df3d53b392d58f56",
+      "width": 512,
+      "height": 288,
+      "decoded_rgba_bytes": 589824,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 512x288",
+        "Pillow WebP quality=82 method=6"
+      ]
+    }
+  ],
+  "decoded_rgba_bytes_all_variants": 17283072,
+  "decoded_rgba_mib_all_variants": 16.482,
+  "quality_policy": {
+    "high": "1024x576 loading + 640x320 banner",
+    "med": "768x432 loading + 480x240 banner",
+    "low": "512x288 loading + 320x160 banner",
+    "invariant": "all tiers are deterministic crops from the same C2PA master; no solid-color substitute"
+  }
+}

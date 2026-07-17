@@ -1,0 +1,130 @@
+{
+  "phase": "before",
+  "throttle": {
+    "network": "Fast 3G",
+    "latencyMs": 150,
+    "downloadBytesPerSecond": 200000,
+    "uploadBytesPerSecond": 93750,
+    "cpuRate": 4
+  },
+  "selector": [
+    {
+      "viewport": "1366x768",
+      "initialInteractiveMs": 4570.5,
+      "mapSelectorReadyAfterClickMs": 5751.6,
+      "wallMs": 18496,
+      "mapCount": 3,
+      "mapImageCount": 0,
+      "loadingOverlayCount": 0,
+      "mapButtons": [
+        {
+          "label": "🌿\n        \n          翠綠平原\n          標準蜿蜒路線，資源完整，適合熟悉塔陣。\n          荒草間仍有舊村落的石井，神火第一次在這裡記住守軍的名字。 風很寬，妖潮也很早被看見；這片平原教會新塔陣如何呼吸。\n          標準資源 · 路徑節點 10",
+          "width": 442,
+          "height": 108.59375,
+          "hit": true
+        },
+        {
+          "label": "⛰️\n        \n          迂迴峽谷\n          更長更曲折，但補給較少，適合挑戰精密佈陣。\n          峽壁把號角聲切成回音，補給車常在最後一個彎道才抵達聖壇。 路長而曲折，適合埋伏，也適合裂界在陰影裡試探耐心。\n          資源 85% · 路徑節點 13",
+          "width": 442,
+          "height": 108.59375,
+          "hit": true
+        },
+        {
+          "label": "🌋\n        \n          熔岩峽道\n          熔岩裂谷路線曲折，金流略低但有足夠迴旋空間。\n          熔岩不斷翻亮古老礦脈，墜星殘骸仍在谷底慢慢發紅。 這裡的夜晚沒有黑暗，只有火光與妖影互相撕扯。\n          資源 95% · 路徑節點 10",
+          "width": 442,
+          "height": 108.59375,
+          "hit": true
+        }
+      ]
+    },
+    {
+      "viewport": "390x844",
+      "initialInteractiveMs": 4893.9,
+      "mapSelectorReadyAfterClickMs": 1920.9,
+      "wallMs": 18858,
+      "mapCount": 3,
+      "mapImageCount": 0,
+      "loadingOverlayCount": 0,
+      "mapButtons": [
+        {
+          "label": "🌿\n        \n          翠綠平原\n          標準蜿蜒路線，資源完整，適合熟悉塔陣。\n          荒草間仍有舊村落的石井，神火第一次在這裡記住守軍的名字。 風很寬，妖潮也很早被看見；這片平原教會新塔陣如何呼吸。\n          標準資源 · 路徑節點 10",
+          "width": 300,
+          "height": 144.1875,
+          "hit": true
+        },
+        {
+          "label": "⛰️\n        \n          迂迴峽谷\n          更長更曲折，但補給較少，適合挑戰精密佈陣。\n          峽壁把號角聲切成回音，補給車常在最後一個彎道才抵達聖壇。 路長而曲折，適合埋伏，也適合裂界在陰影裡試探耐心。\n          資源 85% · 路徑節點 13",
+          "width": 300,
+          "height": 144.1875,
+          "hit": true
+        },
+        {
+          "label": "🌋\n        \n          熔岩峽道\n          熔岩裂谷路線曲折，金流略低但有足夠迴旋空間。\n          熔岩不斷翻亮古老礦脈，墜星殘骸仍在谷底慢慢發紅。 這裡的夜晚沒有黑暗，只有火光與妖影互相撕扯。\n          資源 95% · 路徑節點 10",
+          "width": 300,
+          "height": 144.1875,
+          "hit": true
+        }
+      ]
+    },
+    {
+      "viewport": "844x390",
+      "initialInteractiveMs": 4451.5,
+      "mapSelectorReadyAfterClickMs": 1049,
+      "wallMs": 19117,
+      "mapCount": 3,
+      "mapImageCount": 0,
+      "loadingOverlayCount": 0,
+      "mapButtons": [
+        {
+          "label": "🌿\n        \n          翠綠平原\n          標準蜿蜒路線，資源完整，適合熟悉塔陣。\n          荒草間仍有舊村落的石井，神火第一次在這裡記住守軍的名字。 風很寬，妖潮也很早被看見；這片平原教會新塔陣如何呼吸。\n          標準資源 · 路徑節點 10",
+          "width": 442,
+          "height": 108.59375,
+          "hit": true
+        },
+        {
+          "label": "⛰️\n        \n          迂迴峽谷\n          更長更曲折，但補給較少，適合挑戰精密佈陣。\n          峽壁把號角聲切成回音，補給車常在最後一個彎道才抵達聖壇。 路長而曲折，適合埋伏，也適合裂界在陰影裡試探耐心。\n          資源 85% · 路徑節點 13",
+          "width": 442,
+          "height": 108.59375,
+          "hit": true
+        },
+        {
+          "label": "🌋\n        \n          熔岩峽道\n          熔岩裂谷路線曲折，金流略低但有足夠迴旋空間。\n          熔岩不斷翻亮古老礦脈，墜星殘骸仍在谷底慢慢發紅。 這裡的夜晚沒有黑暗，只有火光與妖影互相撕扯。\n          資源 95% · 路徑節點 10",
+          "width": 442,
+          "height": 108.59375,
+          "hit": false
+        }
+      ]
+    }
+  ],
+  "pathContrast": [
+    {
+      "mapId": "plains",
+      "pathSamples": 1267,
+      "groundSamples": 2081,
+      "pathLuminance": 0.08864,
+      "groundLuminance": 0.08802,
+      "contrastRatio": 1.005
+    },
+    {
+      "mapId": "canyon",
+      "pathSamples": 1366,
+      "groundSamples": 1654,
+      "pathLuminance": 0.09275,
+      "groundLuminance": 0.0908,
+      "contrastRatio": 1.014
+    },
+    {
+      "mapId": "lava",
+      "pathSamples": 1206,
+      "groundSamples": 1970,
+      "pathLuminance": 0.07174,
+      "groundLuminance": 0.0576,
+      "contrastRatio": 1.131
+    }
+  ],
+  "steadyStateP95Ms": {
+    "desktop": 15.5,
+    "mobile": 14.8,
+    "source": "docs/evidence/R68/performance-gate.txt"
+  }
+}

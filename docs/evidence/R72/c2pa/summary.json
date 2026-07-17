@@ -1,0 +1,116 @@
+{
+  "plains": {
+    "master": "docs/evidence/R72/masters/plains-master.png",
+    "sha256": "d2ea42e6c0500667d7ca6ec8b40fca2d03e4c1f1dc7023faec128f2afc9755cb",
+    "active_manifest": "urn:c2pa:2207d374-b04e-431e-a0ed-ff7e55fc613f",
+    "claim_generator_info": [
+      {
+        "name": "OpenAI Media Service API",
+        "icon": {
+          "format": "image/svg+xml",
+          "identifier": "self#jumbf=-c2pa-urn-c2pa-2207d374-b04e-431e-a0ed-ff7e55fc613f-c2pa.assertions-c2pa.icon"
+        },
+        "org.contentauth.c2pa_rs": "0.79.2",
+        "specVersion": "2.2.0"
+      }
+    ],
+    "softwareAgent": {
+      "name": "gpt-image",
+      "version": "2.0"
+    },
+    "software_agent_is_gpt_image_2_x": true,
+    "signature_info": {
+      "alg": "Es256",
+      "issuer": "OpenAI OpCo, LLC",
+      "common_name": "OpenAI Media Service",
+      "cert_serial_number": "471440979205905794604524502504016020624908622401",
+      "time": "2026-07-17T08:57:03.290758+00:00"
+    },
+    "validation_state": "Valid",
+    "claim_signature_validated": true,
+    "data_hash_valid": true,
+    "validation_status": [
+      {
+        "code": "signingCredential.untrusted",
+        "url": "self#jumbf=/c2pa/urn:c2pa:2207d374-b04e-431e-a0ed-ff7e55fc613f/c2pa.signature",
+        "explanation": "signing certificate untrusted"
+      }
+    ]
+  },
+  "canyon": {
+    "master": "docs/evidence/R72/masters/canyon-master.png",
+    "sha256": "ebd7abfc2d30fd6af46e301377ed04de64d0d477cac9cc5416e8df6aac66968c",
+    "active_manifest": "urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379",
+    "claim_generator_info": [
+      {
+        "name": "OpenAI Media Service API",
+        "icon": {
+          "format": "image/svg+xml",
+          "identifier": "self#jumbf=-c2pa-urn-c2pa-6fdb835b-8e0d-47c3-a30a-61ad4c1ed379-c2pa.assertions-c2pa.icon"
+        },
+        "org.contentauth.c2pa_rs": "0.79.2",
+        "specVersion": "2.2.0"
+      }
+    ],
+    "softwareAgent": {
+      "name": "gpt-image",
+      "version": "2.0"
+    },
+    "software_agent_is_gpt_image_2_x": true,
+    "signature_info": {
+      "alg": "Es256",
+      "issuer": "OpenAI OpCo, LLC",
+      "common_name": "OpenAI Media Service",
+      "cert_serial_number": "471440979205905794604524502504016020624908622401",
+      "time": "2026-07-17T08:59:04.845761+00:00"
+    },
+    "validation_state": "Valid",
+    "claim_signature_validated": true,
+    "data_hash_valid": true,
+    "validation_status": [
+      {
+        "code": "signingCredential.untrusted",
+        "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.signature",
+        "explanation": "signing certificate untrusted"
+      }
+    ]
+  },
+  "lava": {
+    "master": "docs/evidence/R72/masters/lava-master.png",
+    "sha256": "764ea392b68cd5036cb1dbd30c49f945adb935648b21d6672e80843bd701a0cd",
+    "active_manifest": "urn:c2pa:abc11dac-e59e-40fa-8e0f-9de685c847f4",
+    "claim_generator_info": [
+      {
+        "name": "OpenAI Media Service API",
+        "icon": {
+          "format": "image/svg+xml",
+          "identifier": "self#jumbf=-c2pa-urn-c2pa-abc11dac-e59e-40fa-8e0f-9de685c847f4-c2pa.assertions-c2pa.icon"
+        },
+        "org.contentauth.c2pa_rs": "0.79.2",
+        "specVersion": "2.2.0"
+      }
+    ],
+    "softwareAgent": {
+      "name": "gpt-image",
+      "version": "2.0"
+    },
+    "software_agent_is_gpt_image_2_x": true,
+    "signature_info": {
+      "alg": "Es256",
+      "issuer": "OpenAI OpCo, LLC",
+      "common_name": "OpenAI Media Service",
+      "cert_serial_number": "471440979205905794604524502504016020624908622401",
+      "time": "2026-07-17T09:01:46.561293+00:00"
+    },
+    "validation_state": "Valid",
+    "claim_signature_validated": true,
+    "data_hash_valid": true,
+    "validation_status": [
+      {
+        "code": "signingCredential.untrusted",
+        "url": "self#jumbf=/c2pa/urn:c2pa:abc11dac-e59e-40fa-8e0f-9de685c847f4/c2pa.signature",
+        "explanation": "signing certificate untrusted"
+      }
+    ]
+  }
+}

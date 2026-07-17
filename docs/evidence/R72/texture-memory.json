@@ -1,0 +1,280 @@
+{
+  "formula": "width * height * 4 bytes (decoded RGBA)",
+  "desktop_budget_mib": 64,
+  "mobile_budget_mib": 32,
+  "all_variants_mib": 16.482,
+  "desktop_pass": true,
+  "mobile_worst_case_pass": true,
+  "assets": [
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "banner-high",
+      "path": "assets/maps/r72/plains-banner-high.webp",
+      "sha256": "63b03393a324dd3847bd05f47381211e46d76bebf0815fdf3fbe24fcb261db44",
+      "width": 640,
+      "height": 320,
+      "decoded_rgba_bytes": 819200,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 640x320",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "banner-med",
+      "path": "assets/maps/r72/plains-banner-med.webp",
+      "sha256": "b4db6829641f5ffecfc444047f94a0512f0ad7cc0b32325736ac2af8d6a0d304",
+      "width": 480,
+      "height": 240,
+      "decoded_rgba_bytes": 460800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 480x240",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "banner-low",
+      "path": "assets/maps/r72/plains-banner-low.webp",
+      "sha256": "d040c3b6b3fcd9183fb29e0fd7b34ed2bc42156c00e6196f186400fe90e4d258",
+      "width": 320,
+      "height": 160,
+      "decoded_rgba_bytes": 204800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 320x160",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "loading-high",
+      "path": "assets/maps/r72/plains-loading-high.webp",
+      "sha256": "7a8d17532b6fca8e0185f37b29bb108f82c10d26ba630b25630f603e7b46b82a",
+      "width": 1024,
+      "height": 576,
+      "decoded_rgba_bytes": 2359296,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 1024x576",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "loading-med",
+      "path": "assets/maps/r72/plains-loading-med.webp",
+      "sha256": "323076659806e00ae12cb8f53610a3f685f9ba4e64f199ee8973710d7509b4ee",
+      "width": 768,
+      "height": 432,
+      "decoded_rgba_bytes": 1327104,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 768x432",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "plains",
+      "map_label": "翠綠平原",
+      "variant": "loading-low",
+      "path": "assets/maps/r72/plains-loading-low.webp",
+      "sha256": "822eb164df9e27c8eafffbce54ebb5d7c1cc687e49e0ee7651dc052fc7823088",
+      "width": 512,
+      "height": 288,
+      "decoded_rgba_bytes": 589824,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 512x288",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "banner-high",
+      "path": "assets/maps/r72/canyon-banner-high.webp",
+      "sha256": "14cbcf2eb0c8f2785502ee686eb9b4663cc075ff0717913cf9c4adaba1904795",
+      "width": 640,
+      "height": 320,
+      "decoded_rgba_bytes": 819200,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 640x320",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "banner-med",
+      "path": "assets/maps/r72/canyon-banner-med.webp",
+      "sha256": "961ad96244d07bf9d581be2ac0a5196150ae46cf02d2758fdf8dda93e9964cf0",
+      "width": 480,
+      "height": 240,
+      "decoded_rgba_bytes": 460800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 480x240",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "banner-low",
+      "path": "assets/maps/r72/canyon-banner-low.webp",
+      "sha256": "41fcb341519b6e6af1c39a052d589ee673181b1fc7e2ec92b53cc4038ec03bdb",
+      "width": 320,
+      "height": 160,
+      "decoded_rgba_bytes": 204800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 320x160",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "loading-high",
+      "path": "assets/maps/r72/canyon-loading-high.webp",
+      "sha256": "acb285536c0ddb57e031726c531a857d72796ab3a898c2301bbbd1f949639461",
+      "width": 1024,
+      "height": 576,
+      "decoded_rgba_bytes": 2359296,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 1024x576",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "loading-med",
+      "path": "assets/maps/r72/canyon-loading-med.webp",
+      "sha256": "3781e3a5c078ea753bd836ff5439945c68d99d0a47bd9d2fcb2d1d3988c9f8f9",
+      "width": 768,
+      "height": 432,
+      "decoded_rgba_bytes": 1327104,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 768x432",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "canyon",
+      "map_label": "迂迴峽谷",
+      "variant": "loading-low",
+      "path": "assets/maps/r72/canyon-loading-low.webp",
+      "sha256": "dcf8ce5ba0c669b2a087b731741718b1187dcf5f2926ee2b17729413267cedd3",
+      "width": 512,
+      "height": 288,
+      "decoded_rgba_bytes": 589824,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 512x288",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "banner-high",
+      "path": "assets/maps/r72/lava-banner-high.webp",
+      "sha256": "90e4ef27b60941c550ac169f6bbe0635c7ebb0acb2d75e765bb75d6dda3109d1",
+      "width": 640,
+      "height": 320,
+      "decoded_rgba_bytes": 819200,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 640x320",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "banner-med",
+      "path": "assets/maps/r72/lava-banner-med.webp",
+      "sha256": "001ec4228c1e00db079d51f46d471ff24b3f00b829858e56fdd21a561e16325d",
+      "width": 480,
+      "height": 240,
+      "decoded_rgba_bytes": 460800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 480x240",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "banner-low",
+      "path": "assets/maps/r72/lava-banner-low.webp",
+      "sha256": "5f51a4a536597b3f27f73573fdddc3e974f216b56ec2f4dde716e1d993ca1b46",
+      "width": 320,
+      "height": 160,
+      "decoded_rgba_bytes": 204800,
+      "postprocess": [
+        "deterministic center crop to 2.000000:1",
+        "Pillow Lanczos resize to 320x160",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "loading-high",
+      "path": "assets/maps/r72/lava-loading-high.webp",
+      "sha256": "5239fc3e1a58fdbfed7e120af8e30a305c2e114097b34e81b7464f5dbd21838d",
+      "width": 1024,
+      "height": 576,
+      "decoded_rgba_bytes": 2359296,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 1024x576",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "loading-med",
+      "path": "assets/maps/r72/lava-loading-med.webp",
+      "sha256": "19175c9e1b0ab220d3cc029a6142ff1e2789b343eb964dd7a9797413104e10b5",
+      "width": 768,
+      "height": 432,
+      "decoded_rgba_bytes": 1327104,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 768x432",
+        "Pillow WebP quality=82 method=6"
+      ]
+    },
+    {
+      "map_id": "lava",
+      "map_label": "熔岩峽道",
+      "variant": "loading-low",
+      "path": "assets/maps/r72/lava-loading-low.webp",
+      "sha256": "2591853540d2cc610ab9b8631f32e298938c672821cad612df3d53b392d58f56",
+      "width": 512,
+      "height": 288,
+      "decoded_rgba_bytes": 589824,
+      "postprocess": [
+        "deterministic center crop to 1.777778:1",
+        "Pillow Lanczos resize to 512x288",
+        "Pillow WebP quality=82 method=6"
+      ]
+    }
+  ]
+}

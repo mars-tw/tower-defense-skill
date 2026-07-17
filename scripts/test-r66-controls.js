@@ -4,7 +4,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const EVIDENCE = path.join(ROOT, "docs", "evidence", "R71_menu");
+const EVIDENCE = process.env.TD_EVIDENCE_DIR
+  ? path.resolve(ROOT, process.env.TD_EVIDENCE_DIR)
+  : path.join(ROOT, "docs", "evidence", "R71_menu");
 const MIME = {
   ".html": "text/html",
   ".js": "application/javascript",
@@ -130,7 +132,7 @@ function auditModalInPage(selector) {
 }
 
 function auditR71LayerInPage(layerId) {
-  const modalIds = ["tutorial", "diffOverlay", "mapOverlay", "settingsOverlay"];
+  const modalIds = ["tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay", "settingsOverlay"];
   const shell = document.getElementById("appShell");
   const layer = document.getElementById(layerId);
   const background = [
@@ -244,7 +246,8 @@ async function run() {
         map.background.every((item) => !item.selfHit), `${vp.w}x${vp.h} map modal is exclusive and blocks background self hits`);
 
       await page.locator(".map-opt").first().click({ noWaitAfter: true, timeout: 90000 });
-      await page.waitForTimeout(150);
+      await page.waitForFunction(() => document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
+      await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
       await page.locator("#settingsBtn").click({ noWaitAfter: true, timeout: 90000 });
       await page.waitForTimeout(100);
       const settings = await page.evaluate(auditR71LayerInPage, "settingsOverlay");
@@ -307,7 +310,7 @@ async function run() {
         `${vp.w}x${vp.h} map options are reachable`);
 
       await page.locator(".map-opt").first().click({ noWaitAfter: true, timeout: 90000 });
-      await page.waitForTimeout(250);
+      await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
       const controls = await page.evaluate(auditControlsInPage);
       const detail = controls.bad.map((item) =>
         `${item.group}:${item.name} ${Math.round(item.width)}x${Math.round(item.height)} top=${Math.round(item.top)} bottom=${Math.round(item.bottom)} hit=${item.hitName}`

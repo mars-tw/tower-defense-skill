@@ -22,7 +22,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r71-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r72-v1" />
+<!-- R72：39 KiB 真 low banner 保底先於 gameplay 貼圖排隊；high/med 仍按選擇時載入。 -->
+<link rel="preload" as="image" href="assets/maps/r72/plains-banner-low.webp?v=d040c3b6" fetchpriority="high" />
+<link rel="preload" as="image" href="assets/maps/r72/canyon-banner-low.webp?v=41fcb341" fetchpriority="high" />
+<link rel="preload" as="image" href="assets/maps/r72/lava-banner-low.webp?v=5f51a4a5" fetchpriority="high" />
+<link rel="preload" as="image" href="assets/maps/r72/plains-loading-low.webp?v=822eb164" fetchpriority="high" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -600,21 +605,90 @@
     align-items: center; justify-content: center; z-index: 114; padding: 16px; }
   .map-overlay.show { display: flex; }
   .map-card { background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
-    border: 1px solid var(--border-hi); border-radius: 18px; padding: 24px 28px; max-width: 500px; width: 100%;
+    border: 1px solid var(--border-hi); border-radius: 18px; padding: 22px 24px; max-width: 760px; width: 100%;
     box-shadow: var(--shadow-pop); }
-  .map-card h2 { color: var(--accent); font-size: 24px; margin-bottom: 16px; text-align: center; }
-  #mapOptions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
-  .map-opt { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 12px;
-    background: var(--surface-1); border: 2px solid var(--border-soft); cursor: pointer;
-    transition: all .12s; text-align: left; color: var(--ink); font-family: inherit; }
-  .map-opt:hover, .map-opt.active { background: var(--surface-2); transform: translateX(3px); border-color: var(--accent); box-shadow: 0 0 12px rgba(74,222,128,.35); }
-  .map-opt .demoji { font-size: 28px; }
-  .map-opt .dinfo { flex: 1; }
-  .map-opt .dname { font-weight: 900; font-size: 17px; color: var(--accent); }
+  .map-card h2 { color: #f2e4be; font-family: "Noto Serif TC","Microsoft JhengHei",serif;
+    font-size: 24px; letter-spacing: .08em; margin-bottom: 14px; text-align: center; }
+  #mapOptions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .map-opt { --map-accent: #d8a34a; display: grid; grid-template-columns: minmax(190px, 42%) 1fr;
+    align-items: center; gap: 14px; min-height: 112px; padding: 8px; border-radius: 12px;
+    background: #0b1711; border: 2px solid rgba(216,163,74,.28); cursor: pointer;
+    transition: border-color .16s, box-shadow .16s, transform .16s; text-align: left; color: var(--ink); font-family: inherit; }
+  .map-opt:hover, .map-opt.active { background: #101e17; transform: translateX(3px);
+    border-color: var(--map-accent); box-shadow: 0 0 0 1px rgba(242,228,190,.08), 0 8px 24px rgba(0,0,0,.32); }
+  .map-opt:focus-visible { outline: 3px solid #f2e4be; outline-offset: 2px; }
+  .map-visual { position: relative; display: block; width: 100%; aspect-ratio: 2 / 1; overflow: hidden;
+    border: 1px solid rgba(242,228,190,.2); border-radius: 8px; background: #06100b; isolation: isolate; }
+  .map-visual::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 0 1px rgba(216,163,74,.18), inset 0 0 32px rgba(0,0,0,.32); }
+  .map-visual img { display: block; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; }
+  .map-opt.active .map-visual::after { box-shadow: inset 0 0 0 2px var(--map-accent), inset 0 0 32px rgba(0,0,0,.24); }
+  .map-route-tag { position: absolute; left: 8px; bottom: 7px; z-index: 1; padding: 3px 7px;
+    border: 1px solid rgba(242,228,190,.36); border-radius: 999px; background: rgba(6,16,11,.9);
+    color: #f2e4be; font: 800 10px/1.2 Consolas,"SFMono-Regular",monospace; letter-spacing: .08em; }
+  .map-opt .dinfo { min-width: 0; padding: 2px 6px 2px 0; }
+  .map-opt .dname { display: block; font-family: "Noto Serif TC","Microsoft JhengHei",serif;
+    font-weight: 900; font-size: 18px; letter-spacing: .04em; color: #f2e4be; }
   .map-opt .ddesc { font-size: 12px; color: var(--ink-dim); line-height: 1.4; margin-top: 3px; }
-  .map-opt .dbest { display: block; font-size: 11px; color: var(--gold); font-weight: 700; margin-top: 4px; }
+  .map-opt .dbest { display: block; font: 700 11px/1.4 Consolas,"SFMono-Regular",monospace;
+    color: #d8a34a; margin-top: 6px; }
   .map-hint { font-size: 12px; color: var(--ink-dim); line-height: 1.5; background: rgba(74,222,128,.08);
     padding: 10px 12px; border-radius: 10px; }
+
+  /* R72：同源 imagegen master 的 loading 畫面；只覆蓋 UI，不進 gameplay Canvas。 */
+  .map-loading-overlay { position: fixed; inset: 0; z-index: 118; display: none; overflow: hidden;
+    align-items: flex-end; justify-content: center; padding: clamp(18px, 5vh, 52px) 18px; background: #06100b; }
+  .map-loading-overlay.show { display: flex; }
+  .map-loading-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    object-position: center; background: #06100b; }
+  .map-loading-shade { position: absolute; inset: 0; background:
+    linear-gradient(180deg, rgba(6,16,11,.18) 0%, rgba(6,16,11,.18) 42%, rgba(6,16,11,.88) 100%),
+    linear-gradient(90deg, rgba(6,16,11,.55), transparent 28%, transparent 72%, rgba(6,16,11,.55)); }
+  .map-loading-panel { position: relative; width: min(620px, calc(100vw - 36px)); padding: 16px 18px 14px;
+    border: 1px solid rgba(216,163,74,.64); border-radius: 14px; background: rgba(6,16,11,.94);
+    color: #f2e4be; box-shadow: 0 18px 48px rgba(0,0,0,.52); }
+  .map-loading-kicker { color: #d8a34a; font: 800 11px/1.2 Consolas,"SFMono-Regular",monospace;
+    letter-spacing: .2em; text-transform: uppercase; }
+  .map-loading-panel h2 { margin: 5px 0 4px; color: #fff7df;
+    font-family: "Noto Serif TC","Microsoft JhengHei",serif; font-size: clamp(24px, 5vw, 34px); letter-spacing: .08em; }
+  .map-loading-panel p { margin: 0; color: #f2e4be; font-size: 13px; line-height: 1.5; }
+  .map-loading-track { height: 5px; margin-top: 13px; overflow: hidden; border-radius: 999px; background: #25180f; }
+  .map-loading-track span { display: block; width: 38%; height: 100%; border-radius: inherit;
+    background: linear-gradient(90deg,#8e632b,#f2c86f,#8e632b); animation: r72-route-scan .9s ease-in-out infinite alternate; }
+  .map-loading-status { display: block; margin-top: 7px; color: #d8a34a;
+    font: 700 11px/1.3 Consolas,"SFMono-Regular",monospace; }
+  @keyframes r72-route-scan { from { transform: translateX(-4%); } to { transform: translateX(168%); } }
+  @media (max-width: 600px) {
+    .map-card { padding: 18px 16px; }
+    .map-opt { grid-template-columns: minmax(116px, 36%) 1fr; gap: 8px; min-height: 100px; padding: 7px; }
+    .map-opt .dinfo { padding: 0 3px; }
+    .map-opt .dname { font-size: 16px; }
+    .map-opt .ddesc { line-height: 1.3; }
+    .map-opt .dbest { margin-top: 4px; }
+    .map-opt .ddesc:nth-of-type(2) { display: none; }
+  }
+  @media (max-height: 480px) and (orientation: landscape) {
+    .map-overlay { padding: 10px; }
+    .map-card { padding: 10px 14px; max-width: 780px; }
+    .map-card h2 { font-size: 19px; margin-bottom: 6px; }
+    #mapOptions { gap: 5px; margin-bottom: 6px; }
+    .map-opt { grid-template-columns: 128px 1fr; gap: 8px; min-height: 72px; padding: 5px; }
+    .map-opt .dinfo { padding: 0 3px; }
+    .map-opt .dname { font-size: 16px; }
+    .map-opt .ddesc { line-height: 1.25; margin-top: 1px; }
+    .map-opt .ddesc:nth-of-type(2) { display: none; }
+    .map-opt .dbest { margin-top: 2px; }
+    .map-hint { padding: 6px 9px; font-size: 11px; line-height: 1.25; }
+  }
+  @media (max-aspect-ratio: 1 / 1) {
+    .map-loading-overlay { align-items: flex-end; }
+    .map-loading-art { object-fit: contain; }
+    .map-loading-shade { background: linear-gradient(180deg, rgba(6,16,11,.12), rgba(6,16,11,.35) 54%, #06100b 82%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .map-opt { transition: none; }
+    .map-loading-track span { animation: none; width: 100%; }
+  }
 
   .advisor-backdrop { display: none; position: fixed; inset: 0; z-index: 60; background: #06100b; }
   body.r71-modal-open .mission-toast,
@@ -1374,24 +1448,36 @@
   <!-- 地圖選擇 -->
   <div class="map-overlay" id="mapOverlay" role="dialog" aria-modal="true" aria-label="選擇地圖">
     <div class="map-card">
-      <h2>🗺️ 選擇地圖</h2>
+      <h2>選擇戰場</h2>
       <div id="mapOptions"></div>
-      <p class="map-hint">迂迴峽谷路徑更長，但資源較少；排行榜仍依難度統計，紀錄會附上地圖名稱。</p>
+      <p class="map-hint">現有三座戰場的路徑與資源規則維持不變；排行榜紀錄會附上地圖名稱。</p>
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r71-v1"></script>
-  <script src="src/heroes.js?v=td-r71-v1"></script>
-  <script src="src/rules.js?v=td-r71-v1"></script>
-  <script src="src/lore.js?v=td-r71-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r71-v1"></script>
-  <script src="src/hero-animation.js?v=td-r71-v1"></script>
-  <script src="src/game.js?v=td-r71-v1"></script>
-  <script src="src/ui.js?v=td-r71-v1"></script>
+  <div class="map-loading-overlay" id="mapLoadingOverlay" role="dialog" aria-modal="true" aria-label="戰場整備中" aria-busy="true">
+    <img class="map-loading-art" id="mapLoadingImage" alt="" width="1024" height="576">
+    <div class="map-loading-shade" aria-hidden="true"></div>
+    <div class="map-loading-panel" id="mapLoadingPanel">
+      <span class="map-loading-kicker">BATTLEFIELD READY</span>
+      <h2 id="mapLoadingTitle">翠綠平原</h2>
+      <p id="mapLoadingDesc">標準蜿蜒路線，資源完整，適合熟悉塔陣。</p>
+      <div class="map-loading-track" aria-hidden="true"><span></span></div>
+      <span class="map-loading-status" id="mapLoadingStatus">正在展開既有戰場圖資…</span>
+    </div>
+  </div>
+
+  <script src="src/config.js?v=td-r72-v1"></script>
+  <script src="src/heroes.js?v=td-r72-v1"></script>
+  <script src="src/rules.js?v=td-r72-v1"></script>
+  <script src="src/lore.js?v=td-r72-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r72-v1"></script>
+  <script src="src/hero-animation.js?v=td-r72-v1"></script>
+  <script src="src/game.js?v=td-r72-v1"></script>
+  <script src="src/ui.js?v=td-r72-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r71-v1";
+      const PWA_VERSION = "td-r72-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

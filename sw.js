@@ -1,4 +1,4 @@
-const CACHE_VERSION = "td-r71-v1";
+const CACHE_VERSION = "td-r72-v1";
 const HTML_CACHE = `${CACHE_VERSION}-html`;
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 
@@ -6,18 +6,36 @@ const APP_SHELL = [
   "./",
   "./index.html",
   "./offline.html",
-  "./manifest.webmanifest?v=td-r71-v1",
+  "./manifest.webmanifest?v=td-r72-v1",
   "./sw.js",
   "./assets/cover.png",
-  "./src/config.js?v=td-r71-v1",
-  "./src/heroes.js?v=td-r71-v1",
-  "./src/rules.js?v=td-r71-v1",
-  "./src/lore.js?v=td-r71-v1",
-  "./src/enemy-animation.js?v=td-r71-v1",
-  "./src/hero-animation.js?v=td-r71-v1",
-  "./src/game.js?v=td-r71-v1",
-  "./src/ui.js?v=td-r71-v1",
+  "./src/config.js?v=td-r72-v1",
+  "./src/heroes.js?v=td-r72-v1",
+  "./src/rules.js?v=td-r72-v1",
+  "./src/lore.js?v=td-r72-v1",
+  "./src/enemy-animation.js?v=td-r72-v1",
+  "./src/hero-animation.js?v=td-r72-v1",
+  "./src/game.js?v=td-r72-v1",
+  "./src/ui.js?v=td-r72-v1",
   "./assets/core/goddess.png",
+  "./assets/maps/r72/plains-banner-high.webp?v=63b03393",
+  "./assets/maps/r72/plains-banner-med.webp?v=b4db6829",
+  "./assets/maps/r72/plains-banner-low.webp?v=d040c3b6",
+  "./assets/maps/r72/plains-loading-high.webp?v=7a8d1753",
+  "./assets/maps/r72/plains-loading-med.webp?v=32307665",
+  "./assets/maps/r72/plains-loading-low.webp?v=822eb164",
+  "./assets/maps/r72/canyon-banner-high.webp?v=14cbcf2e",
+  "./assets/maps/r72/canyon-banner-med.webp?v=961ad962",
+  "./assets/maps/r72/canyon-banner-low.webp?v=41fcb341",
+  "./assets/maps/r72/canyon-loading-high.webp?v=acb28553",
+  "./assets/maps/r72/canyon-loading-med.webp?v=3781e3a5",
+  "./assets/maps/r72/canyon-loading-low.webp?v=dcf8ce5b",
+  "./assets/maps/r72/lava-banner-high.webp?v=90e4ef27",
+  "./assets/maps/r72/lava-banner-med.webp?v=001ec422",
+  "./assets/maps/r72/lava-banner-low.webp?v=5f51a4a5",
+  "./assets/maps/r72/lava-loading-high.webp?v=5239fc3e",
+  "./assets/maps/r72/lava-loading-med.webp?v=19175c9e",
+  "./assets/maps/r72/lava-loading-low.webp?v=25918535",
   "./assets/enemies/bat.png",
   "./assets/enemies/enemy-animation-atlas.png",
   "./assets/heroes/hero-animation-atlas.png",
@@ -153,7 +171,7 @@ const APP_SHELL = [
   "./assets/towers/tiers/tesla-tier3.png"
 ];
 
-const ASSET_RE = /\/assets\/(?:heroes|enemies|towers|skills|projectiles|particles|tiles|core)\/.*\.png(?:\?|$)/;
+const ASSET_RE = /\/assets\/(?:heroes|enemies|towers|skills|projectiles|particles|tiles|core|maps)\/.*\.(?:png|webp)(?:\?|$)/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

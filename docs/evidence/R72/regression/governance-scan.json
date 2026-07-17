@@ -1,0 +1,10 @@
+{
+  "generated_at": "2026-07-17T18:29:12+08:00",
+  "git_diff_check": "PASS",
+  "javascript_syntax": "PASS",
+  "active_old_version_matches": 0,
+  "credential_pattern_matches": 0,
+  "pwa_manifest_offline_assets": "18/18",
+  "c2pa_master_verify": "3/3",
+  "visual_qa": "PASS"
+}

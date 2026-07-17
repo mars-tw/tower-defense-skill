@@ -4,7 +4,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const EVIDENCE = path.join(ROOT, "docs", "evidence", "R68");
+const EVIDENCE = process.env.TD_EVIDENCE_DIR
+  ? path.resolve(ROOT, process.env.TD_EVIDENCE_DIR)
+  : path.join(ROOT, "docs", "evidence", "R68");
 const MIME = {
   ".html": "text/html", ".js": "application/javascript", ".json": "application/json",
   ".webmanifest": "application/manifest+json", ".png": "image/png", ".css": "text/css",
@@ -116,7 +118,7 @@ async function run() {
       await page.waitForFunction(() => window.TD && window.TD.state, null, { timeout: 60000 });
       await page.locator(".diff-opt").first().click({ noWaitAfter: true, timeout: 90000 });
       await page.locator(".map-opt").first().click({ noWaitAfter: true, timeout: 90000 });
-      await page.waitForTimeout(250);
+      await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
       const result = await page.evaluate(auditMapInPage);
       measurements.push({ viewport: `${viewport.w}x${viewport.h}`, ...result });
 

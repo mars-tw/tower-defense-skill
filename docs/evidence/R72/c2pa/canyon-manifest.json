@@ -1,0 +1,144 @@
+{
+  "active_manifest": "urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379",
+  "manifests": {
+    "urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379": {
+      "claim_generator_info": [
+        {
+          "name": "OpenAI Media Service API",
+          "icon": {
+            "format": "image/svg+xml",
+            "identifier": "self#jumbf=-c2pa-urn-c2pa-6fdb835b-8e0d-47c3-a30a-61ad4c1ed379-c2pa.assertions-c2pa.icon"
+          },
+          "org.contentauth.c2pa_rs": "0.79.2",
+          "specVersion": "2.2.0"
+        }
+      ],
+      "title": "image.png",
+      "instance_id": "xmp:iid:61c511cd-8d8f-469f-8ec0-c71d07f08e1a",
+      "assertions": [
+        {
+          "label": "c2pa.actions.v2",
+          "data": {
+            "actions": [
+              {
+                "action": "c2pa.created",
+                "when": "2026-07-17T00:00:00Z",
+                "softwareAgent": {
+                  "name": "gpt-image",
+                  "version": "2.0"
+                },
+                "digitalSourceType": "http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia"
+              },
+              {
+                "action": "c2pa.converted",
+                "when": "2026-07-17T00:00:00Z"
+              },
+              {
+                "action": "c2pa.watermarked.unbound",
+                "when": "2026-07-17T00:00:00Z"
+              }
+            ]
+          },
+          "created": true
+        },
+        {
+          "label": "c2pa.certificate-status",
+          "data": {
+            "ocspVals": [
+              "MIIEHAoBAKCCBBUwggQRBgkrBgEFBQcwAQEEggQCMIID/jCBoqIWBBQv99x+aF8ugIRrqf8FysOXy0iG+hgPMjAyNjA3MTYxNzM5MTNaMHcwdTBNMAkGBSsOAwIaBQAEFD5MfI5QC4dscxW+r26X6hDulCDJBBTDsySWNJOhWepSGGueF+CputawTAIUUpQlB4G1aob5Mxd4cNaOre9iGkGAABgPMjAyNjA3MTYxNzM5MTJaoBEYDzIwMjYwNzIzMTczOTEyWjAKBggqhkjOPQQDAgNHADBEAiBkSEu95KHYLddeGQZWhEnYG/mp0SfW0hifYw4c2EnTNwIgRLvXwmG/egWVVfaZ7xtECWDB722utCqloSk6khuIyoigggMAMIIC/DCCAvgwggJ+oAMCAQICFCqbEYDcTBcF2sL92eAn+sWryH55MAoGCCqGSM49BAMDMIGnMQswCQYDVQQGEwJVUzERMA8GA1UECAwITmV3IFlvcmsxETAPBgNVBAcMCE5ldyBZb3JrMRMwEQYDVQQKDApUcnVmbyBJbmMuMRQwEgYDVQQLDAtDQSBEaXZpc2lvbjEaMBgGCSqGSIb3DQEJARYLY2FAdHJ1Zm8uYWkxKzApBgNVBAMMIlRydWZvIEMyUEEgQ2xhaW0gU2lnbmluZyBDQSAoMjAyNSkwHhcNMjYwNzAyMDAwMzIxWhcNMjYwODAxMDAwMzIxWjCBpTELMAkGA1UEBhMCVVMxETAPBgNVBAgMCE5ldyBZb3JrMREwDwYDVQQHDAhOZXcgWW9yazETMBEGA1UECgwKVHJ1Zm8gSW5jLjEUMBIGA1UECwwLQ0EgRGl2aXNpb24xGjAYBgkqhkiG9w0BCQEWC2NhQHRydWZvLmFpMSkwJwYDVQQDDCBUcnVmbyBDMlBBIE9DU1AgUmVzcG9uZGVyICgyMDI1KTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFvSblQC30xqIEtxTBlkCdvtrxDZpG1bD3BbnnRTmj0RhWIqU4oGuEZw1j4VxwCV1cqDm2WRL+7Weuuk09PAfT2jgYcwgYQwHQYDVR0OBBYEFC/33H5oXy6AhGup/wXKw5fLSIb6MB8GA1UdIwQYMBaAFMOzJJY0k6FZ6lIYa54X4Km61rBMMAwGA1UdEwEB/wQCMAAwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMJMA8GCSsGAQUFBzABBQQCBQAwCgYIKoZIzj0EAwMDaAAwZQIwaRKrpWH+E9ZdGhO+l2oy0DXsSxLsNylc/B5uVvbkBE/PYSK+Sz5wA1EL5S1LkVD3AjEA/52dc89/x6+q8c2MyqRyxbTfnj+49AARN7jzRqF+yXeJ6gh15WYaNag0B3KEocEC",
+              "MIIEUwoBAKCCBEwwggRIBgkrBgEFBQcwAQEEggQ5MIIENTCBoqIWBBTL2I42iiERcyy574oao2qevFNMQBgPMjAyNjA3MTYxNzM5MjNaMHcwdTBNMAkGBSsOAwIaBQAEFIAg9bziJOltvNZvxhcpZXwkyPH9BBQD1V+vfoPlBB1ZgCdKNP9F/etJeAIUMOih8KWJQmvSuYJIR5kZ3BY3AsuAABgPMjAyNjA3MTYxNzM5MTNaoBEYDzIwMjYwNzIzMTczOTEzWjAKBggqhkjOPQQDAwNnADBkAjBvADMIcLCj8eyfC/hGH71Mn2kdxK8ikYkhF72cVvJN2ED3a7ZEFKdC3DS2MJSoAvwCMBdXWUA9AFv13PSn6QA3hSXBG89day4ehAkJCb2J6yCEDfgmpmvNjaySp3sL3jgbV6CCAxcwggMTMIIDDzCCApWgAwIBAgIUA9B9NJJtVxlwxtgUkExzxdPlm+AwCgYIKoZIzj0EAwMwgagxCzAJBgNVBAYTAlVTMREwDwYDVQQIDAhOZXcgWW9yazERMA8GA1UEBwwITmV3IFlvcmsxEzARBgNVBAoMClRydWZvIEluYy4xFDASBgNVBAsMC0NBIERpdmlzaW9uMRowGAYJKoZIhvcNAQkBFgtjYUB0cnVmby5haTEsMCoGA1UEAwwjVHJ1Zm8gQzJQQSBSb290IENBICgyMDI1LCBFQ0MgUDM4NCkwHhcNMjYwNTExMjM0MjI1WhcNMzYwNTA4MjM0MjI1WjCBnjELMAkGA1UEBhMCVVMxETAPBgNVBAgMCE5ldyBZb3JrMREwDwYDVQQHDAhOZXcgWW9yazETMBEGA1UECgwKVHJ1Zm8gSW5jLjEUMBIGA1UECwwLQ0EgRGl2aXNpb24xGjAYBgkqhkiG9w0BCQEWC2NhQHRydWZvLmFpMSIwIAYDVQQDDBlUcnVmbyBSb290IE9DU1AgUmVzcG9uZGVyMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEYvfXbKCgteGs28iGItnJcsx7mPgsgwOGuHTA2Vlov1pY+ewxV5QRxIFBS6yif8lWJcMj7tpbI6mxaspWe6pbSpeT1Cjre+vJN2TfP1JpGKbrYkc0ZAmcuwIhWIInuR05o4GHMIGEMB0GA1UdDgQWBBTL2I42iiERcyy574oao2qevFNMQDAfBgNVHSMEGDAWgBQD1V+vfoPlBB1ZgCdKNP9F/etJeDAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDCTAPBgkrBgEFBQcwAQUEAgUAMAoGCCqGSM49BAMDA2gAMGUCMQDt7R+L98vMzhNTw3r0GtDMDA8aBOnEOlaFNZoqvgeJskaZXkn8tYblVNZSOsZpx3wCMBcYJNrfD8V8wZWJ1LVx1MqsKeEDqIirLzfw6UH+W34Z4xJurbDq9BLeTPWwUSPHGA=="
+            ]
+          },
+          "created": true
+        }
+      ],
+      "signature_info": {
+        "alg": "Es256",
+        "issuer": "OpenAI OpCo, LLC",
+        "common_name": "OpenAI Media Service",
+        "cert_serial_number": "471440979205905794604524502504016020624908622401",
+        "time": "2026-07-17T08:59:04.845761+00:00"
+      },
+      "label": "urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379",
+      "claim_version": 2
+    }
+  },
+  "validation_status": [
+    {
+      "code": "signingCredential.untrusted",
+      "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.signature",
+      "explanation": "signing certificate untrusted"
+    }
+  ],
+  "validation_results": {
+    "activeManifest": {
+      "success": [
+        {
+          "code": "signingCredential.ocsp.notRevoked",
+          "url": "OCSP_RESPONSE",
+          "explanation": "certificate not revoked"
+        },
+        {
+          "code": "signingCredential.ocsp.notRevoked",
+          "url": "OCSP_RESPONSE",
+          "explanation": "certificate not revoked"
+        },
+        {
+          "code": "timeStamp.validated",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.signature",
+          "explanation": "timestamp message digest matched: OpenAI TSA Leaf"
+        },
+        {
+          "code": "claimSignature.insideValidity",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.signature",
+          "explanation": "claim signature valid"
+        },
+        {
+          "code": "claimSignature.validated",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.signature",
+          "explanation": "claim signature valid"
+        },
+        {
+          "code": "assertion.hashedURI.match",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.assertions/c2pa.icon",
+          "explanation": "hashed uri matched: self#jumbf=c2pa.assertions/c2pa.icon"
+        },
+        {
+          "code": "assertion.hashedURI.match",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.assertions/c2pa.actions.v2",
+          "explanation": "hashed uri matched: self#jumbf=c2pa.assertions/c2pa.actions.v2"
+        },
+        {
+          "code": "assertion.hashedURI.match",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.assertions/c2pa.certificate-status",
+          "explanation": "hashed uri matched: self#jumbf=c2pa.assertions/c2pa.certificate-status"
+        },
+        {
+          "code": "assertion.hashedURI.match",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.assertions/c2pa.hash.data",
+          "explanation": "hashed uri matched: self#jumbf=c2pa.assertions/c2pa.hash.data"
+        },
+        {
+          "code": "assertion.dataHash.match",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.assertions/c2pa.hash.data",
+          "explanation": "data hash valid"
+        }
+      ],
+      "informational": [
+        {
+          "code": "timeStamp.untrusted",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.signature",
+          "explanation": "timestamp cert untrusted: OpenAI TSA Leaf"
+        }
+      ],
+      "failure": [
+        {
+          "code": "signingCredential.untrusted",
+          "url": "self#jumbf=/c2pa/urn:c2pa:6fdb835b-8e0d-47c3-a30a-61ad4c1ed379/c2pa.signature",
+          "explanation": "signing certificate untrusted"
+        }
+      ]
+    }
+  },
+  "validation_state": "Valid"
+}

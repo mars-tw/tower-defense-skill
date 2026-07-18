@@ -268,6 +268,32 @@ async function run() {
         assert(advisor.advisorButtons.length > 0 && advisor.advisorButtons.every((item) => item.hit),
           `${vp.w}x${vp.h} advisor controls remain hit-test reachable`);
         await page.screenshot({ path: path.join(EVIDENCE, `${vp.name}-advisor.png`) });
+
+        // R72.1：手機抽屜必須有可見可點的關閉鈕（老闆回報：英雄抽屜蓋住畫面找不到關閉）
+        // 先用 intel 抽屜自己的關閉鈕收合（同時驗證該鈕在 backdrop 之上可點）
+        await page.locator(".intel-drawer .drawer-close-btn").click({ noWaitAfter: true, timeout: 90000 });
+        await page.waitForTimeout(150);
+        const intelClosed = await page.evaluate(() => !document.querySelector(".intel-drawer").hasAttribute("open"));
+        assert(intelClosed, `${vp.w}x${vp.h} intel drawer closes via its close button (above backdrop)`);
+        await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await page.waitForTimeout(150);
+        const heroClose = await page.evaluate(() => {
+          const drawer = document.querySelector(".hero-drawer");
+          const btn = drawer ? drawer.querySelector(".drawer-close-btn") : null;
+          if (!drawer || !btn) return { ok: false, why: "missing" };
+          const r = btn.getBoundingClientRect();
+          const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return { ok: true, open: drawer.hasAttribute("open"), w: r.width, h: r.height,
+            inView: r.top >= 0 && r.bottom <= innerHeight && r.width > 0,
+            hit: btn === at || btn.contains(at) };
+        });
+        assert(heroClose.ok && heroClose.open && heroClose.inView && heroClose.hit &&
+          heroClose.w >= 44 && heroClose.h >= 44,
+          `${vp.w}x${vp.h} hero drawer close button visible/hittable >=44px (w=${Math.round(heroClose.w || 0)} h=${Math.round(heroClose.h || 0)})`);
+        await page.locator(".hero-drawer .drawer-close-btn").click({ noWaitAfter: true, timeout: 90000 });
+        await page.waitForTimeout(120);
+        const heroClosed = await page.evaluate(() => !document.querySelector(".hero-drawer").hasAttribute("open"));
+        assert(heroClosed, `${vp.w}x${vp.h} hero drawer closes via close button`);
       } else {
         advisor = await page.evaluate(auditAdvisorLayerInPage);
         assert(advisor.drawerDockOverlap <= 1 && advisor.advisorDockOverlap <= 1,

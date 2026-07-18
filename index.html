@@ -972,6 +972,7 @@
   .panel-drawer summary::after { content: "＋"; margin-left: auto; color: var(--ink-dim); }
   .panel-drawer[open] summary::after { content: "－"; }
   .drawer-body { display: grid; gap: 7px; padding: 8px; }
+  .drawer-close-btn { display: none; }
   .drawer-body #heroRoster, .drawer-body #deployedHeroes { max-height: 250px; overflow-y: auto; }
   .drawer-body .act { width: 100%; }
 
@@ -1029,6 +1030,11 @@
     .panel-drawer { flex: 1 1 0; overflow: visible; min-width: 0; }
     .panel-drawer summary { justify-content: center; min-height: 38px; padding: 7px 5px; font-size: 11px; white-space: nowrap; }
     .panel-drawer summary::after { margin-left: 5px; }
+    .panel-drawer[open] > .drawer-body .drawer-close-btn {
+      display: flex; position: sticky; top: 0; z-index: 3; margin: 0 0 -44px auto; min-height: 44px; min-width: 96px;
+      align-items: center; justify-content: center; padding: 8px 14px; border: 1px solid var(--border-hi);
+      border-radius: 11px; background: rgba(9,20,13,.96); color: #d9ffe8; font-size: 14px; font-weight: 700;
+    }
     .panel-drawer[open] > .drawer-body {
       position: fixed; z-index: 64; left: max(7px,env(safe-area-inset-left)); right: max(7px,env(safe-area-inset-right));
       bottom: var(--r71-drawer-safe-bottom, calc(var(--r64-control-height) + max(8px,env(safe-area-inset-bottom))));
@@ -1247,6 +1253,7 @@
       <details class="panel-drawer intel-drawer" open>
         <summary id="intelDrawerToggle">📡 戰況情報</summary>
         <div class="drawer-body">
+          <button class="drawer-close-btn" type="button" aria-label="關閉抽屜" onclick="this.closest(&quot;details&quot;).removeAttribute(&quot;open&quot;)">✕ 關閉</button>
           <div class="next-wave-card" id="nextWaveCard"></div>
           <div class="affix-card" id="affixCard"></div>
           <div class="enemy-info hidden" id="enemyInfo"></div>
@@ -1256,6 +1263,7 @@
       <details class="panel-drawer hero-drawer">
         <summary id="heroDrawerToggle">🦸 英雄與抽卡</summary>
         <div class="drawer-body">
+          <button class="drawer-close-btn" type="button" aria-label="關閉抽屜" onclick="this.closest(&quot;details&quot;).removeAttribute(&quot;open&quot;)">✕ 關閉</button>
           <button class="act gacha-btn" id="gachaBtn" data-hotkey="H" aria-label="抽英雄，快捷鍵 H">🎲 抽英雄（首抽免費！）</button>
           <div class="gacha-meta" id="gachaMeta"></div>
           <div class="mission-panel" id="beginnerMissions"></div>
@@ -1267,6 +1275,7 @@
       <details class="panel-drawer utility-drawer">
         <summary id="utilityDrawerToggle">☰ 其他功能</summary>
         <div class="drawer-body">
+          <button class="drawer-close-btn" type="button" aria-label="關閉抽屜" onclick="this.closest(&quot;details&quot;).removeAttribute(&quot;open&quot;)">✕ 關閉</button>
           <button class="act board-btn" id="boardBtn" aria-label="開啟排行榜與成就">🏆 排行榜/成就</button>
           <button class="act codex-btn" id="codexBtn" aria-label="開啟神魔誌">📜 神魔誌</button>
           <button class="act tutorial-btn" id="tutorialBtn" aria-label="開啟實戰引導">❔ 實戰引導</button>

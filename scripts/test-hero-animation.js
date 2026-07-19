@@ -121,8 +121,11 @@ for (const banned of ["def.sprite", "def.sprites", "drawSprite(", "ctx.scale(", 
   assert(!drawHero.includes(banned), `drawHero() 不含單張假走路 token：${banned}`);
 }
 assert(game.includes("h.walkDist = (h.walkDist || 0) + step") && game.includes("h.moving = step > 0"), "physics root 位移另行累積 walkDist 與 moving 狀態");
-assert(game.includes("HERO_ANIMATION_ATLAS.lowWalkFrameStride") && game.includes("ctx.drawImage(atlas, column * cell"),
-  "performanceLow 只降低英雄取樣幀率，仍以單 atlas drawImage 裁切");
+// R75：英雄幀改畫「同一張 atlas 的剪影描邊 bake 版」，bake 完成前 fallback 原 atlas——仍是單 atlas 真幀裁切。
+assert(game.includes("HERO_ANIMATION_ATLAS.lowWalkFrameStride") &&
+  (game.includes("ctx.drawImage(atlas, column * cell") ||
+    (game.includes("r75OutlinedSprite(atlas, \"hero-atlas\"") && game.includes("ctx.drawImage(source, column * cell"))),
+  "performanceLow 只降低英雄取樣幀率，仍以單 atlas drawImage 裁切（R75 描邊 bake 同源）");
 
 const beginAttack = functionBlock(game, "heroAttack(h, target)", "updateHeroAttack(h, dt)");
 assert(beginAttack.includes("HERO_ATTACK_PHASE.ANTICIPATION") && !beginAttack.includes("applyDamage(") &&

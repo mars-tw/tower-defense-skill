@@ -1,0 +1,848 @@
+[
+  {
+    "viewport": "1366x600",
+    "tutorial": {
+      "layerId": "tutorial",
+      "shown": [
+        "tutorial"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "tutorialAdvanced"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "tutorial-step-title"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "tutorial-step-body"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "tutorial"
+        }
+      ],
+      "backgroundColor": "rgb(6, 16, 11)",
+      "opaque": true
+    },
+    "difficulty": {
+      "layerId": "diffOverlay",
+      "shown": [
+        "diffOverlay"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "diff-hint"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "diff-card"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "diff-opt"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        }
+      ],
+      "backgroundColor": "rgba(6, 12, 10, 0.92)",
+      "opaque": false
+    },
+    "map": {
+      "layerId": "mapOverlay",
+      "shown": [
+        "mapOverlay"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "map-opt"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "map-opt"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "ddesc"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "ddesc"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "ddesc"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "dinfo"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "dbest"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "dbest"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "dbest"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "dinfo"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "map-opt"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "map-opt"
+        }
+      ],
+      "backgroundColor": "rgba(6, 12, 10, 0.92)",
+      "opaque": false
+    },
+    "settings": {
+      "layerId": "settingsOverlay",
+      "shown": [
+        "settingsOverlay"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "settings-card"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "juice-toggle"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "BUTTON"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "BUTTON"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "settingsOverlay"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "settingsOverlay"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "settings-section"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "settings-section"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "settingsOverlay"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "settingsOverlay"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "H3"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "settingsOverlay"
+        }
+      ],
+      "backgroundColor": "rgba(6, 10, 8, 0.93)",
+      "opaque": false
+    },
+    "advisor": {
+      "drawer": {
+        "left": 1121,
+        "top": 148,
+        "right": 1355,
+        "bottom": 839.640625,
+        "width": 234,
+        "height": 691.640625
+      },
+      "advisor": {
+        "left": 1140,
+        "top": 408.515625,
+        "right": 1336,
+        "bottom": 687.890625,
+        "width": 196,
+        "height": 279.375
+      },
+      "advisorRaw": {
+        "left": 1140,
+        "top": 408.515625,
+        "right": 1336,
+        "bottom": 687.890625,
+        "width": 196,
+        "height": 279.375
+      },
+      "dock": {
+        "left": 798,
+        "top": 105,
+        "right": 1110,
+        "bottom": 490,
+        "width": 312,
+        "height": 385
+      },
+      "drawerDockOverlap": 0,
+      "advisorDockOverlap": 0,
+      "mobileModal": false,
+      "backdropVisible": false,
+      "battlefieldInert": false,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": true,
+          "hit": "startBtn"
+        },
+        {
+          "id": "speed1",
+          "selfHit": true,
+          "hit": "speed1"
+        },
+        {
+          "id": "arrow",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "cannon",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "frost",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "tesla",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "poison",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "support",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "beacon",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "sniper",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "arcane",
+          "selfHit": true,
+          "hit": "tower-btn"
+        },
+        {
+          "id": "mortar",
+          "selfHit": true,
+          "hit": "tower-btn"
+        }
+      ],
+      "advisorButtons": [
+        {
+          "label": "收合",
+          "hit": false
+        },
+        {
+          "label": "關閉",
+          "hit": false
+        },
+        {
+          "label": "控場優先",
+          "hit": false
+        },
+        {
+          "label": "範圍清怪",
+          "hit": false
+        },
+        {
+          "label": "Boss 單點",
+          "hit": false
+        },
+        {
+          "label": "補 ❄️寒冰塔前段（5,1）｜放在前段補覆蓋缺口；緩速讓高速敵人多吃幾輪火力。",
+          "hit": false
+        },
+        {
+          "label": "補 🏹弓箭塔前段（5,1）｜放在前段補覆蓋缺口；便宜高攻速，適合補刀與觸發閃避後追擊。",
+          "hit": false
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "viewport": "390x844",
+    "tutorial": {
+      "layerId": "tutorial",
+      "shown": [
+        "tutorial"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "tutorial-card"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "tutorial"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "tutorial"
+        }
+      ],
+      "backgroundColor": "rgb(6, 16, 11)",
+      "opaque": true
+    },
+    "difficulty": {
+      "layerId": "diffOverlay",
+      "shown": [
+        "diffOverlay"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "diff-card"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "diff-card"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "diff-card"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "diff-card"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "diff-card"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "diff-card"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "diffOverlay"
+        }
+      ],
+      "backgroundColor": "rgba(6, 12, 10, 0.92)",
+      "opaque": false
+    },
+    "map": {
+      "layerId": "mapOverlay",
+      "shown": [
+        "mapOverlay"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "mapOverlay"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "mapOverlay"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "mapHint"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "mapHint"
+        }
+      ],
+      "backgroundColor": "rgba(6, 12, 10, 0.92)",
+      "opaque": false
+    },
+    "settings": {
+      "layerId": "settingsOverlay",
+      "shown": [
+        "settingsOverlay"
+      ],
+      "shellInert": true,
+      "shellHidden": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "settingsOverlay"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "settingsOverlay"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "juice-volume"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "juice-volume"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "juice-volume"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "juice-volume"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "juice-volume"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "juice-volume"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "audioVolumeRange"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "audioVolumeRange"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "audioVolumeRange"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "audioVolumeRange"
+        }
+      ],
+      "backgroundColor": "rgba(6, 10, 8, 0.93)",
+      "opaque": false
+    },
+    "advisor": {
+      "drawer": {
+        "left": 7,
+        "top": 161,
+        "right": 383,
+        "bottom": 591,
+        "width": 376,
+        "height": 430
+      },
+      "advisor": {
+        "left": 27,
+        "top": 367.796875,
+        "right": 363,
+        "bottom": 591,
+        "width": 336,
+        "height": 223.203125
+      },
+      "advisorRaw": {
+        "left": 27,
+        "top": 367.796875,
+        "right": 363,
+        "bottom": 611.578125,
+        "width": 336,
+        "height": 243.78125
+      },
+      "dock": {
+        "left": 6,
+        "top": 599,
+        "right": 384,
+        "bottom": 814,
+        "width": 378,
+        "height": 215
+      },
+      "drawerDockOverlap": 0,
+      "advisorDockOverlap": 0,
+      "mobileModal": true,
+      "backdropVisible": true,
+      "battlefieldInert": true,
+      "background": [
+        {
+          "id": "startBtn",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "speed1",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "arrow",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "cannon",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "frost",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "tesla",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "poison",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "support",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "beacon",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "sniper",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "arcane",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        },
+        {
+          "id": "mortar",
+          "selfHit": false,
+          "hit": "advisorBackdrop"
+        }
+      ],
+      "advisorButtons": [
+        {
+          "label": "收合",
+          "hit": true
+        },
+        {
+          "label": "關閉",
+          "hit": true
+        },
+        {
+          "label": "控場優先",
+          "hit": true
+        },
+        {
+          "label": "範圍清怪",
+          "hit": true
+        },
+        {
+          "label": "Boss 單點",
+          "hit": true
+        },
+        {
+          "label": "補 ⚡電磁塔前段（5,1）｜放在前段補覆蓋缺口；雷系克制火系敵人，穿透適合成群小怪。",
+          "hit": true
+        },
+        {
+          "label": "補 💣加農砲前段（5,1）｜放在前段補覆蓋缺口；範圍傷害適合處理密集敵群。",
+          "hit": true
+        }
+      ]
+    },
+    "errors": []
+  }
+]

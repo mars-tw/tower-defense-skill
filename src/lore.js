@@ -291,6 +291,17 @@ const BOSS_INTRO = {
   yaksha: "夜叉王舉刃踏出雷影：讓神火跪下。",
 };
 
+// R75 B-02 最小版：波次預告詞——4 句確定性模板（以波數輪替，不用亂數），
+// 里程碑波優先用 WAVE_BEATS、Boss 波用 BOSS_INTRO、事件波附掛 EVENT_FLAVOR。
+// 第 40 波之後只進戰報 log、不上 banner/情報卡（channel 由呼叫端遵守）。
+const WAVE_HERALD_TEMPLATES = [
+  "斥候回報：第 {wave} 波妖潮正沿舊路逼近，先讓箭塔上弦。",
+  "風向轉冷，第 {wave} 波的腳步聲已踏過裂縫。",
+  "聖壇神火微顫——第 {wave} 波帶著新的執念而來。",
+  "烽燧點起：第 {wave} 波，比上一波更不肯退。",
+];
+const WAVE_HERALD_BANNER_MAX_WAVE = 40;
+
 function normalizeBondLevel(bondLevel) {
   const n = Math.floor(Number(bondLevel) || 0);
   return n > 0 ? n : 0;
@@ -357,6 +368,32 @@ function waveBeatFor(wave) {
   return WAVE_BEATS[key] || null;
 }
 
+// 確定性波次預告：同一 (wave, eventId, isBoss) 永遠回同一句；不碰時間與亂數。
+function waveHeraldFor(wave, eventId, isBoss) {
+  const w = Math.max(1, Math.floor(Number(wave) || 1));
+  const channel = w > WAVE_HERALD_BANNER_MAX_WAVE ? "log" : "banner";
+  const beat = WAVE_BEATS[w];
+  if (beat) return { wave: w, channel, source: "beat", text: `${beat.title}——${beat.line}` };
+  if (isBoss) return { wave: w, channel, source: "boss", text: BOSS_INTRO.boss };
+  const base = WAVE_HERALD_TEMPLATES[(w - 1) % WAVE_HERALD_TEMPLATES.length].replace("{wave}", String(w));
+  const flavor = EVENT_FLAVOR[eventId] || "";
+  return {
+    wave: w,
+    channel,
+    source: flavor ? "event" : "template",
+    text: flavor ? `${base}（${flavor}）` : base,
+  };
+}
+
+// R75 抽卡回饋：稱號＋台詞（重用 HERO_LEGENDS 傳記稱號與 DEPLOY_QUOTES 人設台詞）。
+function gachaRevealFor(heroId) {
+  const legend = HERO_LEGENDS[heroId];
+  return {
+    epithet: legend && legend.epithet ? legend.epithet : "",
+    quote: DEPLOY_QUOTES[heroId] || "",
+  };
+}
+
 function eventFlavorFor(eventId) {
   return EVENT_FLAVOR[eventId] || "";
 }
@@ -375,6 +412,7 @@ const TD_LORE = {
   WAVE_BEATS,
   EVENT_FLAVOR,
   BOSS_INTRO,
+  WAVE_HERALD_TEMPLATES,
   legendStageFor,
   campaignUnlockState,
   evaluateCampaignUnlocks,
@@ -382,6 +420,8 @@ const TD_LORE = {
   mapLoreFor,
   deployQuoteFor,
   waveBeatFor,
+  waveHeraldFor,
+  gachaRevealFor,
   eventFlavorFor,
   bossIntroFor,
 };

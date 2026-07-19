@@ -1,0 +1,404 @@
+[
+  {
+    "viewport": "1920x1080",
+    "canvas": {
+      "left": 256.5,
+      "top": 105,
+      "right": 1361.5,
+      "bottom": 842,
+      "width": 1105,
+      "height": 737
+    },
+    "host": {
+      "left": 8,
+      "top": 105,
+      "right": 1610,
+      "bottom": 842
+    },
+    "dock": {
+      "left": 8,
+      "top": 848,
+      "right": 1610,
+      "bottom": 970,
+      "position": "relative"
+    },
+    "points": [
+      {
+        "label": "top-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "top-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "center",
+        "hit": true,
+        "hitName": "game"
+      }
+    ],
+    "canvasInViewport": true,
+    "canvasInHost": true,
+    "dockInViewport": true,
+    "reservedDock": true,
+    "overlapArea": 0,
+    "ratio": 1.4993215739484396,
+    "intrinsic": {
+      "width": 960,
+      "height": 640
+    },
+    "hostScroll": {
+      "x": 0,
+      "y": 0
+    },
+    "pageScroll": 0,
+    "overflowX": 0
+  },
+  {
+    "viewport": "1440x780",
+    "canvas": {
+      "left": 10.09375,
+      "top": 105,
+      "right": 857.09375,
+      "bottom": 670,
+      "width": 847,
+      "height": 565
+    },
+    "host": {
+      "left": 8,
+      "top": 105,
+      "right": 859.203125,
+      "bottom": 670
+    },
+    "dock": {
+      "left": 865.203125,
+      "top": 105,
+      "right": 1177.203125,
+      "bottom": 670,
+      "position": "relative"
+    },
+    "points": [
+      {
+        "label": "top-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "top-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "center",
+        "hit": true,
+        "hitName": "game"
+      }
+    ],
+    "canvasInViewport": true,
+    "canvasInHost": true,
+    "dockInViewport": true,
+    "reservedDock": true,
+    "overlapArea": 0,
+    "ratio": 1.4991150442477876,
+    "intrinsic": {
+      "width": 960,
+      "height": 640
+    },
+    "hostScroll": {
+      "x": 0,
+      "y": 0
+    },
+    "pageScroll": 0,
+    "overflowX": 0
+  },
+  {
+    "viewport": "1366x600",
+    "canvas": {
+      "left": 111.5,
+      "top": 105,
+      "right": 688.5,
+      "bottom": 490,
+      "width": 577,
+      "height": 385
+    },
+    "host": {
+      "left": 8,
+      "top": 105,
+      "right": 792,
+      "bottom": 490
+    },
+    "dock": {
+      "left": 798,
+      "top": 105,
+      "right": 1110,
+      "bottom": 490,
+      "position": "relative"
+    },
+    "points": [
+      {
+        "label": "top-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "top-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "center",
+        "hit": true,
+        "hitName": "game"
+      }
+    ],
+    "canvasInViewport": true,
+    "canvasInHost": true,
+    "dockInViewport": true,
+    "reservedDock": true,
+    "overlapArea": 0,
+    "ratio": 1.4987012987012986,
+    "intrinsic": {
+      "width": 960,
+      "height": 640
+    },
+    "hostScroll": {
+      "x": 0,
+      "y": 0
+    },
+    "pageScroll": 0,
+    "overflowX": 0
+  },
+  {
+    "viewport": "1280x640",
+    "canvas": {
+      "left": 40.90625,
+      "top": 105,
+      "right": 677.90625,
+      "bottom": 530,
+      "width": 637,
+      "height": 425
+    },
+    "host": {
+      "left": 8,
+      "top": 105,
+      "right": 710.8125,
+      "bottom": 530
+    },
+    "dock": {
+      "left": 716.8125,
+      "top": 105,
+      "right": 1024,
+      "bottom": 530,
+      "position": "relative"
+    },
+    "points": [
+      {
+        "label": "top-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "top-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "center",
+        "hit": true,
+        "hitName": "game"
+      }
+    ],
+    "canvasInViewport": true,
+    "canvasInHost": true,
+    "dockInViewport": true,
+    "reservedDock": true,
+    "overlapArea": 0,
+    "ratio": 1.4988235294117647,
+    "intrinsic": {
+      "width": 960,
+      "height": 640
+    },
+    "hostScroll": {
+      "x": 0,
+      "y": 0
+    },
+    "pageScroll": 0,
+    "overflowX": 0
+  },
+  {
+    "viewport": "390x844",
+    "canvas": {
+      "left": 6,
+      "top": 247.5,
+      "right": 384,
+      "bottom": 499.5,
+      "width": 378,
+      "height": 252
+    },
+    "host": {
+      "left": 6,
+      "top": 154,
+      "right": 384,
+      "bottom": 593
+    },
+    "dock": {
+      "left": 6,
+      "top": 599,
+      "right": 384,
+      "bottom": 814,
+      "position": "relative"
+    },
+    "points": [
+      {
+        "label": "top-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "top-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "center",
+        "hit": true,
+        "hitName": "game"
+      }
+    ],
+    "canvasInViewport": true,
+    "canvasInHost": true,
+    "dockInViewport": true,
+    "reservedDock": true,
+    "overlapArea": 0,
+    "ratio": 1.5,
+    "intrinsic": {
+      "width": 960,
+      "height": 640
+    },
+    "hostScroll": {
+      "x": 0,
+      "y": 0
+    },
+    "pageScroll": 0,
+    "overflowX": 0
+  },
+  {
+    "viewport": "844x390",
+    "canvas": {
+      "left": 67.578125,
+      "top": 96,
+      "right": 466.578125,
+      "bottom": 362,
+      "width": 399,
+      "height": 266
+    },
+    "host": {
+      "left": 6,
+      "top": 96,
+      "right": 528.171875,
+      "bottom": 362
+    },
+    "dock": {
+      "left": 534.171875,
+      "top": 96,
+      "right": 838,
+      "bottom": 362,
+      "position": "relative"
+    },
+    "points": [
+      {
+        "label": "top-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "top-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-left",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "bottom-right",
+        "hit": true,
+        "hitName": "game"
+      },
+      {
+        "label": "center",
+        "hit": true,
+        "hitName": "game"
+      }
+    ],
+    "canvasInViewport": true,
+    "canvasInHost": true,
+    "dockInViewport": true,
+    "reservedDock": true,
+    "overlapArea": 0,
+    "ratio": 1.5,
+    "intrinsic": {
+      "width": 960,
+      "height": 640
+    },
+    "hostScroll": {
+      "x": 0,
+      "y": 0
+    },
+    "pageScroll": 0,
+    "overflowX": 0
+  }
+]

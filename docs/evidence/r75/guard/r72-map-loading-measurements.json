@@ -1,0 +1,1266 @@
+{
+  "generatedAt": "2026-07-19T15:37:24.726Z",
+  "viewports": [
+    {
+      "viewport": "desktop-1366x768",
+      "selector": {
+        "expectedQuality": "high",
+        "options": [
+          {
+            "mapId": "plains",
+            "quality": "high",
+            "natural": {
+              "width": 640,
+              "height": 320
+            },
+            "rect": {
+              "left": 331,
+              "top": 126.15625,
+              "right": 1041,
+              "bottom": 291.046875,
+              "width": 710,
+              "height": 164.890625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 28.7796875,
+                "top": 38.348671875,
+                "right": 259.01718750000003,
+                "bottom": 104.54195312499999
+              },
+              "holder": {
+                "width": 289.796875,
+                "height": 144.890625
+              },
+              "complete": true
+            }
+          },
+          {
+            "mapId": "canyon",
+            "quality": "high",
+            "natural": {
+              "width": 640,
+              "height": 320
+            },
+            "rect": {
+              "left": 328,
+              "top": 301.046875,
+              "right": 1038,
+              "bottom": 465.9375,
+              "width": 710,
+              "height": 164.890625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 28.7796875,
+                "top": 38.348671875,
+                "right": 259.01718750000003,
+                "bottom": 104.54195312499999
+              },
+              "holder": {
+                "width": 289.796875,
+                "height": 144.890625
+              },
+              "complete": true
+            }
+          },
+          {
+            "mapId": "lava",
+            "quality": "high",
+            "natural": {
+              "width": 640,
+              "height": 320
+            },
+            "rect": {
+              "left": 328,
+              "top": 475.9375,
+              "right": 1038,
+              "bottom": 640.828125,
+              "width": 710,
+              "height": 164.890625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 28.7796875,
+                "top": 38.348671875,
+                "right": 259.01718750000003,
+                "bottom": 104.54195312499999
+              },
+              "holder": {
+                "width": 289.796875,
+                "height": 144.890625
+              },
+              "complete": true
+            }
+          }
+        ],
+        "pageScroll": 0,
+        "overflowX": 0
+      },
+      "loading": [
+        {
+          "shown": [
+            "mapLoadingOverlay"
+          ],
+          "shellInert": true,
+          "shellHidden": true,
+          "background": [
+            {
+              "id": "startBtn",
+              "selfHit": false
+            },
+            {
+              "id": "arrow",
+              "selfHit": false
+            },
+            {
+              "id": "cannon",
+              "selfHit": false
+            },
+            {
+              "id": "frost",
+              "selfHit": false
+            },
+            {
+              "id": "tesla",
+              "selfHit": false
+            },
+            {
+              "id": "poison",
+              "selfHit": false
+            },
+            {
+              "id": "support",
+              "selfHit": false
+            },
+            {
+              "id": "beacon",
+              "selfHit": false
+            },
+            {
+              "id": "sniper",
+              "selfHit": false
+            },
+            {
+              "id": "arcane",
+              "selfHit": false
+            },
+            {
+              "id": "mortar",
+              "selfHit": false
+            }
+          ],
+          "mapId": "plains",
+          "quality": "high",
+          "visualReady": "true",
+          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-high.webp?v=7a8d1753",
+          "natural": {
+            "width": 1024,
+            "height": 576
+          },
+          "textContrast": [
+            {
+              "id": "mapLoadingTitle",
+              "color": [
+                255,
+                247,
+                223
+              ],
+              "minimumContrast": 16.804131848584763
+            },
+            {
+              "id": "mapLoadingDesc",
+              "color": [
+                242,
+                228,
+                190
+              ],
+              "minimumContrast": 14.230227027114763
+            },
+            {
+              "id": "mapLoadingStatus",
+              "color": [
+                216,
+                163,
+                74
+              ],
+              "minimumContrast": 7.928153011231543
+            }
+          ],
+          "focal": {
+            "fit": "cover",
+            "left": 136.6,
+            "top": 207.27375,
+            "right": 1229.4,
+            "bottom": 560.7262499999999,
+            "viewport": {
+              "width": 1366,
+              "height": 768
+            },
+            "complete": true
+          },
+          "interlockSnapshot": {
+            "shown": [
+              "mapLoadingOverlay"
+            ],
+            "inert": true,
+            "hidden": true,
+            "background": [
+              {
+                "id": "startBtn",
+                "selfHit": false
+              },
+              {
+                "id": "arrow",
+                "selfHit": false
+              },
+              {
+                "id": "cannon",
+                "selfHit": false
+              },
+              {
+                "id": "frost",
+                "selfHit": false
+              },
+              {
+                "id": "tesla",
+                "selfHit": false
+              },
+              {
+                "id": "poison",
+                "selfHit": false
+              },
+              {
+                "id": "support",
+                "selfHit": false
+              },
+              {
+                "id": "beacon",
+                "selfHit": false
+              },
+              {
+                "id": "sniper",
+                "selfHit": false
+              },
+              {
+                "id": "arcane",
+                "selfHit": false
+              },
+              {
+                "id": "mortar",
+                "selfHit": false
+              }
+            ]
+          }
+        },
+        {
+          "shown": [
+            "mapLoadingOverlay"
+          ],
+          "shellInert": true,
+          "shellHidden": true,
+          "background": [
+            {
+              "id": "startBtn",
+              "selfHit": false
+            },
+            {
+              "id": "arrow",
+              "selfHit": false
+            },
+            {
+              "id": "cannon",
+              "selfHit": false
+            },
+            {
+              "id": "frost",
+              "selfHit": false
+            },
+            {
+              "id": "tesla",
+              "selfHit": false
+            },
+            {
+              "id": "poison",
+              "selfHit": false
+            },
+            {
+              "id": "support",
+              "selfHit": false
+            },
+            {
+              "id": "beacon",
+              "selfHit": false
+            },
+            {
+              "id": "sniper",
+              "selfHit": false
+            },
+            {
+              "id": "arcane",
+              "selfHit": false
+            },
+            {
+              "id": "mortar",
+              "selfHit": false
+            }
+          ],
+          "mapId": "canyon",
+          "quality": "high",
+          "visualReady": "true",
+          "source": "http://127.0.0.1:52956/assets/maps/r72/canyon-loading-high.webp?v=acb28553",
+          "natural": {
+            "width": 1024,
+            "height": 576
+          },
+          "textContrast": [
+            {
+              "id": "mapLoadingTitle",
+              "color": [
+                255,
+                247,
+                223
+              ],
+              "minimumContrast": 16.390306979548775
+            },
+            {
+              "id": "mapLoadingDesc",
+              "color": [
+                242,
+                228,
+                190
+              ],
+              "minimumContrast": 13.879788105966682
+            },
+            {
+              "id": "mapLoadingStatus",
+              "color": [
+                216,
+                163,
+                74
+              ],
+              "minimumContrast": 7.732911334295612
+            }
+          ],
+          "focal": {
+            "fit": "cover",
+            "left": 136.6,
+            "top": 207.27375,
+            "right": 1229.4,
+            "bottom": 560.7262499999999,
+            "viewport": {
+              "width": 1366,
+              "height": 768
+            },
+            "complete": true
+          },
+          "interlockSnapshot": {
+            "shown": [
+              "mapLoadingOverlay"
+            ],
+            "inert": true,
+            "hidden": true,
+            "background": [
+              {
+                "id": "startBtn",
+                "selfHit": false
+              },
+              {
+                "id": "arrow",
+                "selfHit": false
+              },
+              {
+                "id": "cannon",
+                "selfHit": false
+              },
+              {
+                "id": "frost",
+                "selfHit": false
+              },
+              {
+                "id": "tesla",
+                "selfHit": false
+              },
+              {
+                "id": "poison",
+                "selfHit": false
+              },
+              {
+                "id": "support",
+                "selfHit": false
+              },
+              {
+                "id": "beacon",
+                "selfHit": false
+              },
+              {
+                "id": "sniper",
+                "selfHit": false
+              },
+              {
+                "id": "arcane",
+                "selfHit": false
+              },
+              {
+                "id": "mortar",
+                "selfHit": false
+              }
+            ]
+          }
+        },
+        {
+          "shown": [
+            "mapLoadingOverlay"
+          ],
+          "shellInert": true,
+          "shellHidden": true,
+          "background": [
+            {
+              "id": "startBtn",
+              "selfHit": false
+            },
+            {
+              "id": "arrow",
+              "selfHit": false
+            },
+            {
+              "id": "cannon",
+              "selfHit": false
+            },
+            {
+              "id": "frost",
+              "selfHit": false
+            },
+            {
+              "id": "tesla",
+              "selfHit": false
+            },
+            {
+              "id": "poison",
+              "selfHit": false
+            },
+            {
+              "id": "support",
+              "selfHit": false
+            },
+            {
+              "id": "beacon",
+              "selfHit": false
+            },
+            {
+              "id": "sniper",
+              "selfHit": false
+            },
+            {
+              "id": "arcane",
+              "selfHit": false
+            },
+            {
+              "id": "mortar",
+              "selfHit": false
+            }
+          ],
+          "mapId": "lava",
+          "quality": "high",
+          "visualReady": "true",
+          "source": "http://127.0.0.1:52956/assets/maps/r72/lava-loading-high.webp?v=5239fc3e",
+          "natural": {
+            "width": 1024,
+            "height": 576
+          },
+          "textContrast": [
+            {
+              "id": "mapLoadingTitle",
+              "color": [
+                255,
+                247,
+                223
+              ],
+              "minimumContrast": 16.355350537998714
+            },
+            {
+              "id": "mapLoadingDesc",
+              "color": [
+                242,
+                228,
+                190
+              ],
+              "minimumContrast": 13.850185975740638
+            },
+            {
+              "id": "mapLoadingStatus",
+              "color": [
+                216,
+                163,
+                74
+              ],
+              "minimumContrast": 7.716418960882082
+            }
+          ],
+          "focal": {
+            "fit": "cover",
+            "left": 136.6,
+            "top": 207.27375,
+            "right": 1229.4,
+            "bottom": 560.7262499999999,
+            "viewport": {
+              "width": 1366,
+              "height": 768
+            },
+            "complete": true
+          },
+          "interlockSnapshot": {
+            "shown": [
+              "mapLoadingOverlay"
+            ],
+            "inert": true,
+            "hidden": true,
+            "background": [
+              {
+                "id": "startBtn",
+                "selfHit": false
+              },
+              {
+                "id": "arrow",
+                "selfHit": false
+              },
+              {
+                "id": "cannon",
+                "selfHit": false
+              },
+              {
+                "id": "frost",
+                "selfHit": false
+              },
+              {
+                "id": "tesla",
+                "selfHit": false
+              },
+              {
+                "id": "poison",
+                "selfHit": false
+              },
+              {
+                "id": "support",
+                "selfHit": false
+              },
+              {
+                "id": "beacon",
+                "selfHit": false
+              },
+              {
+                "id": "sniper",
+                "selfHit": false
+              },
+              {
+                "id": "arcane",
+                "selfHit": false
+              },
+              {
+                "id": "mortar",
+                "selfHit": false
+              }
+            ]
+          }
+        }
+      ],
+      "pathContrast": [
+        {
+          "mapId": "plains",
+          "pathSamples": 1267,
+          "groundSamples": 2081,
+          "pathLuminance": 0.27049527483771246,
+          "groundLuminance": 0.09181980420097928,
+          "contrastRatio": 2.2598767262682444
+        },
+        {
+          "mapId": "canyon",
+          "pathSamples": 1366,
+          "groundSamples": 1654,
+          "pathLuminance": 0.26316183154226014,
+          "groundLuminance": 0.08433527004301526,
+          "contrastRatio": 2.3311959059000897
+        },
+        {
+          "mapId": "lava",
+          "pathSamples": 1206,
+          "groundSamples": 1970,
+          "pathLuminance": 0.185982091790317,
+          "groundLuminance": 0.05805105407546347,
+          "contrastRatio": 2.1839869477395912
+        }
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile-390x844",
+      "selector": {
+        "expectedQuality": "med",
+        "options": [
+          {
+            "mapId": "plains",
+            "quality": "med",
+            "natural": {
+              "width": 480,
+              "height": 240
+            },
+            "rect": {
+              "left": 36,
+              "top": 206.34375,
+              "right": 360,
+              "bottom": 337.109375,
+              "width": 324,
+              "height": 130.765625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 11.4,
+                "top": 14.89,
+                "right": 102.60000000000001,
+                "bottom": 41.11
+              },
+              "holder": {
+                "width": 116,
+                "height": 58
+              },
+              "complete": true
+            }
+          },
+          {
+            "mapId": "canyon",
+            "quality": "med",
+            "natural": {
+              "width": 480,
+              "height": 240
+            },
+            "rect": {
+              "left": 33,
+              "top": 347.109375,
+              "right": 357,
+              "bottom": 477.875,
+              "width": 324,
+              "height": 130.765625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 11.4,
+                "top": 14.89,
+                "right": 102.60000000000001,
+                "bottom": 41.11
+              },
+              "holder": {
+                "width": 116,
+                "height": 58
+              },
+              "complete": true
+            }
+          },
+          {
+            "mapId": "lava",
+            "quality": "med",
+            "natural": {
+              "width": 480,
+              "height": 240
+            },
+            "rect": {
+              "left": 33,
+              "top": 487.875,
+              "right": 357,
+              "bottom": 618.640625,
+              "width": 324,
+              "height": 130.765625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 11.4,
+                "top": 14.89,
+                "right": 102.60000000000001,
+                "bottom": 41.11
+              },
+              "holder": {
+                "width": 116,
+                "height": 58
+              },
+              "complete": true
+            }
+          }
+        ],
+        "pageScroll": 0,
+        "overflowX": 0
+      },
+      "loading": [
+        {
+          "shown": [
+            "mapLoadingOverlay"
+          ],
+          "shellInert": true,
+          "shellHidden": true,
+          "background": [
+            {
+              "id": "startBtn",
+              "selfHit": false
+            },
+            {
+              "id": "arrow",
+              "selfHit": false
+            },
+            {
+              "id": "cannon",
+              "selfHit": false
+            },
+            {
+              "id": "frost",
+              "selfHit": false
+            },
+            {
+              "id": "tesla",
+              "selfHit": false
+            },
+            {
+              "id": "poison",
+              "selfHit": false
+            },
+            {
+              "id": "support",
+              "selfHit": false
+            },
+            {
+              "id": "beacon",
+              "selfHit": false
+            },
+            {
+              "id": "sniper",
+              "selfHit": false
+            },
+            {
+              "id": "arcane",
+              "selfHit": false
+            },
+            {
+              "id": "mortar",
+              "selfHit": false
+            }
+          ],
+          "mapId": "plains",
+          "quality": "med",
+          "visualReady": "true",
+          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-med.webp?v=32307665",
+          "natural": {
+            "width": 768,
+            "height": 432
+          },
+          "textContrast": [
+            {
+              "id": "mapLoadingTitle",
+              "color": [
+                255,
+                247,
+                223
+              ],
+              "minimumContrast": 16.842784380923252
+            },
+            {
+              "id": "mapLoadingDesc",
+              "color": [
+                242,
+                228,
+                190
+              ],
+              "minimumContrast": 14.26295911439578
+            },
+            {
+              "id": "mapLoadingStatus",
+              "color": [
+                216,
+                163,
+                74
+              ],
+              "minimumContrast": 7.946389192273942
+            }
+          ],
+          "focal": {
+            "fit": "contain",
+            "left": 39,
+            "top": 371.54375,
+            "right": 351,
+            "bottom": 472.45624999999995,
+            "viewport": {
+              "width": 390,
+              "height": 844
+            },
+            "complete": true
+          },
+          "interlockSnapshot": {
+            "shown": [
+              "mapLoadingOverlay"
+            ],
+            "inert": true,
+            "hidden": true,
+            "background": [
+              {
+                "id": "startBtn",
+                "selfHit": false
+              },
+              {
+                "id": "arrow",
+                "selfHit": false
+              },
+              {
+                "id": "cannon",
+                "selfHit": false
+              },
+              {
+                "id": "frost",
+                "selfHit": false
+              },
+              {
+                "id": "tesla",
+                "selfHit": false
+              },
+              {
+                "id": "poison",
+                "selfHit": false
+              },
+              {
+                "id": "support",
+                "selfHit": false
+              },
+              {
+                "id": "beacon",
+                "selfHit": false
+              },
+              {
+                "id": "sniper",
+                "selfHit": false
+              },
+              {
+                "id": "arcane",
+                "selfHit": false
+              },
+              {
+                "id": "mortar",
+                "selfHit": false
+              }
+            ]
+          }
+        }
+      ],
+      "pathContrast": [],
+      "errors": []
+    },
+    {
+      "viewport": "landscape-844x390",
+      "selector": {
+        "expectedQuality": "med",
+        "options": [
+          {
+            "mapId": "plains",
+            "quality": "med",
+            "natural": {
+              "width": 480,
+              "height": 240
+            },
+            "rect": {
+              "left": 50,
+              "top": 63.234375,
+              "right": 800,
+              "bottom": 151.625,
+              "width": 750,
+              "height": 88.390625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 12.600000000000001,
+                "top": 16.51,
+                "right": 113.4,
+                "bottom": 45.49
+              },
+              "holder": {
+                "width": 128,
+                "height": 64
+              },
+              "complete": true
+            }
+          },
+          {
+            "mapId": "canyon",
+            "quality": "med",
+            "natural": {
+              "width": 480,
+              "height": 240
+            },
+            "rect": {
+              "left": 47,
+              "top": 156.625,
+              "right": 797,
+              "bottom": 245.015625,
+              "width": 750,
+              "height": 88.390625
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 12.600000000000001,
+                "top": 16.51,
+                "right": 113.4,
+                "bottom": 45.49
+              },
+              "holder": {
+                "width": 128,
+                "height": 64
+              },
+              "complete": true
+            }
+          },
+          {
+            "mapId": "lava",
+            "quality": "med",
+            "natural": {
+              "width": 480,
+              "height": 240
+            },
+            "rect": {
+              "left": 47,
+              "top": 250.015625,
+              "right": 797,
+              "bottom": 328.015625,
+              "width": 750,
+              "height": 78
+            },
+            "inViewport": true,
+            "hit": true,
+            "focal": {
+              "focal": {
+                "left": 12.600000000000001,
+                "top": 16.51,
+                "right": 113.4,
+                "bottom": 45.49
+              },
+              "holder": {
+                "width": 128,
+                "height": 64
+              },
+              "complete": true
+            }
+          }
+        ],
+        "pageScroll": 0,
+        "overflowX": 0
+      },
+      "loading": [
+        {
+          "shown": [
+            "mapLoadingOverlay"
+          ],
+          "shellInert": true,
+          "shellHidden": true,
+          "background": [
+            {
+              "id": "startBtn",
+              "selfHit": false
+            },
+            {
+              "id": "arrow",
+              "selfHit": false
+            },
+            {
+              "id": "cannon",
+              "selfHit": false
+            },
+            {
+              "id": "frost",
+              "selfHit": false
+            },
+            {
+              "id": "tesla",
+              "selfHit": false
+            },
+            {
+              "id": "poison",
+              "selfHit": false
+            },
+            {
+              "id": "support",
+              "selfHit": false
+            },
+            {
+              "id": "beacon",
+              "selfHit": false
+            },
+            {
+              "id": "sniper",
+              "selfHit": false
+            },
+            {
+              "id": "arcane",
+              "selfHit": false
+            },
+            {
+              "id": "mortar",
+              "selfHit": false
+            }
+          ],
+          "mapId": "plains",
+          "quality": "med",
+          "visualReady": "true",
+          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-med.webp?v=32307665",
+          "natural": {
+            "width": 768,
+            "height": 432
+          },
+          "textContrast": [
+            {
+              "id": "mapLoadingTitle",
+              "color": [
+                255,
+                247,
+                223
+              ],
+              "minimumContrast": 16.842784380923252
+            },
+            {
+              "id": "mapLoadingDesc",
+              "color": [
+                242,
+                228,
+                190
+              ],
+              "minimumContrast": 14.26295911439578
+            },
+            {
+              "id": "mapLoadingStatus",
+              "color": [
+                216,
+                163,
+                74
+              ],
+              "minimumContrast": 7.946389192273942
+            }
+          ],
+          "focal": {
+            "fit": "cover",
+            "left": 84.4,
+            "top": 85.80750000000003,
+            "right": 759.6,
+            "bottom": 304.1925,
+            "viewport": {
+              "width": 844,
+              "height": 390
+            },
+            "complete": true
+          },
+          "interlockSnapshot": {
+            "shown": [
+              "mapLoadingOverlay"
+            ],
+            "inert": true,
+            "hidden": true,
+            "background": [
+              {
+                "id": "startBtn",
+                "selfHit": false
+              },
+              {
+                "id": "arrow",
+                "selfHit": false
+              },
+              {
+                "id": "cannon",
+                "selfHit": false
+              },
+              {
+                "id": "frost",
+                "selfHit": false
+              },
+              {
+                "id": "tesla",
+                "selfHit": false
+              },
+              {
+                "id": "poison",
+                "selfHit": false
+              },
+              {
+                "id": "support",
+                "selfHit": false
+              },
+              {
+                "id": "beacon",
+                "selfHit": false
+              },
+              {
+                "id": "sniper",
+                "selfHit": false
+              },
+              {
+                "id": "arcane",
+                "selfHit": false
+              },
+              {
+                "id": "mortar",
+                "selfHit": false
+              }
+            ]
+          }
+        }
+      ],
+      "pathContrast": [],
+      "errors": []
+    }
+  ],
+  "quality": {
+    "records": [
+      {
+        "quality": "low",
+        "asset": {
+          "map_id": "plains",
+          "map_label": "翠綠平原",
+          "variant": "loading-low",
+          "path": "assets/maps/r72/plains-loading-low.webp",
+          "sha256": "822eb164df9e27c8eafffbce54ebb5d7c1cc687e49e0ee7651dc052fc7823088",
+          "width": 512,
+          "height": 288,
+          "decoded_rgba_bytes": 589824,
+          "postprocess": [
+            "deterministic center crop to 1.777778:1",
+            "Pillow Lanczos resize to 512x288",
+            "Pillow WebP quality=82 method=6"
+          ]
+        },
+        "stats": {
+          "natural": {
+            "width": 512,
+            "height": 288
+          },
+          "mean": [
+            0.19175163398689057,
+            0.25509286492374905,
+            0.12744281045751632
+          ],
+          "variance": [
+            0.011281673971561282,
+            0.003994876836823882,
+            0.0006400785354986546
+          ],
+          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-low.webp?v=822eb164"
+        }
+      },
+      {
+        "quality": "med",
+        "asset": {
+          "map_id": "plains",
+          "map_label": "翠綠平原",
+          "variant": "loading-med",
+          "path": "assets/maps/r72/plains-loading-med.webp",
+          "sha256": "323076659806e00ae12cb8f53610a3f685f9ba4e64f199ee8973710d7509b4ee",
+          "width": 768,
+          "height": 432,
+          "decoded_rgba_bytes": 1327104,
+          "postprocess": [
+            "deterministic center crop to 1.777778:1",
+            "Pillow Lanczos resize to 768x432",
+            "Pillow WebP quality=82 method=6"
+          ]
+        },
+        "stats": {
+          "natural": {
+            "width": 768,
+            "height": 432
+          },
+          "mean": [
+            0.1903011982570425,
+            0.25374455337690927,
+            0.12618845315904245
+          ],
+          "variance": [
+            0.011106800432597333,
+            0.003779152953692508,
+            0.00042998789520547545
+          ],
+          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-med.webp?v=32307665"
+        }
+      },
+      {
+        "quality": "high",
+        "asset": {
+          "map_id": "plains",
+          "map_label": "翠綠平原",
+          "variant": "loading-high",
+          "path": "assets/maps/r72/plains-loading-high.webp",
+          "sha256": "7a8d17532b6fca8e0185f37b29bb108f82c10d26ba630b25630f603e7b46b82a",
+          "width": 1024,
+          "height": 576,
+          "decoded_rgba_bytes": 2359296,
+          "postprocess": [
+            "deterministic center crop to 1.777778:1",
+            "Pillow Lanczos resize to 1024x576",
+            "Pillow WebP quality=82 method=6"
+          ]
+        },
+        "stats": {
+          "natural": {
+            "width": 1024,
+            "height": 576
+          },
+          "mean": [
+            0.1906448801742549,
+            0.2534855664488026,
+            0.1260882352941177
+          ],
+          "variance": [
+            0.01138669037076187,
+            0.003979711328900293,
+            0.00046203288265126916
+          ],
+          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-high.webp?v=7a8d1753"
+        }
+      }
+    ],
+    "meanSpread": 0.12900462962963136
+  },
+  "performance": [
+    {
+      "target": "desktop",
+      "concurrentUntrusted": true,
+      "interactiveMs": 4972.699999809265,
+      "interactiveLimitMs": 5971.8,
+      "selectorVisualMs": 334,
+      "loadingVisualMs": 170.90000009536743,
+      "quality": "low",
+      "throttle": {
+        "network": "Fast 3G",
+        "latencyMs": 150,
+        "cpuRate": 4
+      }
+    },
+    {
+      "target": "mobile",
+      "concurrentUntrusted": true,
+      "interactiveMs": 4796.299999713898,
+      "interactiveLimitMs": 5371.6,
+      "selectorVisualMs": 318.40000009536743,
+      "loadingVisualMs": 161.59999990463257,
+      "quality": "low",
+      "throttle": {
+        "network": "Fast 3G",
+        "latencyMs": 150,
+        "cpuRate": 4
+      }
+    }
+  ]
+}

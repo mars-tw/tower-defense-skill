@@ -284,8 +284,13 @@ async function run() {
     assert(quickIntro.tutorialShown && quickIntro.quickText.includes("快速開始") && quickIntro.advancedText.includes("進階選項"),
       "首次進入顯示快速開始與進階選項");
     await page.click("#tutorialQuick");
-    await page.waitForFunction(() => document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
-    await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
+    // R75：高負載機況下 loading 覆層可能在兩次輪詢間開完又自動關閉——
+    // 以持久的 r72VisualReady dataset 當「已顯示過」證據，避免取樣競態誤紅。
+    await page.waitForFunction(() => {
+      const overlay = document.getElementById("mapLoadingOverlay");
+      return overlay.classList.contains("show") || overlay.dataset.r72VisualReady === "true";
+    }, null, { timeout: 15000 });
+    await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 15000 });
     const quickState = await page.evaluate(() => ({
       tutorialShown: document.getElementById("tutorial").classList.contains("show"),
       diffShown: document.getElementById("diffOverlay").classList.contains("show"),
@@ -301,6 +306,22 @@ async function run() {
     await page.reload();
     await page.waitForFunction(() => window.TD && window.TD.state);
     await sleep(300);
+    // R75：mission-toast 1.9 秒後自動移除；高負載機況下取樣常晚於移除，且中段狀態操演
+    // （顧問 R29 等）可能提前觸發領獎 toast——主流程一開始就掛 MutationObserver，
+    // 於 toast「建立當下」錄制 aria-live 與內文，取樣不再受排程延遲與階段先後影響。
+    await page.evaluate(() => {
+      window.__tdToastRecord = [];
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType === 1 && node.classList && node.classList.contains("mission-toast")) {
+              window.__tdToastRecord.push({ ariaLive: node.getAttribute("aria-live"), text: node.textContent });
+            }
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true });
+    });
     // 難度浮層：點「普通」→ 地圖浮層：點「迂迴峽谷」
     await page.evaluate(() => {
       const opt = [...document.querySelectorAll(".diff-opt")].find((o) => o.textContent.includes("普通"));
@@ -945,11 +966,13 @@ async function run() {
         crystal: meta.soulCrystal,
         firstTower: meta.beginnerMissions && meta.beginnerMissions.firstTower === true,
         text: document.getElementById("beginnerMissions").innerHTML,
-        toastLive: document.querySelector(".mission-toast") && document.querySelector(".mission-toast").getAttribute("aria-live"),
+        toastLive: (document.querySelector(".mission-toast") && document.querySelector(".mission-toast").getAttribute("aria-live")) ||
+          (window.__tdToastRecord && window.__tdToastRecord.length
+            ? window.__tdToastRecord[window.__tdToastRecord.length - 1].ariaLive : null),
       };
     });
     assert(missionAfterBuild.firstTower && missionAfterBuild.crystal >= 4 && missionAfterBuild.toastLive === "polite",
-      `建塔後新手任務立即領獎（魂晶 ${missionAfterBuild.crystal}）`);
+      `建塔後新手任務立即領獎（魂晶 ${missionAfterBuild.crystal}｜firstTower=${missionAfterBuild.firstTower}｜toastLive=${missionAfterBuild.toastLive}）`);
 
     // Stage 4：毒霧塔 DoT 與聖光塔 buff
     const stage4Combat = await page.evaluate(async () => {

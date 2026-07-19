@@ -273,13 +273,23 @@
 
   function syncAdvisorGeometry() {
     const dock = $("sceneControls");
+    const doc = document.documentElement;
     if (!dock || !window.matchMedia("(max-width: 900px)").matches) {
-      document.documentElement.style.removeProperty("--r71-drawer-safe-bottom");
+      doc.style.removeProperty("--r71-drawer-safe-bottom");
+      doc.style.removeProperty("--r75-drawer-max-height");
       return;
     }
+    // R75：橫向矮視口時控制盤移到戰場右側（頂緣貼近視口頂），沿用直向公式
+    // innerHeight - dockRect.top 會得到巨大 safe-bottom，把固定抽屜整個頂出畫面頂（menuscan P0）。
+    // 只有控制盤真的是「貼底列」（頂緣在視口下半且底緣接近視口底）才需要避讓；否則抽屜貼底 8px。
+    const viewH = window.innerHeight;
     const dockRect = dock.getBoundingClientRect();
-    const safeBottom = Math.max(8, window.innerHeight - dockRect.top + 8);
-    document.documentElement.style.setProperty("--r71-drawer-safe-bottom", `${Math.ceil(safeBottom)}px`);
+    const dockIsBottomBar = dockRect.top > viewH * 0.5 && dockRect.bottom > viewH - 120;
+    const safeBottom = dockIsBottomBar ? Math.max(8, viewH - dockRect.top + 8) : 8;
+    doc.style.setProperty("--r71-drawer-safe-bottom", `${Math.ceil(safeBottom)}px`);
+    // 依實際視口重算抽屜可用高度（頂緣至少留 8px 在畫面內），resize/orientationchange 都會重跑。
+    const maxHeight = Math.max(120, viewH - safeBottom - 8);
+    doc.style.setProperty("--r75-drawer-max-height", `${Math.floor(maxHeight)}px`);
   }
 
   function syncR71ModalState() {
@@ -559,6 +569,7 @@
     $("revealHero").innerHTML = "";
     $("revealName").textContent = "";
     $("revealRarity").textContent = "";
+    if ($("revealQuote")) $("revealQuote").textContent = "";
     $("revealOk").textContent = options.doneLabel || "收下";
     ov.classList.add("show");
 
@@ -571,7 +582,10 @@
         ov.style.setProperty("--rev-glow", r.glow);
         $("revealHero").innerHTML = heroAvatar(hero);
         $("revealName").textContent = hero.name + (isNew ? " ✨新英雄" : refund ? ` （重複 +${refund}💎）` : "");
-        $("revealRarity").textContent = "★".repeat(r.stars) + " " + r.label;
+        // R75：抽卡回饋——稱號＋台詞（HERO_LEGENDS/DEPLOY_QUOTES 純資料，缺料時安靜退回原樣）。
+        const revealLore = LORE.gachaRevealFor ? LORE.gachaRevealFor(hero.id) : { epithet: "", quote: "" };
+        $("revealRarity").textContent = "★".repeat(r.stars) + " " + r.label + (revealLore.epithet ? " · " + revealLore.epithet : "");
+        if ($("revealQuote")) $("revealQuote").textContent = revealLore.quote ? `「${revealLore.quote}」` : "";
         reveal.classList.add("show");
         focusSoon($("revealOk"));
         if (hero.rarity === "legendary" || hero.rarity === "epic") gachaConfetti();
@@ -1180,6 +1194,11 @@
     const advisorRestoreHtml = advisorHidden
       ? '<button type="button" class="advisor-restore" data-advisor-show>顯示顧問</button>'
       : "";
+    // R75 B-02 最小版：確定性波次預告詞；channel=banner（≤40 波）才上情報卡。
+    const herald = LORE.waveHeraldFor ? LORE.waveHeraldFor(p.wave, p.event && p.event.id, p.isBoss) : null;
+    const heraldHtml = herald && herald.channel === "banner"
+      ? `<div class="nw-herald">📯 ${herald.text}</div>`
+      : "";
     const advisorHtml = advisorHidden ? "" : `
       <div class="advisor-row ${advisorCollapsed ? "collapsed" : ""}">
         <div class="advisor-head">
@@ -1201,6 +1220,7 @@
     box.innerHTML = `
       <div class="nw-title">🧭 下一波情報：第 ${p.wave} 波</div>
       <div class="nw-meta">${event} · 主元素 ${theme} · 敵人 ${p.totalCount || p.count} 隻${affixText}</div>
+      ${heraldHtml}
       <div class="enemy-chip-row">
         ${enemyTypes.map((item) => {
           const e = ENEMIES[item.type];
@@ -1545,7 +1565,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r72-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r75-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }
@@ -1894,6 +1914,11 @@
     const p = TD.previewNextWave ? TD.previewNextWave({ advisorMode }) : null;
     if (p && p.counterWarning) showWaveWarning(p.counterWarning);
     else hideWaveWarning();
+    // R75 B-02：>40 波預告詞只進戰報 log，不佔 banner/情報卡（裁決縮幅版）。
+    if (p && LORE.waveHeraldFor) {
+      const herald = LORE.waveHeraldFor(p.wave, p.event && p.event.id, p.isBoss);
+      if (herald && herald.channel === "log") pushLog(`📯 ${herald.text}`);
+    }
     TD.startWave();
     refreshUI();
   }
@@ -2421,7 +2446,16 @@
   }
   window.addEventListener("resize", () => {
     fitCanvasToStage();
+    syncAdvisorGeometry(); // R75：視口/方向變更即重算抽屜 safe-bottom 與可用高度
     syncR71ModalState();
+  }, { passive: true });
+  window.addEventListener("orientationchange", () => {
+    // R75：部分瀏覽器 orientationchange 當下 innerHeight 尚未更新，下一幀再量。
+    requestAnimationFrame(() => {
+      fitCanvasToStage();
+      syncAdvisorGeometry();
+      syncR71ModalState();
+    });
   }, { passive: true });
   const battlefieldScroll = $("battlefieldScroll");
   if (battlefieldScroll) battlefieldScroll.addEventListener("scroll", refreshScenePositions, { passive: true });

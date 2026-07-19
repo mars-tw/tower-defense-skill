@@ -24,6 +24,9 @@ const {
   mapLoreFor,
   deployQuoteFor,
   waveBeatFor,
+  waveHeraldFor,
+  gachaRevealFor,
+  WAVE_HERALD_TEMPLATES,
   eventFlavorFor,
   bossIntroFor,
 } = lore;
@@ -122,6 +125,54 @@ console.log("\n== 登場台詞（B-03）==");
   }
   assert(deployQuoteFor("missing") === "", "未知英雄登場台詞回傳空字串");
   assert(deployQuoteFor(undefined) === "", "undefined 英雄 id 回傳空字串");
+}
+
+console.log("\n== 波次預告詞（R75 B-02 最小版）==");
+{
+  assert(Array.isArray(WAVE_HERALD_TEMPLATES) && WAVE_HERALD_TEMPLATES.length === 4,
+    "確定性模板恰為 4 句");
+  for (const tpl of WAVE_HERALD_TEMPLATES) {
+    assert(tpl.includes("{wave}"), `模板含 {wave} 佔位（${tpl.slice(0, 10)}…）`);
+  }
+  // 確定性：同輸入永遠同輸出
+  const a = waveHeraldFor(3, null, false);
+  const b = waveHeraldFor(3, null, false);
+  assert(JSON.stringify(a) === JSON.stringify(b), "同 (wave,event,boss) 輸出確定相同");
+  assert(a.text.includes("3") && !a.text.includes("{wave}"), "模板波數已代入");
+  // 模板以波數輪替（取非里程碑、非 Boss 波取樣）
+  const t2 = waveHeraldFor(2, null, false).text;
+  const t6 = waveHeraldFor(6, null, false).text;
+  assert(waveHeraldFor(2, null, false).source === "template" && t2 !== t6,
+    "非里程碑波使用模板且逐波輪替");
+  // 里程碑波優先使用 WAVE_BEATS（即使同時是事件/Boss 波）
+  for (const key of Object.keys(WAVE_BEATS)) {
+    const beat = waveHeraldFor(Number(key), "rush", true);
+    assert(beat.source === "beat" && beat.text.includes(WAVE_BEATS[key].title),
+      `第 ${key} 波預告使用里程碑文本`);
+  }
+  // Boss 波（非里程碑）使用魔王開場
+  const boss = waveHeraldFor(20, null, true);
+  assert(boss.source === "boss" && boss.text === BOSS_INTRO.boss, "Boss 波預告使用魔王開場");
+  // 事件波附掛事件風味
+  const rush = waveHeraldFor(7, "rush", false);
+  assert(rush.source === "event" && rush.text.includes(EVENT_FLAVOR.rush), "事件波附掛事件風味");
+  // 40 波裁決：≤40 上 banner、>40 僅入 log
+  assert(waveHeraldFor(40, null, true).channel === "banner", "第 40 波仍上 banner");
+  assert(waveHeraldFor(41, null, false).channel === "log", "第 41 波僅入 log");
+  assert(waveHeraldFor(88, "swarm", false).channel === "log", "高波數事件波亦僅入 log");
+  assert(waveHeraldFor(0, null, false).wave === 1, "非法波數收斂為 1");
+}
+
+console.log("\n== 抽卡揭示回饋（R75）==");
+{
+  const heroIds = Object.keys(heroes.HEROES).sort();
+  for (const id of heroIds) {
+    const reveal = gachaRevealFor(id);
+    assert(!!reveal.epithet && reveal.epithet.length >= 2, `${id} 揭示稱號非空（${reveal.epithet}）`);
+    assert(!!reveal.quote && reveal.quote === deployQuoteFor(id), `${id} 揭示台詞與登場台詞一致`);
+  }
+  const missing = gachaRevealFor("missing");
+  assert(missing.epithet === "" && missing.quote === "", "未知英雄揭示回饋回傳空字串");
 }
 
 console.log("");

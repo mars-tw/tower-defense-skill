@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r72-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r75-v1" />
 <!-- R72：39 KiB 真 low banner 保底先於 gameplay 貼圖排隊；high/med 仍按選擇時載入。 -->
 <link rel="preload" as="image" href="assets/maps/r72/plains-banner-low.webp?v=d040c3b6" fetchpriority="high" />
 <link rel="preload" as="image" href="assets/maps/r72/canyon-banner-low.webp?v=41fcb341" fetchpriority="high" />
@@ -87,8 +87,9 @@
     background: linear-gradient(180deg, var(--surface-1), var(--surface-0));
     border: 1px solid var(--border-soft); border-radius: 14px; flex-wrap: wrap;
     box-shadow: var(--shadow-card); }
+  /* R75：HUD 字級/間距節奏統一（stat 16px/.3px、dock-label 12px/.4px、標題 .4px）。 */
   .hud .stat { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 16px;
-    font-variant-numeric: tabular-nums; }
+    letter-spacing: .3px; font-variant-numeric: tabular-nums; }
   .hud .gold { color: var(--gold); } .hud .lives { color: var(--hp); }
   .hud .wave { color: var(--accent); } .hud .score { color: var(--info); } .hud .best { color: var(--gold); }
   .hud .lives.danger { animation: dangerBlink .6s infinite; }
@@ -118,7 +119,7 @@
   /* 側欄 */
   .panel { width: 216px; display: flex; flex-direction: column; gap: var(--space); }
   .panel h3 { font-size: 13px; font-weight: 800; color: var(--ink-dim); margin: 4px 0 2px;
-    letter-spacing: .5px; text-transform: none; }
+    letter-spacing: .4px; text-transform: none; }
   .tower-btn, .skill-btn {
     display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 11px;
     background: var(--surface-1); border: 1px solid var(--border-soft);
@@ -185,6 +186,8 @@
   }
   .next-wave-card .nw-title, .mission-panel .mission-title, .enemy-info .enemy-title, .affix-card .affix-title { font-weight: 900; color: var(--gold); margin-bottom: 5px; }
   .next-wave-card .nw-meta, .mission-progress, .affix-card .affix-desc, .affix-card .affix-balance, .affix-card .affix-impact { color: var(--ink-dim); font-size: 11px; }
+  /* R75 B-02：波次預告詞（≤40 波顯示於情報卡；>40 僅入戰報 log）。 */
+  .next-wave-card .nw-herald { margin-top: 5px; color: #fde68a; font-size: 11px; line-height: 1.45; }
   .event-badge { display: inline-flex; align-items: center; gap: 3px; border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--event-color, #facc15) 70%, transparent);
     background: color-mix(in srgb, var(--event-color, #facc15) 18%, transparent);
@@ -215,12 +218,14 @@
   .advisor-head { display: flex; align-items: center; justify-content: space-between; gap: 6px;
     padding: 6px 7px; color: var(--accent); font-size: 11px; font-weight: 900; }
   .advisor-tools { display: flex; gap: 4px; }
-  .advisor-tools button { border: 1px solid var(--border-soft); border-radius: 7px; background: var(--surface-1);
-    color: var(--ink-dim); padding: 3px 5px; font: inherit; font-size: 10px; font-weight: 900; cursor: pointer; }
+  /* R75：收合/關閉徽章原 32×22 是觸控黑洞（menuscan P1），命中區拉到 ≥44px。 */
+  .advisor-tools button { border: 1px solid var(--border-soft); border-radius: 9px; background: var(--surface-1);
+    color: var(--ink-dim); min-width: 44px; min-height: 44px; padding: 3px 8px;
+    font: inherit; font-size: 11px; font-weight: 900; cursor: pointer; }
   .advisor-mode { display: flex; gap: 4px; padding: 0 7px 6px; }
   .advisor-mode button { flex: 1; border: 1px solid rgba(74,222,128,.18); border-radius: 7px;
-    background: rgba(12,22,32,.72); color: var(--ink-dim); padding: 4px 5px; font: inherit;
-    font-size: 10px; font-weight: 900; cursor: pointer; }
+    background: rgba(12,22,32,.72); color: var(--ink-dim); padding: 4px 5px; min-height: 36px;
+    font: inherit; font-size: 10px; font-weight: 900; cursor: pointer; }
   .advisor-mode button.active { background: rgba(74,222,128,.18); color: var(--accent); }
   .advisor-actions { display: grid; gap: 4px; padding: 0 7px 7px; }
   .advisor-row.collapsed .advisor-actions { display: none; }
@@ -314,8 +319,18 @@
     border: 1px solid var(--border-soft); border-radius: 10px; }
   #log .bad { color: var(--hp); font-weight: 700; }
 
+  /* R75：橫向矮視口（844×390）結算內容高於視口——改為可捲容器；置中改用 ::before/::after
+     auto margin（內容溢出時 margin 歸零、從頂部開捲，不再像 justify-content:center 上下雙向裁切）。
+     z-index 提到抽屜浮層（64）之上，結算時不被固定抽屜蓋住。 */
   .overlay { position: fixed; inset: 0; background: rgba(8,12,10,.92); display: none;
-    flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 50; }
+    flex-direction: column; align-items: center; gap: 16px; z-index: 70;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right))
+      max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); }
+  .overlay::before, .overlay::after { content: ""; flex: 0 0 auto; }
+  .overlay::before { margin-top: auto; }
+  .overlay::after { margin-bottom: auto; }
+  .overlay > * { flex: 0 0 auto; }
   .overlay.show { display: flex; }
   .overlay h2 { font-size: 40px; color: #f87171; }
   .overlay .res { font-size: 20px; color: #facc15; }
@@ -372,6 +387,10 @@
   .reveal-name { font-size: 28px; font-weight: 900; color: var(--rev-color, #fff);
     text-shadow: 0 0 16px var(--rev-glow); z-index: 2; position: relative; }
   .reveal-rarity { font-size: 18px; font-weight: 800; color: var(--rev-color); letter-spacing: 3px; z-index: 2; position: relative; }
+  /* R75：抽卡回饋——揭示畫面加英雄稱號台詞，讓抽到誰「有人設」。 */
+  .reveal-quote { max-width: min(320px, 84vw); color: var(--ink); font-size: 14px; line-height: 1.55;
+    text-align: center; z-index: 2; position: relative; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  .reveal-quote:empty { display: none; }
   .reveal-ok { background: linear-gradient(180deg,#4ade80,#22c55e); color: #06210f; border: none;
     padding: 12px 36px; border-radius: 24px; font-size: 16px; font-weight: 800; cursor: pointer;
     z-index: 2; position: relative; margin-top: 8px; }
@@ -888,7 +907,7 @@
     backdrop-filter: blur(10px); pointer-events: auto;
   }
   .dock-row { display: flex; align-items: center; min-width: 0; gap: 7px; }
-  .dock-label { flex: 0 0 auto; color: #d8e8dc; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .dock-label { flex: 0 0 auto; color: #d8e8dc; font-size: 12px; letter-spacing: .4px; font-weight: 900; white-space: nowrap; }
   .build-row { justify-content: center; }
   #towerList.build-dock {
     display: flex; flex-direction: row; flex-wrap: nowrap; gap: 5px; width: auto; max-width: 100%;
@@ -972,7 +991,7 @@
   .panel-drawer { border: 1px solid var(--border-soft); border-radius: 11px; background: rgba(255,255,255,.035); overflow: clip; }
   .panel-drawer summary {
     list-style: none; cursor: pointer; min-height: 42px; display: flex; align-items: center; padding: 9px 11px;
-    color: var(--ink); font-size: 13px; font-weight: 900; background: linear-gradient(180deg,var(--surface-2),var(--surface-1));
+    color: var(--ink); font-size: 13px; letter-spacing: .4px; font-weight: 900; background: linear-gradient(180deg,var(--surface-2),var(--surface-1));
   }
   .panel-drawer summary::-webkit-details-marker { display: none; }
   .panel-drawer summary::after { content: "＋"; margin-left: auto; color: var(--ink-dim); }
@@ -1044,7 +1063,8 @@
     .panel-drawer[open] > .drawer-body {
       position: fixed; z-index: 64; left: max(7px,env(safe-area-inset-left)); right: max(7px,env(safe-area-inset-right));
       bottom: var(--r71-drawer-safe-bottom, calc(var(--r64-control-height) + max(8px,env(safe-area-inset-bottom))));
-      max-height: min(52dvh, 430px); overflow-y: auto; border: 1px solid var(--border-hi); border-radius: 13px;
+      /* R75：橫向時 JS 依實際視口重算可用高度（--r75-drawer-max-height），保證抽屜頂緣留在畫面內。 */
+      max-height: min(var(--r75-drawer-max-height, 52dvh), 430px); overflow-y: auto; border: 1px solid var(--border-hi); border-radius: 13px;
       background: linear-gradient(180deg,rgba(25,43,32,.99),rgba(7,17,11,.99)); box-shadow: 0 12px 36px rgba(0,0,0,.7);
     }
     body.r71-advisor-modal .advisor-backdrop { display: block; }
@@ -1325,6 +1345,7 @@
         <div class="reveal-hero" id="revealHero"></div>
         <div class="reveal-name" id="revealName"></div>
         <div class="reveal-rarity" id="revealRarity"></div>
+        <div class="reveal-quote" id="revealQuote"></div>
         <button class="reveal-ok" id="revealOk">收下</button>
       </div>
     </div>
@@ -1481,18 +1502,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r72-v1"></script>
-  <script src="src/heroes.js?v=td-r72-v1"></script>
-  <script src="src/rules.js?v=td-r72-v1"></script>
-  <script src="src/lore.js?v=td-r72-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r72-v1"></script>
-  <script src="src/hero-animation.js?v=td-r72-v1"></script>
-  <script src="src/game.js?v=td-r72-v1"></script>
-  <script src="src/ui.js?v=td-r72-v1"></script>
+  <script src="src/config.js?v=td-r75-v1"></script>
+  <script src="src/heroes.js?v=td-r75-v1"></script>
+  <script src="src/rules.js?v=td-r75-v1"></script>
+  <script src="src/lore.js?v=td-r75-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r75-v1"></script>
+  <script src="src/hero-animation.js?v=td-r75-v1"></script>
+  <script src="src/game.js?v=td-r75-v1"></script>
+  <script src="src/ui.js?v=td-r75-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r72-v1";
+      const PWA_VERSION = "td-r75-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

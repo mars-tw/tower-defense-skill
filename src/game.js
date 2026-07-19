@@ -2123,7 +2123,9 @@
     if (!atlas || !atlas.complete || atlas.naturalWidth <= 0) return false;
     const cell = HERO_ANIMATION_ATLAS.cellSize;
     const row = animation.rows[h.facing] == null ? animation.rows.down : animation.rows[h.facing];
-    ctx.drawImage(atlas, column * cell, row * cell, cell, cell, h.x - size / 2, h.y - size / 2, size, size);
+    // R75：英雄同樣吃剪影描邊版 atlas（bake 完成前照畫原圖）。
+    const source = r75OutlinedSprite(atlas, "hero-atlas", cell, cell, 3) || atlas;
+    ctx.drawImage(source, column * cell, row * cell, cell, cell, h.x - size / 2, h.y - size / 2, size, size);
     return true;
   }
 
@@ -2161,8 +2163,8 @@
     ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(gd.x, gd.y, CELL, 0, Math.PI * 2); ctx.fill();
     // 受擊閃紅
     if (gd.hitFlash > 0) { ctx.fillStyle = `rgba(239,68,68,${gd.hitFlash})`; ctx.beginPath(); ctx.arc(gd.x, gd.y, CELL * 0.9, 0, Math.PI * 2); ctx.fill(); }
-    // 女神本體
-    drawSprite("assets/core/goddess.png", GODDESS.emoji, gd.x, gd.y, CELL * 1.3);
+    // 女神本體（R75：同步剪影描邊，避免亮背景吃掉輪廓）
+    drawSprite("assets/core/goddess.png", GODDESS.emoji, gd.x, gd.y, CELL * 1.3, undefined, 3);
     // 生命條
     const w = CELL * 1.4, pct = Math.max(0, gd.hp / gd.maxHp);
     ctx.fillStyle = "rgba(0,0,0,.7)"; ctx.fillRect(gd.x - w / 2, gd.y - CELL * 0.95, w, 6);
@@ -2194,6 +2196,23 @@
             ready = false;
             bg.fillStyle = (cx + cy) % 2 ? "#13241a" : "#15281d";
             bg.fillRect(cx * CELL, cy * CELL, CELL, CELL);
+          }
+          // R75 磚面層次：確定性（cx,cy 雜湊）頂緣亮光＋底緣壓影＋稀疏色斑，
+          // 砍掉整片平鋪的「換色占位」塑膠感；只在 bake 時畫一次，不加每幀成本。
+          const tileHash = (((cx + 1) * 73856093) ^ ((cy + 1) * 19349663)) >>> 0;
+          const topAlpha = 0.03 + (tileHash % 5) * 0.008;
+          const bottomAlpha = 0.055 + ((tileHash >> 3) % 5) * 0.011;
+          bg.fillStyle = `rgba(236,252,233,${topAlpha.toFixed(3)})`;
+          bg.fillRect(cx * CELL, cy * CELL, CELL, 2);
+          bg.fillStyle = `rgba(4,10,7,${bottomAlpha.toFixed(3)})`;
+          bg.fillRect(cx * CELL, cy * CELL + CELL - 3, CELL, 3);
+          if (tileHash % 7 === 0) {
+            bg.fillStyle = "rgba(8,20,12,.10)";
+            bg.beginPath();
+            bg.arc(cx * CELL + 8 + (tileHash % Math.max(1, CELL - 16)),
+              cy * CELL + 8 + ((tileHash >> 5) % Math.max(1, CELL - 16)),
+              5 + (tileHash % 8), 0, Math.PI * 2);
+            bg.fill();
           }
         }
       }
@@ -2433,9 +2452,63 @@
       return c;
     } catch { return im; } // 失敗則退回原圖
   }
-  function drawSprite(path, emoji, x, y, size, color) {
-    const im = getImg(path);
-    if (im && im.complete && im.naturalWidth > 0) { usePixelArt(ctx); ctx.drawImage(im, x - size / 2, y - size / 2, size, size); }
+  // ===== R75 程序化精緻化：sprite/atlas 剪影描邊 =====
+  // 64px 縮圖可辨性：單位貼圖離屏 bake 一份「深色 1px（螢幕等效）剪影描邊」版本。
+  // bake 排進 idle（或 setTimeout 0），完成前照畫原圖——不搶戰鬥幀、每幀 draw call 數不變。
+  const R75_OUTLINE_COLOR = "rgba(9,14,10,.92)";
+  const r75OutlineCache = new Map(); // key -> { canvas: HTMLCanvasElement | null }
+  function r75BakeOutline(image, cellW, cellH, thickness) {
+    const w = image.naturalWidth || image.width, h = image.naturalHeight || image.height;
+    const cw = cellW || w, ch = cellH || h;
+    const cols = Math.max(1, Math.round(w / cw)), rows = Math.max(1, Math.round(h / ch));
+    const out = document.createElement("canvas");
+    out.width = w; out.height = h;
+    const octx = out.getContext("2d");
+    usePixelArt(octx);
+    const sil = document.createElement("canvas");
+    sil.width = cw; sil.height = ch;
+    const sctx = sil.getContext("2d");
+    usePixelArt(sctx);
+    const t = Math.max(1, Math.round(thickness || 1));
+    const offsets = [[t, 0], [-t, 0], [0, t], [0, -t], [t, t], [t, -t], [-t, t], [-t, -t]];
+    // 逐格 bake＋逐格 clip：atlas 格與格之間描邊不互滲。
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        sctx.globalCompositeOperation = "source-over";
+        sctx.clearRect(0, 0, cw, ch);
+        sctx.drawImage(image, col * cw, row * ch, cw, ch, 0, 0, cw, ch);
+        sctx.globalCompositeOperation = "source-in";
+        sctx.fillStyle = R75_OUTLINE_COLOR;
+        sctx.fillRect(0, 0, cw, ch);
+        octx.save();
+        octx.beginPath(); octx.rect(col * cw, row * ch, cw, ch); octx.clip();
+        for (const [dx, dy] of offsets) octx.drawImage(sil, col * cw + dx, row * ch + dy);
+        octx.restore();
+      }
+    }
+    octx.drawImage(image, 0, 0);
+    return out;
+  }
+  function r75OutlinedSprite(image, key, cellW, cellH, thickness) {
+    if (!image || !image.complete || !(image.naturalWidth > 0)) return null;
+    const entry = r75OutlineCache.get(key);
+    if (entry) return entry.canvas;
+    r75OutlineCache.set(key, { canvas: null }); // 佔位避免重複排程
+    const bake = () => {
+      let canvas = null;
+      try { canvas = r75BakeOutline(image, cellW, cellH, thickness); } catch { canvas = null; }
+      r75OutlineCache.set(key, { canvas });
+    };
+    if (typeof requestIdleCallback === "function") requestIdleCallback(bake, { timeout: 900 });
+    else setTimeout(bake, 0);
+    return null;
+  }
+  function drawSprite(path, emoji, x, y, size, color, outlineThickness) {
+    let im = getImg(path);
+    if (im && im.complete && im.naturalWidth > 0) {
+      if (outlineThickness) im = r75OutlinedSprite(im, "sprite:" + path, 0, 0, outlineThickness) || im;
+      usePixelArt(ctx); ctx.drawImage(im, x - size / 2, y - size / 2, size, size);
+    }
     else if (emoji) { ctx.font = size * 0.8 + "px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(emoji, x, y); }
   }
   function towerTierIndex(level) {
@@ -2572,7 +2645,7 @@
     ctx.globalAlpha = 1;
     ctx.strokeStyle = def.color; ctx.lineWidth = 1.5 + progress * 3; ctx.stroke();
     ctx.restore();
-    drawSprite(towerSpritePath(def, lv), "", tw.x, tw.y, spriteSize);
+    drawSprite(towerSpritePath(def, lv), "", tw.x, tw.y, spriteSize, undefined, 3); // R75：塔身剪影描邊
 
     // 塔頂能量寶石：尺寸、亮度與外框階數同步升級，遠看即可辨認塔級。
     const gemY = tw.y - spriteSize * 0.27;
@@ -2621,7 +2694,9 @@
   function drawEnemyAtlasFrame(atlas, animation, column, e, size) {
     if (!forceEnemyAtlasFallback && atlas && atlas.complete && atlas.naturalWidth > 0) {
       const cell = ENEMY_ANIMATION_ATLAS.cellSize;
-      ctx.drawImage(atlas, column * cell, animation.row * cell, cell, cell, -size / 2, -size / 2, size, size);
+      // R75：改畫剪影描邊版 atlas（bake 完成前先畫原圖），64px 縮圖剪影可辨。
+      const source = r75OutlinedSprite(atlas, "enemy-atlas", cell, cell, 4) || atlas;
+      ctx.drawImage(source, column * cell, animation.row * cell, cell, cell, -size / 2, -size / 2, size, size);
       return;
     }
     // Gen-2 舊 master 有烤入黑底；atlas 載入期間改畫乾淨 Canvas 暫代。

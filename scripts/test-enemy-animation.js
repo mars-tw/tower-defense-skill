@@ -116,8 +116,12 @@ assert(drawStart >= 0 && drawEnd > drawStart, "找到 drawEnemy() 守門範圍")
 for (const banned of ["bob", "waddle", "scaleX", "scaleY", "idlePhase", "lift01", "ctx.rotate(", "Math.sin("]) {
   assert(!drawEnemy.includes(banned), `drawEnemy() 不含假走路 token：${banned}`);
 }
-assert(drawEnemy.includes("drawEnemyAtlasFrame") && drawEnemy.includes("frameColumn") && game.includes("ctx.drawImage(atlas"),
-  "drawEnemy() 由單一 atlas drawImage 裁切真幀");
+// R75：drawEnemyAtlasFrame 改畫「同一張 atlas 的剪影描邊 bake 版」（r75OutlinedSprite(atlas…)），
+// bake 完成前 fallback 畫原 atlas——仍是單一 atlas 真幀裁切，非逐敵單圖。
+assert(drawEnemy.includes("drawEnemyAtlasFrame") && drawEnemy.includes("frameColumn") &&
+  (game.includes("ctx.drawImage(atlas") ||
+    (game.includes("r75OutlinedSprite(atlas, \"enemy-atlas\"") && game.includes("|| atlas") && game.includes("ctx.drawImage(source"))),
+  "drawEnemy() 由單一 atlas drawImage 裁切真幀（R75 描邊 bake 同源）");
 assert(game.includes("(e.walkDist || 0) / stride") && game.includes("(e.animSeed || 0) * count"),
   "走路幀以 walkDist 相位選擇並由 animSeed 錯開個體");
 assert(game.includes("if (lowQuality)") && game.includes("Math.floor(count / 2)"), "performanceLow 路徑降為兩幀交替，不退回晃動");

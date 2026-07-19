@@ -101,8 +101,8 @@ function staticGovernance() {
     `all runtime variants decode to ${manifest.decoded_rgba_mib_all_variants} MiB <= mobile 32 MiB (desktop <=64 MiB)`);
   assert(sha256(path.join(ROOT, "assets", "tiles", "path.png")) === PATH_TILE_SHA256,
     "gameplay path tile hash is unchanged by R72 imagegen backgrounds");
-  assert(packageInfo.version === "0.7.2" && packageInfo.pwaVersion === "td-r72-v1" &&
-    indexSource.includes("td-r72-v1") && swSource.includes('CACHE_VERSION = "td-r72-v1"'),
+  assert(packageInfo.version === "0.7.5" && packageInfo.pwaVersion === "td-r75-v1" &&
+    indexSource.includes("td-r75-v1") && swSource.includes('CACHE_VERSION = "td-r75-v1"'),
   "package, HTML and service worker expose the R72 version/cache bump");
   for (const mapId of EXPECTED_MAPS) {
     const item = c2paSummary[mapId];
@@ -279,6 +279,38 @@ async function runViewport(browser, base, viewport, measurements) {
   const page = await context.newPage();
   await page.addInitScript(() => {
     localStorage.clear(); localStorage.setItem("td_tutorial_seen", "1"); localStorage.setItem("td_perf_mode", "high");
+    // R75：污染機況（audiodg 失控佔核）下，Playwright 端輪詢常晚於 loading 覆層自動關閉，
+    // interlock 取樣落空誤紅。改「事件同步快照」——在 show class 加上的當個 mutation 檢查點
+    // 錄制 interlock 狀態；不變量（唯一 modal＋shell inert/aria-hidden＋背景不可自點）不變，
+    // 只是取樣時機改為事件當下、不受測試端排程延遲影響。
+    window.__r72InterlockSnapshots = [];
+    addEventListener("DOMContentLoaded", () => {
+      const target = document.getElementById("mapLoadingOverlay");
+      if (!target) return;
+      let wasShown = target.classList.contains("show");
+      const observer = new MutationObserver(() => {
+        const shownNow = target.classList.contains("show");
+        if (shownNow && !wasShown) {
+          const ids = ["tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay", "settingsOverlay"];
+          const shell = document.getElementById("appShell");
+          const background = [document.getElementById("startBtn"), ...document.querySelectorAll("#towerList .tower-btn")]
+            .filter(Boolean)
+            .map((el) => {
+              const rect = el.getBoundingClientRect();
+              const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+              return { id: el.id || el.dataset.type, selfHit: hit === el || el.contains(hit) };
+            });
+          window.__r72InterlockSnapshots.push({
+            shown: ids.filter((id) => document.getElementById(id).classList.contains("show")),
+            inert: !!(shell && shell.inert),
+            hidden: !!shell && shell.getAttribute("aria-hidden") === "true",
+            background,
+          });
+        }
+        wasShown = shownNow;
+      });
+      observer.observe(target, { attributes: true, attributeFilter: ["class"] });
+    });
   });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -299,22 +331,20 @@ async function runViewport(browser, base, viewport, measurements) {
       await page.screenshot({ path: path.join(EVIDENCE, `after-map-selector-${viewport.name}.png`), fullPage: true });
     }
     await page.locator(`.map-opt[data-map-id="${mapId}"]`).click({ noWaitAfter: true, timeout: 90000 });
-    await page.waitForFunction(() => document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
-    const interlock = await page.evaluate(() => {
-      const ids = ["tutorial", "diffOverlay", "mapOverlay", "mapLoadingOverlay", "settingsOverlay"];
-      const shell = document.getElementById("appShell");
-      return { shown: ids.filter((id) => document.getElementById(id).classList.contains("show")), inert: shell.inert,
-        hidden: shell.getAttribute("aria-hidden") === "true" };
-    });
-    assert(interlock.shown.length === 1 && interlock.shown[0] === "mapLoadingOverlay" && interlock.inert && interlock.hidden,
-      `${viewport.name}/${mapId} loading is the sole R71 blocking modal and app shell is inert`);
+    // R75：等「快照已錄制」而非「覆層還開著」——高負載下覆層可能在輪詢回來前已自動關閉。
+    await page.waitForFunction(() => window.__r72InterlockSnapshots && window.__r72InterlockSnapshots.length > 0,
+      null, { timeout: 5000 });
+    const interlock = await page.evaluate(() => window.__r72InterlockSnapshots[0]);
+    assert(interlock && interlock.shown.length === 1 && interlock.shown[0] === "mapLoadingOverlay" && interlock.inert && interlock.hidden,
+      `${viewport.name}/${mapId} loading is the sole R71 blocking modal and app shell is inert (at show mutation)`);
     await page.waitForFunction(() => document.getElementById("mapLoadingOverlay").dataset.r72VisualReady === "true", null, { timeout: 3000 });
     const audit = await page.evaluate(auditLoadingInPage);
+    audit.interlockSnapshot = interlock;
     loadingAudits.push(audit);
     assert(audit.quality === viewport.quality && audit.natural.width > 0 && audit.natural.height > 0,
       `${viewport.name}/${mapId} loading uses real ${viewport.quality} image`);
-    assert(audit.shown.length === 1 && audit.shellInert && audit.background.every((item) => !item.selfHit),
-      `${viewport.name}/${mapId} loading blocks background controls`);
+    assert(interlock.background.length > 0 && interlock.background.every((item) => !item.selfHit),
+      `${viewport.name}/${mapId} loading blocks background controls (at show mutation)`);
     assert(audit.textContrast.every((item) => item.minimumContrast >= 4.5),
       `${viewport.name}/${mapId} loading text contrast is >=4.5:1`);
     assert(audit.focal.complete, `${viewport.name}/${mapId} loading focal bbox stays inside viewport (${audit.focal.fit})`);

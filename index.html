@@ -922,6 +922,8 @@
   #towerList .tower-btn:hover { transform: translateY(-2px); }
   #towerList .tower-btn.active { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(250,204,21,.24), 0 4px 14px rgba(0,0,0,.35); }
   #towerList .tower-btn.cant { filter: grayscale(1) brightness(.62); opacity: .55; }
+  /* R73：買不起時成本角標轉紅（觸控無 hover，一眼判斷可負擔性） */
+  #towerList .tower-btn.cant .cost { color: #ffb0a3; border-color: rgba(248,113,113,.66); }
   #towerList .tower-btn[data-hotkey] { padding-right: 0; }
   #towerList .tower-btn[data-hotkey]::after { top: -4px; right: -3px; min-width: 14px; padding: 0 3px; font-size: 8px; }
 
@@ -1463,7 +1465,7 @@
     <div class="map-card">
       <h2>選擇戰場</h2>
       <div id="mapOptions"></div>
-      <p class="map-hint">現有三座戰場的路徑與資源規則維持不變；排行榜紀錄會附上地圖名稱。</p>
+      <p class="map-hint" id="mapHint" data-default="現有三座戰場的路徑與資源規則維持不變；排行榜紀錄會附上地圖名稱。">現有三座戰場的路徑與資源規則維持不變；排行榜紀錄會附上地圖名稱。</p>
     </div>
   </div>
 
@@ -1555,6 +1557,20 @@
           sessionStorage.setItem(AUTO_RELOAD_SESSION_KEY, "1");
         } catch (err) {}
       }
+      // R73：波次進行中誤點更新鈕不再無警告 reload 毀局——原地二段確認
+      window.__tdGuardedReload = (btn) => {
+        let running = false;
+        try { const st = window.TD && TD.state && TD.state(); running = !!(st && st.running && !st.betweenWaves); } catch (e) { running = false; }
+        if (!running) { location.reload(); return; }
+        if (btn && btn.dataset.confirmReload !== "1") {
+          btn.dataset.confirmReload = "1";
+          const orig = btn.textContent;
+          btn.textContent = "確認重整（本局不保留）";
+          setTimeout(() => { if (btn.dataset.confirmReload === "1") { delete btn.dataset.confirmReload; btn.textContent = orig; } }, 3000);
+          return;
+        }
+        location.reload();
+      };
       function showUpdatePrompt(worker, message) {
         if (worker) window.__tdPwa.waitingWorker = worker;
         setPwaStatus(message || "有新版本可套用");
@@ -1563,7 +1579,7 @@
           const label = existing.querySelector("span");
           const button = existing.querySelector("button");
           if (label && message) label.textContent = message;
-          if (button && !worker) button.onclick = () => location.reload();
+          if (button && !worker) button.onclick = () => window.__tdGuardedReload(button);
           return;
         }
         const box = document.createElement("div");
@@ -1574,7 +1590,7 @@
         box.querySelector("button").onclick = () => {
           const activeWorker = worker || window.__tdPwa.waitingWorker || (window.__tdPwa.registration && window.__tdPwa.registration.waiting);
           if (activeWorker) activeWorker.postMessage({ type: "SKIP_WAITING" });
-          else location.reload();
+          else window.__tdGuardedReload(box.querySelector("button"));
         };
         document.body.appendChild(box);
       }

@@ -1917,7 +1917,30 @@
   $("heroDetailClose").onclick = () => { closeHeroDetail(); };
   $("restartBtn").onclick = restartRun;
   $("upgBtn").onclick = () => { TD.upgradeSelected(); refreshUI(); };
-  $("sellBtn").onclick = () => { TD.sellSelected(); refreshUI(); };
+  // R73：高價塔（Lv≥3 或回收 ≥90G）賣出改按鈕內二段確認，低價塔直賣不拖節奏
+  let sellConfirmTimer = null;
+  $("sellBtn").onclick = () => {
+    const btn = $("sellBtn");
+    const st = TD.state();
+    const tw = st && st.selectedTower;
+    if (!tw) return;
+    const refund = Math.round(TD.config.TOWERS[tw.type].cost * 0.6 * tw.level);
+    const needsConfirm = tw.level >= 3 || refund >= 90;
+    if (needsConfirm && btn.dataset.confirming !== "1") {
+      btn.dataset.confirming = "1";
+      btn.dataset.origText = btn.textContent;
+      btn.textContent = `確認賣出 +${refund}G`;
+      clearTimeout(sellConfirmTimer);
+      sellConfirmTimer = setTimeout(() => {
+        delete btn.dataset.confirming;
+        btn.textContent = btn.dataset.origText || "賣出";
+      }, 2500);
+      return;
+    }
+    clearTimeout(sellConfirmTimer);
+    if (btn.dataset.confirming === "1") { delete btn.dataset.confirming; btn.textContent = btn.dataset.origText || "賣出"; }
+    TD.sellSelected(); refreshUI();
+  };
   $("exportSaveBtn").onclick = () => { exportSaveCode(); };
   $("importSaveBtn").onclick = () => { importSaveCode(($("saveCode") && $("saveCode").value) || ""); };
   document.querySelectorAll("[data-perf-mode]").forEach((btn) => {
@@ -2139,6 +2162,32 @@
     setTimeout(() => finishR72MapLoading(serial), 2950);
   }
 
+  // R73：抽屜開閉記憶——依斷點桶與 PWA 版本記憶；矮視口首次預設收合戰況情報
+  function setupDrawerMemory() {
+    const drawers = document.querySelectorAll(".panel-drawer");
+    if (!drawers.length) return;
+    const bucket = (window.innerWidth <= 900 ? "m" : "d") + (window.innerHeight <= 640 ? "-short" : "");
+    const key = `td_drawers:${bucket}:${typeof PWA_CACHE_VERSION !== "undefined" ? PWA_CACHE_VERSION : "v"}`;
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { saved = null; }
+    drawers.forEach((d) => {
+      const id = d.className.match(/(intel|hero|utility)-drawer/);
+      const name = id ? id[1] : "";
+      if (!name) return;
+      if (saved && typeof saved[name] === "boolean") d.toggleAttribute("open", saved[name]);
+      else if (name === "intel" && window.innerHeight <= 640 && window.innerWidth > 900) d.removeAttribute("open");
+      d.addEventListener("toggle", () => {
+        const state = {};
+        document.querySelectorAll(".panel-drawer").forEach((x) => {
+          const mm = x.className.match(/(intel|hero|utility)-drawer/);
+          if (mm) state[mm[1]] = x.hasAttribute("open");
+        });
+        try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      });
+    });
+  }
+  setupDrawerMemory();
+
   function renderMaps() {
     const box = $("mapOptions"); if (!box) return;
     box.innerHTML = "";
@@ -2168,6 +2217,17 @@
           <span class="dbest">${goldText} · 路徑節點 ${m.path.length}</span>
         </span>`;
       opt.onclick = () => beginR72MapRun(m);
+      // R73（P2 清償）：底部風味文案跟隨聚焦/懸停的地圖
+      const hintEl = $("mapHint");
+      if (hintEl) {
+        const loreLine = mapLore && Array.isArray(mapLore.lines) && mapLore.lines[0] ? `${m.label}——${mapLore.lines[0]}` : "";
+        const showLore = () => { if (loreLine) hintEl.textContent = loreLine; };
+        const reset = () => { hintEl.textContent = hintEl.dataset.default || hintEl.textContent; };
+        opt.addEventListener("mouseenter", showLore);
+        opt.addEventListener("focus", showLore);
+        opt.addEventListener("mouseleave", reset);
+        opt.addEventListener("blur", reset);
+      }
       box.appendChild(opt);
     });
     const serial = ++r72SelectorSerial;

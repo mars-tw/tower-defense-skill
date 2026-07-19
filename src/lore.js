@@ -209,6 +209,25 @@ const HERO_LEGENDS = {
   },
 };
 
+// 登場台詞：每位英雄 1 句（R74 B-03 縮幅版），依 HERO_LEGENDS 傳記人設撰寫，≤22 字。
+const DEPLOY_QUOTES = {
+  knight: "盾在此，回家的路便不會斷。",
+  archer: "風先到，我的箭隨後就至。",
+  mage: "燼頁重燃，此火只為照路。",
+  iceMage: "霜落之處，為你留住春天。",
+  valkyrie: "雷翼既展，亡途由我攔下。",
+  cleric: "燭雖微，也要照到最後一人。",
+  daji: "這次，妖火只為神壇而燃。",
+  guanyu: "刀鋒所指，便是我重立之義。",
+  wukong: "俺老孫在，這火休想低頭！",
+  nezha: "風火輪起，我絕不晚那一步！",
+  leizhenzi: "雷隨我翼，照你走穩下一步。",
+  niumowang: "敢近此山者，一斧劈回深淵！",
+  baisuzhen: "青霜為陣，人間由我來守。",
+  erlangshen: "天眼既開，萬邪無所遁形。",
+  zhongkui: "判筆在手，群魔皆有名可點。",
+};
+
 const ORACLE_WHISPERS = [
   "神火不是不會熄滅，而是有人願意一次次替它添柴。",
   "裂界吞得下城牆，吞不下被守護過的名字。",
@@ -329,6 +348,10 @@ function mapLoreFor(mapId) {
   return MAP_LORE[mapId] || MAP_LORE.plains;
 }
 
+function deployQuoteFor(heroId) {
+  return DEPLOY_QUOTES[heroId] || "";
+}
+
 function waveBeatFor(wave) {
   const key = Math.max(0, Math.floor(Number(wave) || 0));
   return WAVE_BEATS[key] || null;
@@ -346,6 +369,7 @@ const TD_LORE = {
   WORLD_LORE,
   CAMPAIGN_CHAPTERS,
   HERO_LEGENDS,
+  DEPLOY_QUOTES,
   ORACLE_WHISPERS,
   MAP_LORE,
   WAVE_BEATS,
@@ -356,6 +380,7 @@ const TD_LORE = {
   evaluateCampaignUnlocks,
   oracleWhisper,
   mapLoreFor,
+  deployQuoteFor,
   waveBeatFor,
   eventFlavorFor,
   bossIntroFor,

@@ -1160,7 +1160,14 @@
       attackPhase: "idle", attackTimer: 0, attackTarget: null, attackConnected: false,
     };
     state.heroes.push(h);
-    log(`${def.name} 上場！`);
+    const loreData = getLore();
+    const quote = typeof loreData.deployQuoteFor === "function" ? loreData.deployQuoteFor(heroId) : "";
+    if (quote) {
+      log(`${def.name}：「${quote}」`);
+      flashText(h.x, h.y - 24, quote.slice(0, 8), { color: "#fde047", size: 13, big: true }); // flashText 內建尊重 reducedEffects
+    } else {
+      log(`${def.name} 上場！`);
+    }
     notifyUI();
     return true;
   }

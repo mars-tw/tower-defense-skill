@@ -11,6 +11,7 @@ const {
   WORLD_LORE,
   CAMPAIGN_CHAPTERS,
   HERO_LEGENDS,
+  DEPLOY_QUOTES,
   ORACLE_WHISPERS,
   MAP_LORE,
   WAVE_BEATS,
@@ -21,6 +22,7 @@ const {
   evaluateCampaignUnlocks,
   oracleWhisper,
   mapLoreFor,
+  deployQuoteFor,
   waveBeatFor,
   eventFlavorFor,
   bossIntroFor,
@@ -105,6 +107,21 @@ console.log("\n== 英雄列傳 ==");
   assert(legendStageFor("daji", 14).title.startsWith("轉"), "bond 14 回傳轉");
   assert(legendStageFor("daji", 15).title.startsWith("合"), "bond 15 回傳合");
   assert(legendStageFor("missing", 15) === null, "未知英雄回傳 null");
+}
+
+console.log("\n== 登場台詞（B-03）==");
+{
+  const heroIds = Object.keys(heroes.HEROES).sort();
+  const quoteIds = Object.keys(DEPLOY_QUOTES).sort();
+  assert(JSON.stringify(heroIds) === JSON.stringify(quoteIds),
+    `每位英雄都有登場台詞（${quoteIds.length}/${heroIds.length}）`);
+  for (const id of heroIds) {
+    const quote = deployQuoteFor(id);
+    assert(typeof quote === "string" && quote.length > 0, `${id} 登場台詞非空`);
+    assert(quote.length <= 22, `${id} 登場台詞 ≤22 字（${quote.length}）`);
+  }
+  assert(deployQuoteFor("missing") === "", "未知英雄登場台詞回傳空字串");
+  assert(deployQuoteFor(undefined) === "", "undefined 英雄 id 回傳空字串");
 }
 
 console.log("");

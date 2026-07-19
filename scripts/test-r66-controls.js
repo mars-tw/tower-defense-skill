@@ -298,6 +298,26 @@ async function run() {
         advisor = await page.evaluate(auditAdvisorLayerInPage);
         assert(advisor.drawerDockOverlap <= 1 && advisor.advisorDockOverlap <= 1,
           `${vp.w}x${vp.h} desktop advisor stays outside dock click area`);
+
+        // R72.2：矮視口桌機側欄必須可內部捲動、抽英雄鈕捲入後可命中（老闆回報：矮筆電按不到）
+        await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await page.waitForTimeout(150);
+        const sidebarReach = await page.evaluate(() => {
+          const panel = document.querySelector(".wrap > .panel");
+          const btn = document.getElementById("gachaBtn");
+          if (!panel || !btn) return { ok: false };
+          const scrollable = panel.scrollHeight <= panel.clientHeight + 1 ||
+            getComputedStyle(panel).overflowY === "auto";
+          btn.scrollIntoView({ block: "center" });
+          const r = btn.getBoundingClientRect();
+          const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return { ok: true, scrollable, inView: r.top >= 0 && r.bottom <= innerHeight,
+            hit: btn === at || btn.contains(at) };
+        });
+        assert(sidebarReach.ok && sidebarReach.scrollable && sidebarReach.inView && sidebarReach.hit,
+          `${vp.w}x${vp.h} sidebar gacha button reachable via panel scroll`);
+        await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await page.waitForTimeout(120);
       }
       assert(errors.length === 0, `${vp.w}x${vp.h} R71 modal flow has no pageerror${errors.length ? " - " + errors.join(" | ") : ""}`);
       r71Measurements.push({ viewport: `${vp.w}x${vp.h}`, tutorial, difficulty, map, settings, advisor, errors });

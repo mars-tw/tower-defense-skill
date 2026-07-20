@@ -208,6 +208,66 @@ function auditAdvisorLayerInPage() {
   };
 }
 
+const R76_ENEMY_CHIPS = [
+  { id: "slime", name: "史萊姆" },
+  { id: "goblin", name: "哥布林" },
+  { id: "emberbat", name: "焰蝠" },
+];
+
+async function auditR76EnemyChipTaps(page, viewportLabel) {
+  await page.evaluate(() => {
+    window.TD.newGame({ runSeed: 4, affixSeed: 777 });
+    const state = window.TD.state();
+    state.wave = 0;
+    state.betweenWaves = true;
+    state.running = false;
+    state.over = false;
+    state.waveSeeds = {};
+    window.__tdUI();
+    document.querySelector(".intel-drawer").open = true;
+  });
+  await page.waitForTimeout(150);
+  await page.waitForFunction((ids) => ids.every((id) =>
+    document.querySelector(`#nextWaveCard .enemy-chip-btn[data-enemy="${id}"]`)),
+  R76_ENEMY_CHIPS.map((item) => item.id));
+
+  const results = [];
+  for (const enemy of R76_ENEMY_CHIPS) {
+    await page.evaluate(() => {
+      const info = document.getElementById("enemyInfo");
+      info.classList.add("hidden");
+      info.innerHTML = "";
+      document.querySelectorAll(".enemy-chip-btn").forEach((btn) => btn.classList.remove("active"));
+    });
+    const button = page.locator(`#nextWaveCard .enemy-chip-btn[data-enemy="${enemy.id}"]`);
+    await button.scrollIntoViewIfNeeded();
+    const box = await button.boundingBox();
+    if (!box) {
+      results.push({ id: enemy.id, missing: true });
+      continue;
+    }
+    const rowInert = await button.evaluate((el) => !!el.closest(".enemy-chip-row").inert);
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(100);
+    const detail = await page.evaluate((id) => {
+      const buttonEl = document.querySelector(`#nextWaveCard .enemy-chip-btn[data-enemy="${id}"]`);
+      const info = document.getElementById("enemyInfo");
+      return {
+        active: !!buttonEl && buttonEl.classList.contains("active"),
+        shown: !!info && !info.classList.contains("hidden"),
+        text: info ? info.textContent.replace(/\s+/g, " ").trim() : "",
+      };
+    }, enemy.id);
+    results.push({ id: enemy.id, name: enemy.name, rowInert, ...detail });
+  }
+  await page.screenshot({ path: path.join(EVIDENCE, `${viewportLabel}-r76-enemy-detail.png`) });
+  assert(results.length === 3 && results.every((item) => !item.missing && !item.rowInert && item.active && item.shown &&
+    item.text.includes(item.name) && item.text.includes("血量") && item.text.includes("元素") &&
+    item.text.includes("特性") && item.text.includes("反制")),
+  `${viewportLabel} real touchscreen taps open all three enemy details (${results.map((item) => `${item.id}:${item.shown}/${item.active}/inert=${item.rowInert}`).join(", ")})`);
+  return results;
+}
+
 async function run() {
   let chromium;
   try { ({ chromium } = require("playwright")); }
@@ -277,6 +337,7 @@ async function run() {
           `${vp.w}x${vp.h} advisor panel reserves dock click area (drawer ${advisor.drawerDockOverlap.toFixed(1)}px² / advisor ${advisor.advisorDockOverlap.toFixed(1)}px²)`);
         assert(advisor.advisorButtons.length > 0 && advisor.advisorButtons.every((item) => item.hit),
           `${vp.w}x${vp.h} advisor controls remain hit-test reachable`);
+        advisor.enemyChipTaps = await auditR76EnemyChipTaps(page, `${vp.w}x${vp.h}`);
         await page.screenshot({ path: path.join(EVIDENCE, `${vp.name}-advisor.png`) });
 
         // R72.1：手機抽屜必須有可見可點的關閉鈕（老闆回報：英雄抽屜蓋住畫面找不到關閉）
@@ -430,6 +491,7 @@ async function run() {
           });
           assert(advisorOcclusion.length >= 2 && advisorOcclusion.every((tool) => tool.maxOverlap <= 1 || tool.selfHit),
             `${vp.name} advisor tools do not shadow wave CTA/drawer handles (${advisorOcclusion.map((t) => `${t.label}:ov=${Math.round(t.maxOverlap)}/self=${t.selfHit}`).join(", ")})`);
+          await auditR76EnemyChipTaps(page, vp.name);
           await page.screenshot({ path: path.join(EVIDENCE, `${vp.name}-drawer-intel.png`) });
         }
         await page.locator(`${spec.selector} .drawer-close-btn`).click({ noWaitAfter: true, timeout: 90000 });
@@ -486,7 +548,7 @@ async function run() {
             const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
             return { id: el.id || el.textContent.trim().slice(0, 6), selfHit: at === el || el.contains(at) };
           });
-        const buttons = ["deathCtaBtn", "restartBtn"].map((id) => {
+        const buttons = ["deathCtaBtn", "restartBtn", "mainMenuBtn"].map((id) => {
           const btn = document.getElementById(id);
           btn.scrollIntoView({ block: "center" });
           const r = btn.getBoundingClientRect();
@@ -511,11 +573,29 @@ async function run() {
         `${vp.name} #overlay opens scrolled to top (scrollTop=${overlayAudit.scrollTopOnOpen})`);
       assert(overlayAudit.blockedBackground.length >= 4 && overlayAudit.blockedBackground.every((item) => !item.selfHit),
         `${vp.name} #overlay open blocks background CTA/drawer handles (${overlayAudit.blockedBackground.map((t) => `${t.id}:${t.selfHit}`).join(", ")})`);
-      assert(overlayAudit.buttons.every((item) => item.inView && item.hit),
-        `${vp.name} #overlay CTA buttons reachable via scroll (${overlayAudit.buttons.map((item) => `${item.id}:${item.inView}/${item.hit}`).join(", ")})`);
+      assert(overlayAudit.buttons.length === 3 && overlayAudit.buttons.every((item) => item.inView && item.hit),
+        `${vp.name} #overlay expected 3 CTA buttons reachable via scroll (${overlayAudit.buttons.map((item) => `${item.id}:${item.inView}/${item.hit}`).join(", ")})`);
       assert(overlayAudit.titleTop >= -1,
         `${vp.name} #overlay title not clipped above viewport when scrolled to top (top=${Math.round(overlayAudit.titleTop)})`);
       await page.screenshot({ path: path.join(EVIDENCE, `${vp.name}-overlay.png`) });
+      await page.locator("#mainMenuBtn").scrollIntoViewIfNeeded();
+      await page.locator("#mainMenuBtn").click({ noWaitAfter: true, timeout: 90000 });
+      await page.waitForTimeout(150);
+      const menuReturn = await page.evaluate(() => {
+        const state = window.TD.state();
+        return {
+          overlayShown: document.getElementById("overlay").classList.contains("show"),
+          difficultyShown: document.getElementById("diffOverlay").classList.contains("show"),
+          mapShown: document.getElementById("mapOverlay").classList.contains("show"),
+          difficultyCount: document.querySelectorAll(".diff-opt").length,
+          shellInert: document.getElementById("appShell").inert,
+          wave: state.wave,
+          over: state.over,
+        };
+      });
+      assert(!menuReturn.overlayShown && menuReturn.difficultyShown && !menuReturn.mapShown &&
+        menuReturn.difficultyCount === 3 && menuReturn.shellInert && menuReturn.wave === 0 && !menuReturn.over,
+      `${vp.name} defeat 回主選單 resets run and opens difficulty selection`);
       assert(errors.length === 0, `${vp.name} R75 landscape flow has no pageerror${errors.length ? " - " + errors.join(" | ") : ""}`);
       await context.close();
     }

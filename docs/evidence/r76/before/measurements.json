@@ -1,0 +1,77 @@
+{
+  "phase": "before",
+  "generatedAt": "2026-07-20T11:34:13.027Z",
+  "viewports": [
+    {
+      "viewport": "390x844",
+      "enemyTaps": [
+        {
+          "enemyId": "slime",
+          "rowInert": true,
+          "active": false,
+          "detailShown": false,
+          "detailText": ""
+        },
+        {
+          "enemyId": "goblin",
+          "rowInert": true,
+          "active": false,
+          "detailShown": false,
+          "detailText": ""
+        },
+        {
+          "enemyId": "emberbat",
+          "rowInert": true,
+          "active": false,
+          "detailShown": false,
+          "detailText": ""
+        }
+      ],
+      "defeat": {
+        "overlayShown": true,
+        "mainMenuPresent": false,
+        "mainMenuVisible": false
+      }
+    },
+    {
+      "viewport": "844x390",
+      "enemyTaps": [
+        {
+          "enemyId": "slime",
+          "rowInert": true,
+          "active": false,
+          "detailShown": false,
+          "detailText": ""
+        },
+        {
+          "enemyId": "goblin",
+          "rowInert": true,
+          "active": false,
+          "detailShown": false,
+          "detailText": ""
+        },
+        {
+          "enemyId": "emberbat",
+          "rowInert": true,
+          "active": false,
+          "detailShown": false,
+          "detailText": ""
+        }
+      ],
+      "defeat": {
+        "overlayShown": true,
+        "mainMenuPresent": false,
+        "mainMenuVisible": false
+      }
+    },
+    {
+      "viewport": "1366x768",
+      "enemyTaps": [],
+      "defeat": {
+        "overlayShown": true,
+        "mainMenuPresent": false,
+        "mainMenuVisible": false
+      }
+    }
+  ]
+}

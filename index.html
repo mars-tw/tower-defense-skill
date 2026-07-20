@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r75-v1" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r76-v1" />
 <!-- R72：39 KiB 真 low banner 保底先於 gameplay 貼圖排隊；high/med 仍按選擇時載入。 -->
 <link rel="preload" as="image" href="assets/maps/r72/plains-banner-low.webp?v=d040c3b6" fetchpriority="high" />
 <link rel="preload" as="image" href="assets/maps/r72/canyon-banner-low.webp?v=41fcb341" fetchpriority="high" />
@@ -1282,7 +1282,7 @@
           <button class="drawer-close-btn" type="button" aria-label="關閉抽屜" onclick="this.closest(&quot;details&quot;).removeAttribute(&quot;open&quot;)">✕ 關閉</button>
           <div class="next-wave-card" id="nextWaveCard"></div>
           <div class="affix-card" id="affixCard"></div>
-          <div class="enemy-info hidden" id="enemyInfo"></div>
+          <div class="enemy-info hidden" id="enemyInfo" role="status" aria-live="polite"></div>
         </div>
       </details>
 
@@ -1330,6 +1330,7 @@
     <div class="meta-result" id="metaResult"></div>
     <button class="death-cta" id="deathCtaBtn">立即抽英雄</button>
     <button class="secondary-cta" id="restartBtn">再來一局</button>
+    <button class="secondary-cta" id="mainMenuBtn">回主選單</button>
   </div>
 
   <!-- 抽卡盲盒動畫覆層 -->
@@ -1502,18 +1503,18 @@
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r75-v1"></script>
-  <script src="src/heroes.js?v=td-r75-v1"></script>
-  <script src="src/rules.js?v=td-r75-v1"></script>
-  <script src="src/lore.js?v=td-r75-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r75-v1"></script>
-  <script src="src/hero-animation.js?v=td-r75-v1"></script>
-  <script src="src/game.js?v=td-r75-v1"></script>
-  <script src="src/ui.js?v=td-r75-v1"></script>
+  <script src="src/config.js?v=td-r76-v1"></script>
+  <script src="src/heroes.js?v=td-r76-v1"></script>
+  <script src="src/rules.js?v=td-r76-v1"></script>
+  <script src="src/lore.js?v=td-r76-v1"></script>
+  <script src="src/enemy-animation.js?v=td-r76-v1"></script>
+  <script src="src/hero-animation.js?v=td-r76-v1"></script>
+  <script src="src/game.js?v=td-r76-v1"></script>
+  <script src="src/ui.js?v=td-r76-v1"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r75-v1";
+      const PWA_VERSION = "td-r76-v1";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

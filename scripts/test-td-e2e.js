@@ -2055,6 +2055,38 @@ async function run() {
     assert(resilienceR25.after.soulCrystal === 77 && resilienceR25.after.bestWave === 6 && resilienceR25.text.includes("已保護存檔") && resilienceR25.live === "polite",
       `全域錯誤時安全存檔並顯示恢復提示（${resilienceR25.text}）`);
 
+    // R76：失守結算必須能真實返回選關流程，不只允許同路線重開。
+    await page.evaluate(() => {
+      window.__tdGameOver(4, 456, { kills: 9, soulEarned: 0, heroGrowth: [], towers: [] });
+    });
+    const mainMenuBefore = await page.evaluate(() => {
+      const button = document.getElementById("mainMenuBtn");
+      const rect = button.getBoundingClientRect();
+      return {
+        visible: rect.width > 0 && rect.height > 0,
+        label: button.textContent.trim(),
+        overlayShown: document.getElementById("overlay").classList.contains("show"),
+      };
+    });
+    await page.locator("#mainMenuBtn").scrollIntoViewIfNeeded();
+    await page.click("#mainMenuBtn");
+    await sleep(150);
+    const mainMenuAfter = await page.evaluate(() => {
+      const state = window.TD.state();
+      return {
+        overlayShown: document.getElementById("overlay").classList.contains("show"),
+        difficultyShown: document.getElementById("diffOverlay").classList.contains("show"),
+        mapShown: document.getElementById("mapOverlay").classList.contains("show"),
+        difficultyCount: document.querySelectorAll(".diff-opt").length,
+        wave: state.wave,
+        over: state.over,
+      };
+    });
+    assert(mainMenuBefore.visible && mainMenuBefore.label === "回主選單" && mainMenuBefore.overlayShown &&
+      !mainMenuAfter.overlayShown && mainMenuAfter.difficultyShown && !mainMenuAfter.mapShown &&
+      mainMenuAfter.difficultyCount === 3 && mainMenuAfter.wave === 0 && !mainMenuAfter.over,
+    "失守回主選單 CTA 可見可點，重置本局並回到難度選擇");
+
     // 10. RWD：無水平溢出
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(overflow <= 2, `無水平溢出（${overflow}）`);

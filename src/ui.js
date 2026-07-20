@@ -310,7 +310,9 @@
       $("hud"), $("battlefieldStage"), document.querySelector("h1"), $("log"),
       document.querySelector(".hero-drawer"), document.querySelector(".utility-drawer"),
       document.querySelector(".series-footer"), intelDrawer && intelDrawer.querySelector("summary"),
-      $("affixCard"), $("enemyInfo"), document.querySelector("#nextWaveCard .enemy-chip-row"),
+      // R76：敵人徽章與其詳情是情報抽屜內的同層必要操作；顧問浮層開啟時仍須可點／可讀。
+      // 只鎖住詞綴、塔種建議等非互動背景，不再讓祖先 inert 吃掉徽章 tap。
+      $("affixCard"),
       document.querySelector("#nextWaveCard .tower-rec-row"),
     ].forEach((el) => setR71Inert(el, advisorModal));
   }
@@ -523,6 +525,17 @@
     deployedThisGame = new Set();
     renderRoster();
     refreshUI();
+  }
+
+  function returnToMainMenu() {
+    $("overlay").classList.remove("show");
+    TD.newGame();
+    deployedThisGame = new Set();
+    renderRoster();
+    refreshUI();
+    renderDifficulties();
+    showExclusiveR71Modal("diffOverlay");
+    focusSoon(document.querySelector(".diff-opt"));
   }
 
   // 抽卡花「魂晶」（跨局永久貨幣），不是場內金錢——場內金錢每局重置，
@@ -1565,7 +1578,7 @@
     const pwa = window.__tdPwa;
     const version = $("pwaVersion");
     const status = $("updateStatus");
-    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r75-v1"}`;
+    if (version) version.textContent = `版本：${pwa && pwa.version ? pwa.version : "td-r76-v1"}`;
     if (status) status.textContent = pwa && pwa.status ? pwa.status : "離線更新尚未啟用";
     if (pwa) pwa.onStatus = renderPwaSettings;
   }
@@ -1942,6 +1955,7 @@
   }
   $("heroDetailClose").onclick = () => { closeHeroDetail(); };
   $("restartBtn").onclick = restartRun;
+  $("mainMenuBtn").onclick = returnToMainMenu;
   $("upgBtn").onclick = () => { TD.upgradeSelected(); refreshUI(); };
   // R73：高價塔（Lv≥3 或回收 ≥90G）賣出改按鈕內二段確認，低價塔直賣不拖節奏
   let sellConfirmTimer = null;

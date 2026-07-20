@@ -1,0 +1,98 @@
+{
+  "phase": "after",
+  "generatedAt": "2026-07-20T11:45:41.018Z",
+  "viewports": [
+    {
+      "viewport": "390x844",
+      "enemyTaps": [
+        {
+          "enemyId": "slime",
+          "rowInert": false,
+          "active": true,
+          "detailShown": true,
+          "detailText": "🟢 史萊姆 血量 40 · 速度 45 · 元素 ⚔️物理 特性：標準路徑敵人 反制：弓箭塔便宜速射即可處理；混波時交給加農砲順清。"
+        },
+        {
+          "enemyId": "goblin",
+          "rowInert": false,
+          "active": true,
+          "detailShown": true,
+          "detailText": "👺 哥布林 血量 28 · 速度 80 · 元素 ⚔️物理 特性：狡詐閃避：35% 機率閃避第一次直接傷害。 反制：寒冰塔先降速，首擊閃避後靠弓箭塔高攻速補刀。"
+        },
+        {
+          "enemyId": "emberbat",
+          "rowInert": false,
+          "active": true,
+          "detailShown": true,
+          "detailText": "🦇 焰蝠 血量 30 · 速度 92 · 元素 🔥火 特性：餘燼分裂：死亡後分裂出一隻小蝙蝠。；高速突進 反制：冰霜減速能攔住高速焰蝠分裂潮。"
+        }
+      ],
+      "defeat": {
+        "overlayShown": true,
+        "mainMenuPresent": true,
+        "mainMenuVisible": true,
+        "returned": {
+          "overlayShown": false,
+          "difficultyShown": true,
+          "mapShown": false,
+          "wave": 0,
+          "over": false
+        }
+      }
+    },
+    {
+      "viewport": "844x390",
+      "enemyTaps": [
+        {
+          "enemyId": "slime",
+          "rowInert": false,
+          "active": true,
+          "detailShown": true,
+          "detailText": "🟢 史萊姆 血量 40 · 速度 45 · 元素 ⚔️物理 特性：標準路徑敵人 反制：弓箭塔便宜速射即可處理；混波時交給加農砲順清。"
+        },
+        {
+          "enemyId": "goblin",
+          "rowInert": false,
+          "active": true,
+          "detailShown": true,
+          "detailText": "👺 哥布林 血量 28 · 速度 80 · 元素 ⚔️物理 特性：狡詐閃避：35% 機率閃避第一次直接傷害。 反制：寒冰塔先降速，首擊閃避後靠弓箭塔高攻速補刀。"
+        },
+        {
+          "enemyId": "emberbat",
+          "rowInert": false,
+          "active": true,
+          "detailShown": true,
+          "detailText": "🦇 焰蝠 血量 30 · 速度 92 · 元素 🔥火 特性：餘燼分裂：死亡後分裂出一隻小蝙蝠。；高速突進 反制：冰霜減速能攔住高速焰蝠分裂潮。"
+        }
+      ],
+      "defeat": {
+        "overlayShown": true,
+        "mainMenuPresent": true,
+        "mainMenuVisible": true,
+        "returned": {
+          "overlayShown": false,
+          "difficultyShown": true,
+          "mapShown": false,
+          "wave": 0,
+          "over": false
+        }
+      }
+    },
+    {
+      "viewport": "1366x768",
+      "enemyTaps": [],
+      "defeat": {
+        "overlayShown": true,
+        "mainMenuPresent": true,
+        "mainMenuVisible": true,
+        "returned": {
+          "overlayShown": false,
+          "difficultyShown": true,
+          "mapShown": false,
+          "wave": 0,
+          "over": false
+        }
+      }
+    }
+  ]
+}

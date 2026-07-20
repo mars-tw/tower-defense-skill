@@ -1211,9 +1211,9 @@
         <div class="advisor-mode">${modeHtml}</div>
         <div class="advisor-actions">
           ${advisor.map((item, index) => {
-            if (item.kind === "build") return `<button type="button" class="advisor-action" data-advisor-action="${index}"><b>補 ${item.emoji || ""}${item.towerName}</b><span>${item.zone}（${item.cx},${item.cy}）｜${item.reason}</span></button>`;
-            if (item.kind === "upgrade") return `<button type="button" class="advisor-action" data-advisor-action="${index}"><b>升 ${item.emoji || ""}${item.towerName}</b><span>Lv.${item.level}→${item.nextLevel}｜${item.reason}</span></button>`;
-            return `<button type="button" class="advisor-action" data-advisor-action="${index}"><b>存錢等 ${item.emoji || ""}${item.towerName}</b><span>${item.reason}</span></button>`;
+            if (item.kind === "build") return `<button type="button" class="advisor-action" data-advisor-action="${index}" data-advisor-kind="build"><b>補 ${item.emoji || ""}${item.towerName}</b><span>${item.zone}（${item.cx},${item.cy}）｜${item.reason}</span></button>`;
+            if (item.kind === "upgrade") return `<button type="button" class="advisor-action" data-advisor-action="${index}" data-advisor-kind="upgrade"><b>升 ${item.emoji || ""}${item.towerName}</b><span>Lv.${item.level}→${item.nextLevel}｜${item.reason}</span></button>`;
+            return `<button type="button" class="advisor-action" data-advisor-action="${index}" data-advisor-kind="save"><b>存錢等 ${item.emoji || ""}${item.towerName}</b><span>${item.reason}</span></button>`;
           }).join("") || '<div class="advisor-action static"><b>維持陣型</b><span>目前沒有明顯補強缺口。</span></div>'}
         </div>
       </div>`;

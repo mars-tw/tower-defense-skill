@@ -621,6 +621,8 @@ async function run() {
         else localStorage.setItem("td_heroes_owned_v1", savedHeroes);
         window.__tdUI();
       };
+      // 顧問只顯示評分前兩名；固定種子，避免隨機波次讓兩個建塔動作擠掉此案例要驗證的升級動作。
+      window.TD.newGame({ runSeed: 111111, affixSeed: 777 });
       const st = window.TD.state();
       st.wave = 6;
       st.betweenWaves = true;
@@ -630,8 +632,8 @@ async function run() {
       st.towers = [{ type: "arrow", level: 1, x: 216, y: 72, cx: 4, cy: 1, cd: 0 }];
       window.__tdUI();
       document.querySelector('#nextWaveCard [data-advisor-mode="control"]').click();
-      const actions = [...document.querySelectorAll("#nextWaveCard [data-advisor-action]")];
-      actions[1].click();
+      const upgradeAction = document.querySelector('#nextWaveCard [data-advisor-action][data-advisor-kind="upgrade"]');
+      if (upgradeAction) upgradeAction.click();
       // R71 互鎖後面板詳情可能延後一幀渲染；輪詢等待完整內容，避免 CI 慢機讀到半成品（真回歸時輪詢仍會逾時失敗）
       const waitPanel = async () => {
         const deadline = Date.now() + 3000;
@@ -645,8 +647,9 @@ async function run() {
         }
         return document.getElementById("selPanel").innerText;
       };
-      const text = await waitPanel();
+      const text = upgradeAction ? await waitPanel() : document.getElementById("selPanel").innerText;
       const result = {
+        actionFound: !!upgradeAction,
         selected: st.selectedTower === st.towers[0],
         highlighted: st.advisorUpgradeTarget === st.towers[0],
         panelShown: !document.getElementById("selPanel").classList.contains("hidden"),
@@ -655,7 +658,7 @@ async function run() {
       restore();
       return result;
     });
-    assert(advisorUpgradeR29.selected && advisorUpgradeR29.highlighted && advisorUpgradeR29.panelShown && advisorUpgradeR29.text.includes("Lv.1"),
+    assert(advisorUpgradeR29.actionFound && advisorUpgradeR29.selected && advisorUpgradeR29.highlighted && advisorUpgradeR29.panelShown && advisorUpgradeR29.text.includes("Lv.1"),
       `顧問升級建議會選中目標塔並打開升級面板（${advisorUpgradeR29.text.replace(/\n/g, " / ")}）`);
     if (vp.w <= 560) {
       await page.evaluate(() => document.querySelector("#nextWaveCard .enemy-chip-btn").click());

@@ -357,6 +357,16 @@ async function run() {
       await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 8000 });
       await page.waitForTimeout(250);
 
+      // R75.1（Grok R75-04）：抽屜幾何變數必須「開機即寫入」——首開抽屜前就要存在，
+      // 不能等 resize/orientationchange 才補；缺變數時首開抽屜會用錯誤 fallback 幾何。
+      const bootVars = await page.evaluate(() => ({
+        safeBottom: getComputedStyle(document.documentElement).getPropertyValue("--r71-drawer-safe-bottom").trim(),
+        maxHeight: getComputedStyle(document.documentElement).getPropertyValue("--r75-drawer-max-height").trim(),
+        visualViewportHooked: !!window.visualViewport,
+      }));
+      assert(/^\d+(\.\d+)?px$/.test(bootVars.safeBottom) && /^\d+(\.\d+)?px$/.test(bootVars.maxHeight),
+        `${vp.name} drawer geometry vars set at boot before first drawer open (safeBottom=${bootVars.safeBottom || "missing"} maxHeight=${bootVars.maxHeight || "missing"})`);
+
       // R75-2/R75-3：三抽屜逐一開啟——drawer-body 必須整體留在視口內、關閉鈕可點、顧問徽章 ≥44px。
       const drawers = [
         { toggle: "#intelDrawerToggle", selector: ".intel-drawer", label: "intel" },
@@ -398,6 +408,28 @@ async function run() {
         if (spec.label === "intel") {
           assert(audit.advisorTools.length >= 2 && audit.advisorTools.every((item) => item.w >= 44 && item.h >= 44 && item.hit),
             `${vp.name} advisor 收合/關閉 hit area >=44px (${audit.advisorTools.map((item) => `${item.label}:${Math.round(item.w)}x${Math.round(item.h)}`).join(", ")})`);
+          // R75.1（Grok R75-05）：advisor tools 不得遮蔽出波 CTA 與抽屜把手——
+          // 每顆工具鈕對 startBtn/summary 的 bbox 交集必須為零，或工具鈕中心 elementFromPoint
+          // 命中工具鈕本身（層疊順序正確：浮層在上是刻意設計，點擊落在正確目標）。
+          const advisorOcclusion = await page.evaluate(() => {
+            function overlapArea(a, b) {
+              return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+                Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+            }
+            const targets = [document.getElementById("startBtn"), ...document.querySelectorAll(".panel-drawer summary")]
+              .filter(Boolean);
+            return [...document.querySelectorAll(".advisor-tools button")].map((tool) => {
+              const rect = tool.getBoundingClientRect();
+              const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+              return {
+                label: tool.textContent.trim(),
+                selfHit: at === tool || tool.contains(at),
+                maxOverlap: Math.max(...targets.map((t) => overlapArea(rect, t.getBoundingClientRect())), 0),
+              };
+            });
+          });
+          assert(advisorOcclusion.length >= 2 && advisorOcclusion.every((tool) => tool.maxOverlap <= 1 || tool.selfHit),
+            `${vp.name} advisor tools do not shadow wave CTA/drawer handles (${advisorOcclusion.map((t) => `${t.label}:ov=${Math.round(t.maxOverlap)}/self=${t.selfHit}`).join(", ")})`);
           await page.screenshot({ path: path.join(EVIDENCE, `${vp.name}-drawer-intel.png`) });
         }
         await page.locator(`${spec.selector} .drawer-close-btn`).click({ noWaitAfter: true, timeout: 90000 });
@@ -405,6 +437,19 @@ async function run() {
         const closed = await page.evaluate((selector) => !document.querySelector(selector).hasAttribute("open"), spec.selector);
         assert(closed, `${vp.name} ${spec.label} drawer closes via close button`);
       }
+
+      // R75.1（Grok R75-05 補強）：抽屜全數收合後，出波 CTA 與三個抽屜把手必須恢復可自點命中。
+      const restoredTargets = await page.evaluate(() => {
+        return [document.getElementById("startBtn"), ...document.querySelectorAll(".panel-drawer summary")]
+          .filter(Boolean)
+          .map((el) => {
+            const rect = el.getBoundingClientRect();
+            const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            return { id: el.id || el.textContent.trim().slice(0, 6), hit: at === el || el.contains(at) };
+          });
+      });
+      assert(restoredTargets.length >= 4 && restoredTargets.every((item) => item.hit),
+        `${vp.name} wave CTA and drawer handles hittable again after drawers closed (${restoredTargets.map((t) => `${t.id}:${t.hit}`).join(", ")})`);
 
       // R75-2：方向切換即重算 safe-bottom（直向=避讓貼底控制盤、橫向=貼底 8px）。
       const landscapeSafe = await page.evaluate(() =>
@@ -432,6 +477,15 @@ async function run() {
       const overlayAudit = await page.evaluate(() => {
         const overlay = document.getElementById("overlay");
         const style = getComputedStyle(overlay);
+        const scrollTopOnOpen = overlay.scrollTop; // R75.1（Grok R75-08）：開啟當下必須已歸零
+        // R75.1（Grok R75-03）：overlay 開啟時，背景抽屜把手/出波 CTA 不得被 elementFromPoint 自點命中。
+        const blockedBackground = [document.getElementById("startBtn"), ...document.querySelectorAll(".panel-drawer summary")]
+          .filter(Boolean)
+          .map((el) => {
+            const rect = el.getBoundingClientRect();
+            const at = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            return { id: el.id || el.textContent.trim().slice(0, 6), selfHit: at === el || el.contains(at) };
+          });
         const buttons = ["deathCtaBtn", "restartBtn"].map((id) => {
           const btn = document.getElementById(id);
           btn.scrollIntoView({ block: "center" });
@@ -445,12 +499,18 @@ async function run() {
           shown: overlay.classList.contains("show"),
           overflowY: style.overflowY,
           scrollable: overlay.scrollHeight > overlay.clientHeight,
+          scrollTopOnOpen,
+          blockedBackground,
           titleTop: title.top,
           buttons,
         };
       });
       assert(overlayAudit.shown && overlayAudit.overflowY === "auto",
         `${vp.name} #overlay is a scroll container (overflow-y=${overlayAudit.overflowY})`);
+      assert(overlayAudit.scrollTopOnOpen === 0,
+        `${vp.name} #overlay opens scrolled to top (scrollTop=${overlayAudit.scrollTopOnOpen})`);
+      assert(overlayAudit.blockedBackground.length >= 4 && overlayAudit.blockedBackground.every((item) => !item.selfHit),
+        `${vp.name} #overlay open blocks background CTA/drawer handles (${overlayAudit.blockedBackground.map((t) => `${t.id}:${t.selfHit}`).join(", ")})`);
       assert(overlayAudit.buttons.every((item) => item.inView && item.hit),
         `${vp.name} #overlay CTA buttons reachable via scroll (${overlayAudit.buttons.map((item) => `${item.id}:${item.inView}/${item.hit}`).join(", ")})`);
       assert(overlayAudit.titleTop >= -1,

@@ -36,3 +36,20 @@
 - 證據 before/after（390×844、844×390、1366×768）入 docs/evidence/r75/；歷史 evidence 不覆寫。
 - 報告 docs/CODEX_RESPONSE_R75.md；main 分支繁中 commit，不 push。
 - 本機效能僅參考（audiodg 污染前例 R72.2/R73）；功能閘必須綠。
+
+## R75.1 硬化（Grok 對抗複審 NO_P0、六項回鍋，均已實作）
+
+| id | 內容 | 落點 |
+|---|---|---|
+| R75-01 | td-e2e 快速開始補正向斷言：`dataset.r72VisualReady === "true"` 才可通過（僅 `!show` 不得矇混） | scripts/test-td-e2e.js |
+| R75-02 | toast 斷言改過濾 `__tdToastRecord` 中「建立當下 firstTower 已領」快照為 true 的第一筆（不取最後一筆；toast 內文無任務 id，以 saveMeta→showMissionToast 順序保證快照對應） | scripts/test-td-e2e.js |
+| R75-03 | 新增「.overlay 開啟時背景不可點」斷言（出波 CTA＋三把手 elementFromPoint 全不得自點命中） | scripts/test-r66-controls.js |
+| R75-04 | `--r75-drawer-max-height` 開機即寫（init syncAdvisorGeometry 既有）＋補掛 visualViewport resize；守門斷言首開抽屜前兩變數皆為 px 值 | src/ui.js＋scripts/test-r66-controls.js |
+| R75-05 | 844×390 補「advisor tools 不遮出波 CTA/抽屜把手」斷言（bbox 交集為零或 elementFromPoint 命中正確目標）＋抽屜收合後 CTA/把手恢復可自點 | scripts/test-r66-controls.js |
+| R75-08 | overlay 每次開啟 scrollTop 歸零（onGameOver 一行）＋守門斷言開啟當下 scrollTop===0 | src/ui.js＋scripts/test-r66-controls.js |
+
+## 殘留（記錄，未入本輪程式變更）
+
+- R75-06（Grok）：r75 outline bake 記憶體上限與降級敘事——hero atlas bake 峰值約 18 MiB 離屏 canvas；bake 失敗已 fallback 原 atlas，但未寫入顯式記憶體預算/低階裝置跳過策略，待下輪補敘事與量測。
+- R75-07（Grok）：版本鏈原子性——sw.js/index.html/package.json 的 0.7.5/td-r75-v1 已於同一 commit（bfd6752）落盤，僅記錄備查；後續輪維持「版本鏈單 commit」紀律。
+- 生成產線未連線（Hyper3D/gpt-image-2）；menuscan P2 批次；本機 p95 需乾淨機況重測；D-01/A-01/A-02/A-03 Codex 佇列未動。

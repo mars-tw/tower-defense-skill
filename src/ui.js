@@ -1886,6 +1886,7 @@
       }
     }
     $("overlay").classList.add("show");
+    $("overlay").scrollTop = 0; // R75.1（Grok R75-08）：每次開啟結算都從頂部開始，前次捲動位置不殘留
     focusSoon($("deathCtaBtn"));
   }
 
@@ -2457,6 +2458,13 @@
       syncR71ModalState();
     });
   }, { passive: true });
+  // R75.1（Grok R75-04）：行動瀏覽器網址列收合/軟鍵盤常只觸發 visualViewport resize、
+  // 不觸發 window resize——補掛，抽屜幾何跟實際可視視口走；開機寫入見 init 段 syncAdvisorGeometry()。
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      syncAdvisorGeometry();
+    }, { passive: true });
+  }
   const battlefieldScroll = $("battlefieldScroll");
   if (battlefieldScroll) battlefieldScroll.addEventListener("scroll", refreshScenePositions, { passive: true });
   fitCanvasToStage();

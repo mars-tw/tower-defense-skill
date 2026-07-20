@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-19T15:37:24.726Z",
+  "generatedAt": "2026-07-20T02:47:01.726Z",
   "viewports": [
     {
       "viewport": "desktop-1366x768",
@@ -159,7 +159,7 @@
           "mapId": "plains",
           "quality": "high",
           "visualReady": "true",
-          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-high.webp?v=7a8d1753",
+          "source": "http://127.0.0.1:63294/assets/maps/r72/plains-loading-high.webp?v=7a8d1753",
           "natural": {
             "width": 1024,
             "height": 576
@@ -314,7 +314,7 @@
           "mapId": "canyon",
           "quality": "high",
           "visualReady": "true",
-          "source": "http://127.0.0.1:52956/assets/maps/r72/canyon-loading-high.webp?v=acb28553",
+          "source": "http://127.0.0.1:63294/assets/maps/r72/canyon-loading-high.webp?v=acb28553",
           "natural": {
             "width": 1024,
             "height": 576
@@ -469,7 +469,7 @@
           "mapId": "lava",
           "quality": "high",
           "visualReady": "true",
-          "source": "http://127.0.0.1:52956/assets/maps/r72/lava-loading-high.webp?v=5239fc3e",
+          "source": "http://127.0.0.1:63294/assets/maps/r72/lava-loading-high.webp?v=5239fc3e",
           "natural": {
             "width": 1024,
             "height": 576
@@ -575,25 +575,25 @@
           "mapId": "plains",
           "pathSamples": 1267,
           "groundSamples": 2081,
-          "pathLuminance": 0.27049527483771246,
-          "groundLuminance": 0.09181980420097928,
-          "contrastRatio": 2.2598767262682444
+          "pathLuminance": 0.2691658163084929,
+          "groundLuminance": 0.09003459512705461,
+          "contrastRatio": 2.279192623929186
         },
         {
           "mapId": "canyon",
           "pathSamples": 1366,
           "groundSamples": 1654,
-          "pathLuminance": 0.26316183154226014,
-          "groundLuminance": 0.08433527004301526,
-          "contrastRatio": 2.3311959059000897
+          "pathLuminance": 0.2649418053368381,
+          "groundLuminance": 0.08118268428932163,
+          "contrastRatio": 2.4007879320584586
         },
         {
           "mapId": "lava",
           "pathSamples": 1206,
           "groundSamples": 1970,
-          "pathLuminance": 0.185982091790317,
-          "groundLuminance": 0.05805105407546347,
-          "contrastRatio": 2.1839869477395912
+          "pathLuminance": 0.1845986258780083,
+          "groundLuminance": 0.05983600108744388,
+          "contrastRatio": 2.135899191115279
         }
       ],
       "errors": []
@@ -756,7 +756,7 @@
           "mapId": "plains",
           "quality": "med",
           "visualReady": "true",
-          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-med.webp?v=32307665",
+          "source": "http://127.0.0.1:63294/assets/maps/r72/plains-loading-med.webp?v=32307665",
           "natural": {
             "width": 768,
             "height": 432
@@ -1018,7 +1018,7 @@
           "mapId": "plains",
           "quality": "med",
           "visualReady": "true",
-          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-med.webp?v=32307665",
+          "source": "http://127.0.0.1:63294/assets/maps/r72/plains-loading-med.webp?v=32307665",
           "natural": {
             "width": 768,
             "height": 432
@@ -1157,7 +1157,7 @@
             0.003994876836823882,
             0.0006400785354986546
           ],
-          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-low.webp?v=822eb164"
+          "source": "http://127.0.0.1:63294/assets/maps/r72/plains-loading-low.webp?v=822eb164"
         }
       },
       {
@@ -1192,7 +1192,7 @@
             0.003779152953692508,
             0.00042998789520547545
           ],
-          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-med.webp?v=32307665"
+          "source": "http://127.0.0.1:63294/assets/maps/r72/plains-loading-med.webp?v=32307665"
         }
       },
       {
@@ -1227,7 +1227,7 @@
             0.003979711328900293,
             0.00046203288265126916
           ],
-          "source": "http://127.0.0.1:52956/assets/maps/r72/plains-loading-high.webp?v=7a8d1753"
+          "source": "http://127.0.0.1:63294/assets/maps/r72/plains-loading-high.webp?v=7a8d1753"
         }
       }
     ],
@@ -1237,10 +1237,10 @@
     {
       "target": "desktop",
       "concurrentUntrusted": true,
-      "interactiveMs": 4972.699999809265,
+      "interactiveMs": 5614.400000095367,
       "interactiveLimitMs": 5971.8,
-      "selectorVisualMs": 334,
-      "loadingVisualMs": 170.90000009536743,
+      "selectorVisualMs": 306.09999990463257,
+      "loadingVisualMs": 143.40000009536743,
       "quality": "low",
       "throttle": {
         "network": "Fast 3G",
@@ -1251,10 +1251,10 @@
     {
       "target": "mobile",
       "concurrentUntrusted": true,
-      "interactiveMs": 4796.299999713898,
+      "interactiveMs": 5297.799999713898,
       "interactiveLimitMs": 5371.6,
-      "selectorVisualMs": 318.40000009536743,
-      "loadingVisualMs": 161.59999990463257,
+      "selectorVisualMs": 286.69999980926514,
+      "loadingVisualMs": 132.5,
       "quality": "low",
       "throttle": {
         "network": "Fast 3G",

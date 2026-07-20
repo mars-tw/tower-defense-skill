@@ -291,6 +291,11 @@ async function run() {
       return overlay.classList.contains("show") || overlay.dataset.r72VisualReady === "true";
     }, null, { timeout: 15000 });
     await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 15000 });
+    // R75.1（Grok R75-01）：正向斷言——loading 管線必須「真的跑過」（r72VisualReady 落定為 true），
+    // 不允許以「覆層從未出現」矇混通過快速路徑。
+    const quickLoadingRan = await page.evaluate(() => document.getElementById("mapLoadingOverlay").dataset.r72VisualReady);
+    assert(quickLoadingRan === "true",
+      `快速開始 loading 管線真的跑過（r72VisualReady=${quickLoadingRan}，僅未顯示不得通過）`);
     const quickState = await page.evaluate(() => ({
       tutorialShown: document.getElementById("tutorial").classList.contains("show"),
       diffShown: document.getElementById("diffOverlay").classList.contains("show"),
@@ -309,13 +314,25 @@ async function run() {
     // R75：mission-toast 1.9 秒後自動移除；高負載機況下取樣常晚於移除，且中段狀態操演
     // （顧問 R29 等）可能提前觸發領獎 toast——主流程一開始就掛 MutationObserver，
     // 於 toast「建立當下」錄制 aria-live 與內文，取樣不再受排程延遲與階段先後影響。
+    // R75.1（Grok R75-02）：toast 內文只有加總金額、不含任務 id——每筆紀錄同步快照
+    // 建立當下 meta.beginnerMissions.firstTower（claimBeginnerMissions 先 saveMeta 再 showMissionToast，
+    // 因此快照為 true 的第一筆就是涵蓋 firstTower 領獎的那顆 toast），斷言據此過濾、不取最後一筆。
     await page.evaluate(() => {
       window.__tdToastRecord = [];
       const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) {
             if (node.nodeType === 1 && node.classList && node.classList.contains("mission-toast")) {
-              window.__tdToastRecord.push({ ariaLive: node.getAttribute("aria-live"), text: node.textContent });
+              let firstTowerClaimed = false;
+              try {
+                const meta = JSON.parse(localStorage.getItem("td_meta_v1"));
+                firstTowerClaimed = !!(meta && meta.beginnerMissions && meta.beginnerMissions.firstTower === true);
+              } catch (err) { firstTowerClaimed = false; }
+              window.__tdToastRecord.push({
+                ariaLive: node.getAttribute("aria-live"),
+                text: node.textContent,
+                firstTowerClaimed,
+              });
             }
           }
         }
@@ -966,9 +983,14 @@ async function run() {
         crystal: meta.soulCrystal,
         firstTower: meta.beginnerMissions && meta.beginnerMissions.firstTower === true,
         text: document.getElementById("beginnerMissions").innerHTML,
-        toastLive: (document.querySelector(".mission-toast") && document.querySelector(".mission-toast").getAttribute("aria-live")) ||
-          (window.__tdToastRecord && window.__tdToastRecord.length
-            ? window.__tdToastRecord[window.__tdToastRecord.length - 1].ariaLive : null),
+        // R75.1（Grok R75-02）：只認「建立當下 firstTower 已領」快照為 true 的第一筆紀錄，
+        // 不拿最後一筆——鎖住「建塔領獎 toast」因果對應。
+        toastLive: (() => {
+          const record = (window.__tdToastRecord || []).find((item) => item.firstTowerClaimed === true);
+          if (record) return record.ariaLive;
+          const live = document.querySelector(".mission-toast");
+          return live ? live.getAttribute("aria-live") : null;
+        })(),
       };
     });
     assert(missionAfterBuild.firstTower && missionAfterBuild.crystal >= 4 && missionAfterBuild.toastLive === "polite",

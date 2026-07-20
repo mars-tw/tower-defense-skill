@@ -47,9 +47,23 @@
 - docs/evidence/r75/before/、docs/evidence/r75/after/：390×844、844×390、1366×768 × 戰場/結算 overlay 頂底/抽屜/64px 單位特寫/抽卡揭示。
 - docs/evidence/r75/guard/：守門截圖（landscape-844x390-drawer-intel/overlay 等）＋量測 JSON。
 
+## R75.1 硬化（Grok 對抗複審 NO_P0、六項裁定回鍋）
+
+1. **R75-01** test-td-e2e：快速開始 loading 守門補正向斷言——兩段等待後再讀 `mapLoadingOverlay.dataset.r72VisualReady`，必須為 `"true"` 才通過；「覆層從未出現」不再能矇混快速路徑。
+2. **R75-02** test-td-e2e：`__tdToastRecord` 每筆改同步快照「建立當下 meta.beginnerMissions.firstTower」（claimBeginnerMissions 先 saveMeta 再 showMissionToast，快照為 true 的第一筆即涵蓋 firstTower 領獎的 toast）；斷言 `find(firstTowerClaimed===true)` 過濾、不取最後一筆，鎖住建塔領獎因果。
+3. **R75-03** test-r66-controls（844×390 段）：新增「#overlay 開啟時背景不可點」斷言——出波 CTA＋三個抽屜把手 elementFromPoint 全不得自點命中（overlay z-70 蓋抽屜 z-64 的實證守門）。
+4. **R75-04** src/ui.js：補掛 `visualViewport.resize → syncAdvisorGeometry`（網址列收合/軟鍵盤不觸發 window resize 的情境）；開機寫入原已在 init `syncAdvisorGeometry()`。守門新增：首開抽屜前 `--r71-drawer-safe-bottom` 與 `--r75-drawer-max-height` 皆已為 px 值。
+5. **R75-05** test-r66-controls（844×390 段）：intel 開啟時每顆 advisor tools 對出波 CTA/三把手「bbox 交集為零或 elementFromPoint 命中工具鈕本身」；另補「三抽屜全收合後 CTA/把手恢復可自點命中」斷言。
+6. **R75-08** src/ui.js：onGameOver 開啟 overlay 後 `scrollTop = 0`（前局捲動位置不殘留）；守門新增開啟當下 `scrollTop===0` 斷言。
+
+R75-06（bake 記憶體/降級敘事）與 R75-07（版本鏈原子性，已同 commit 落盤僅記錄）入 OPTIM_PLAN_R75 殘留節。
+
+R75.1 重跑：npm test 全綠（0 FAIL）；npm run test:e2e（r72→r66→r68→td-e2e）單次連跑全綠（含六條新斷言）；npm run test:rwd 9 視口全綠；秘密掃描零命中。
+
 ## 殘留風險 / 缺件
 
 - 美術僅程序化打磨；Hyper3D/gpt-image-2 生成產線未連線，塔/敵貼圖底仍為既有 atlas——待工具恢復再走 VISUAL_REFRESH_PLAN 生成輪。
 - menuscan P2（tabs 35px、把手 38px 等 <44px 批次）未在本輪範圍，留待後續輪。
 - 本機效能量測不可信（audiodg），p95 出貨閘需乾淨機況重測。
 - D-01 手機放大鏡、A-01/A-02/A-03 仍屬 Codex 佇列未動。
+- R75-06：outline bake 未寫顯式記憶體預算/低階裝置跳過策略（現況：bake 失敗 fallback 原 atlas），待下輪補。

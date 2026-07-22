@@ -508,7 +508,8 @@
 
   function bossHpMultiplierForWave(wave, bossEvery) {
     const base = safeNumber(cfg.GAME.bossHpMul, 1);
-    return base * Math.min(1.32, 1 + (bossWaveIndex(wave, bossEvery) - 1) * 0.10);
+    const index = bossWaveIndex(wave, bossEvery);
+    return base * Math.min(1.32, 1 + (index - 1) * 0.10);
   }
 
   function generateWaveQueue(wave, difficulty, rng, affixInput) {
@@ -562,7 +563,20 @@
 
     if (isBoss) {
       const bossType = (Math.floor(w / bossEvery) % 2 === 0) ? "yaksha" : "boss";
-      queue.push({ type: bossType, hpScale: hpScale * bossHpMultiplierForWave(w, bossEvery) * affixHpMul, affix: affix ? affix.id : null });
+      const bossIndex = bossWaveIndex(w, bossEvery);
+      const firstBossRewardMul = bossIndex === 1
+        ? difficultyValue(diff, "firstBossRewardMul", 1)
+        : 1;
+      const firstBossSpeedMul = bossIndex === 1
+        ? difficultyValue(diff, "firstBossSpeedMul", 1)
+        : 1;
+      queue.push({
+        type: bossType,
+        hpScale: hpScale * bossHpMultiplierForWave(w, bossEvery) * affixHpMul,
+        speedMul: firstBossSpeedMul,
+        rewardMul: firstBossRewardMul,
+        affix: affix ? affix.id : null,
+      });
     }
     return { wave: w, count: baseCount, totalCount: queue.length, isBoss, event, theme, hpScale: hpScale * affixHpMul, affix, queue };
   }

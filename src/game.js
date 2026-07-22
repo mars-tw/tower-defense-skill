@@ -505,6 +505,9 @@
       runSoulEarned: 0, runMissionSoulEarned: 0, soulRewardedWaves: new Set(),
       runLeaks: { total: 0, byWave: {} },
       towersBuilt: 0, towerUpgrades: 0, skillCasts: 0, bossKills: 0, clearedWave: 0,
+      // R77: deterministic headless balance runs read these counters after driving
+      // the real update loop. They are observational only and never feed combat.
+      combatTelemetry: { waves: {} },
       running: false, over: false, betweenWaves: true, waveTotal: 0, waveResolved: 0,
       selectedTowerType: null,   // 準備建造的塔
       selectedTower: null,        // 已選中的塔（看升級）
@@ -607,6 +610,29 @@
     const isBoss = plan.isBoss;
     const ev = plan.event;
     state.currentEvent = ev;
+    state.combatTelemetry = state.combatTelemetry || { waves: {} };
+    state.combatTelemetry.waves[w] = {
+      wave: w,
+      startedAt: state.clock,
+      endedAt: null,
+      spawned: 0,
+      spawnedDurability: 0,
+      latestLeakDeadlineSeconds: 0,
+      leakPotentialDamage: 0,
+      bossSpawned: 0,
+      bossDurability: 0,
+      bossLeakPotentialDamage: 0,
+      playerDamage: 0,
+      damageBySource: {},
+      bossDamage: 0,
+      kills: 0,
+      bossKills: 0,
+      killGold: 0,
+      bossGold: 0,
+      waveGold: 0,
+      leaks: 0,
+      goddessDamage: 0,
+    };
     applyAffixWaveStart(w);
 
     state.spawnQueue = plan.queue;
@@ -694,6 +720,23 @@
     const enemy = createEnemy(spec);
     enemy._waveTracked = true;
     state.enemies.push(enemy);
+    const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
+    if (telemetry) {
+      const durability = Math.max(0, enemy.maxHp || 0) + Math.max(0, enemy.maxShield || 0);
+      const leakDamage = Math.round(enemy.leak * (enemy.boss ? 4 : 3) * affixMul("leakDamageMul"));
+      telemetry.spawned += 1;
+      telemetry.spawnedDurability += durability;
+      telemetry.leakPotentialDamage += leakDamage;
+      telemetry.latestLeakDeadlineSeconds = Math.max(
+        telemetry.latestLeakDeadlineSeconds,
+        Math.max(0, state.clock - telemetry.startedAt) + (state.pathTotalLength || 0) / Math.max(1, enemy.speed || 1),
+      );
+      if (enemy.boss) {
+        telemetry.bossSpawned += 1;
+        telemetry.bossDurability += durability;
+        telemetry.bossLeakPotentialDamage += leakDamage;
+      }
+    }
     return enemy;
   }
 
@@ -793,7 +836,15 @@
     }
     const hpDealt = Math.max(0, hpBefore - Math.max(0, e.hp));
     const shieldDealt = Math.max(0, shieldBefore - Math.max(0, e.shield || 0));
-    return hpDealt + shieldDealt;
+    const totalDealt = hpDealt + shieldDealt;
+    const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
+    if (telemetry && totalDealt > 0) {
+      const source = typeof opts.source === "string" && opts.source ? opts.source : "other";
+      telemetry.playerDamage += totalDealt;
+      telemetry.damageBySource[source] = (telemetry.damageBySource[source] || 0) + totalDealt;
+      if (e.boss) telemetry.bossDamage += totalDealt;
+    }
+    return totalDealt;
   }
 
   function applyPoison(e, poison) {
@@ -816,7 +867,7 @@
       e.poisonStacks = e.poisonStacks.filter((s) => s.until > state.clock && s.dps > 0);
       if (!e.poisonStacks.length) continue;
       const dps = e.poisonStacks.reduce((sum, s) => sum + s.dps, 0) * (e.boss ? 0.5 : 1);
-      const dealt = applyDamage(e, dps * dt, { bypassShield: true, noHitFlash: true });
+      const dealt = applyDamage(e, dps * dt, { source: "poison", bypassShield: true, noHitFlash: true });
       if (dealt > 0) {
         e._poisonAcc = (e._poisonAcc || 0) + dealt;
         const due = state.clock - (e._poisonFloatAt || 0) >= 1;
@@ -991,7 +1042,7 @@
         const targets = state.enemies.filter((e) => !e._dead && Math.hypot(e.x - gd.x, e.y - gd.y) <= GODDESS.smiteRange);
         if (targets.length) {
           const t = targets.sort((a, b) => b.wp - a.wp)[0]; // 打最接近終點的
-          applyDamage(t, GODDESS.smiteDamage);
+          applyDamage(t, GODDESS.smiteDamage, { source: "goddess" });
           state.bullets.push({ x: gd.x, y: gd.y, target: t, speed: 500, color: "#fde047", damage: 0, element: "physical", _holy: true });
           burst(t.x, t.y, "#fde047", 8);
           if (t.hp <= 0) killEnemy(t);
@@ -1084,6 +1135,11 @@
       state.clearedWave = Math.max(state.clearedWave || 0, state.wave);
       const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1) * affixMul("waveGoldMul")); // 指數成長獎勵（D2）
       state.gold += bonus;
+      const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
+      if (telemetry) {
+        telemetry.waveGold = bonus;
+        telemetry.endedAt = state.clock;
+      }
       state.score += state.wave * 10;
       const clean = (state.waveLeaks || 0) === 0;
       state.cleanStreak = clean ? (state.cleanStreak || 0) + 1 : 0;
@@ -1120,6 +1176,11 @@
       e._waveTracked = false;
     }
     const dmg = Math.round(e.leak * (e.boss ? 4 : 3) * affixMul("leakDamageMul")); // 漏過對女神造成的傷害
+    const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
+    if (telemetry) {
+      telemetry.leaks += 1;
+      telemetry.goddessDamage += dmg;
+    }
     state.runLeaks = state.runLeaks || { total: 0, byWave: {} };
     const waveKey = String(Math.max(1, state.wave || 1));
     const waveEntry = state.runLeaks.byWave[waveKey] || { count: 0, damage: 0, byType: {} };
@@ -1389,6 +1450,15 @@
     const comboMul = 1 + Math.min(state.combo - 1, 20) * 0.05; // 每連殺 +5%，上限 +100%
     const reward = Math.round(e.reward * comboMul);
     state.gold += reward;
+    const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
+    if (telemetry) {
+      telemetry.kills += 1;
+      telemetry.killGold += reward;
+      if (e.boss) {
+        telemetry.bossKills += 1;
+        telemetry.bossGold += reward;
+      }
+    }
     state.score += reward;
     burst(e.x, e.y, e.color, e.boss ? 30 : 12, e.boss ? { criticalFx: true, fxKind: "boss" } : null);
     deathBurst(e);
@@ -3203,6 +3273,7 @@
         return e;
       },
       step: (dt) => { update(dt || 0.016); render(); },
+      stepSimulation: (dt) => update(dt || 0.016),
       fireTower: (tw, target) => fire(tw, target),
       acquireTarget: (tw) => acquireTarget(tw),
       applyDamage: (enemy, amount, opts) => applyDamage(enemy, amount, opts),

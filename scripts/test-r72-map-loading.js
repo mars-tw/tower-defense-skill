@@ -101,9 +101,9 @@ function staticGovernance() {
     `all runtime variants decode to ${manifest.decoded_rgba_mib_all_variants} MiB <= mobile 32 MiB (desktop <=64 MiB)`);
   assert(sha256(path.join(ROOT, "assets", "tiles", "path.png")) === PATH_TILE_SHA256,
     "gameplay path tile hash is unchanged by R72 imagegen backgrounds");
-  assert(packageInfo.version === "0.7.6" && packageInfo.pwaVersion === "td-r76-v1" &&
-    indexSource.includes("td-r76-v1") && swSource.includes('CACHE_VERSION = "td-r76-v1"'),
-  "package, HTML and service worker expose the R76 version/cache bump");
+  assert(packageInfo.version === "0.7.7" && packageInfo.pwaVersion === "td-r77-v1" &&
+    indexSource.includes("td-r77-v1") && swSource.includes('CACHE_VERSION = "td-r77-v1"'),
+  "package, HTML and service worker expose the R77 version/cache bump");
   for (const mapId of EXPECTED_MAPS) {
     const item = c2paSummary[mapId];
     assert(item && item.software_agent_is_gpt_image_2_x && item.claim_signature_validated && item.data_hash_valid,

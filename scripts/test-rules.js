@@ -476,10 +476,20 @@ console.log("\n== generateWaveQueue 可重現與主題偏置 ==");
     "第 8 波後雷刃武士仍可進預設池");
   const boss1 = generateWaveQueue(5, cfg.DIFFICULTIES.normal, makeRng(5));
   const boss2 = generateWaveQueue(10, cfg.DIFFICULTIES.normal, makeRng(10));
+  const firstBossSpec = boss1.queue.find((spec) => cfg.ENEMIES[spec.type] && cfg.ENEMIES[spec.type].boss);
+  const secondBossSpec = boss2.queue.find((spec) => cfg.ENEMIES[spec.type] && cfg.ENEMIES[spec.type].boss);
   assert(boss1.queue.some((spec) => spec.type === "boss") && !boss1.queue.some((spec) => spec.type === "yaksha"),
     "第 1 次 Boss 波維持魔王");
   assert(boss2.queue.some((spec) => spec.type === "yaksha") && !boss2.event,
     "偶數 Boss 波改為夜叉且不與事件波互撞");
+  assert(firstBossSpec && Math.abs(firstBossSpec.hpScale / Math.pow(1.15, 4) - cfg.GAME.bossHpMul) < 1e-9 && firstBossSpec.speedMul === 1.40 && firstBossSpec.rewardMul === 0.70,
+    "R77 普通首 Boss 維持 HP 曲線並套用 1.40 速度與 0.70 擊殺金倍率");
+  assert(secondBossSpec && Math.abs(secondBossSpec.hpScale / Math.pow(1.15, 9) - (cfg.GAME.bossHpMul * 1.10)) < 1e-9 && secondBossSpec.speedMul === 1 && secondBossSpec.rewardMul === 1,
+    "R77 普通第 2 隻 Boss 回到既有後段 HP/獎勵曲線");
+  const brutalFirstBoss = generateWaveQueue(4, cfg.DIFFICULTIES.brutal, makeRng(4));
+  const brutalBossSpec = brutalFirstBoss.queue.find((spec) => cfg.ENEMIES[spec.type] && cfg.ENEMIES[spec.type].boss);
+  assert(brutalBossSpec && Math.abs(brutalBossSpec.hpScale / (Math.pow(1.15, 3) * cfg.DIFFICULTIES.brutal.hpMul) - cfg.GAME.bossHpMul) < 1e-9 && brutalBossSpec.speedMul === 1 && brutalBossSpec.rewardMul === 1,
+    "R77 首 Boss 調整不外溢至嚴酷難度");
 }
 
 console.log("\n== 毒霧塔 DoT 等級成長 ==");

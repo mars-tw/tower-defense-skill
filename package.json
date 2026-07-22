@@ -1,7 +1,7 @@
 ﻿{
   "name": "tower-defense-skill",
-  "version": "0.7.6",
-  "pwaVersion": "td-r76-v1",
+  "version": "0.7.7",
+  "pwaVersion": "td-r77-v1",
   "description": "純原生網頁無盡塔防遊戲 — Claude Code Skill。零依賴 HTML/CSS/JS + Canvas，英雄抽卡、難度模式，localStorage 存檔。",
   "type": "commonjs",
   "scripts": {
@@ -12,6 +12,7 @@
     "test:r72": "node scripts/test-r72-map-loading.js",
     "test:rwd": "node scripts/test-rwd-matrix.js",
     "test:perf": "node scripts/test-performance-r68.js",
+    "sim:r77": "node scripts/sim-economy-balance.mjs",
     "start": "python -m http.server 8000"
   },
   "keywords": [

@@ -1,0 +1,1050 @@
+{
+  "schemaVersion": 1,
+  "method": {
+    "engine": "production Chromium game loop via TD.debug.stepSimulation",
+    "fixedStepSeconds": 0.016666666666666666,
+    "difficulty": "normal",
+    "map": "plains",
+    "waves": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "seeds": [
+      104729,
+      130363,
+      155921,
+      181081,
+      206369,
+      232003,
+      257371,
+      283051,
+      308713,
+      334363,
+      360007,
+      385621,
+      411233,
+      436853,
+      462493,
+      488117,
+      513739,
+      539389,
+      565019,
+      590641,
+      616289,
+      641909,
+      667531,
+      693173
+    ],
+    "affixSeedRule": "FIXED_SEEDS[(index * 7 + 5) % 24]",
+    "strategies": [
+      "playtest",
+      "boss-ready",
+      "no-reinvest",
+      "all-arrow"
+    ],
+    "renderingSkipped": true,
+    "combatRulesSkipped": false
+  },
+  "beforeProfile": {
+    "label": "locked pre-R77 baseline",
+    "game": {
+      "waveBonusBase": 30,
+      "waveBonusGrowth": 1.12,
+      "bossHpMul": 0.82
+    },
+    "difficulties": {
+      "normal": {
+        "firstBossSpeedMul": 1,
+        "firstBossRewardMul": 1
+      }
+    },
+    "enemies": {
+      "yaksha": {
+        "reward": 132
+      },
+      "boss": {
+        "reward": 150
+      }
+    }
+  },
+  "afterProfile": {
+    "label": "R77 0.7.7 candidate",
+    "game": {
+      "waveBonusBase": 30,
+      "waveBonusGrowth": 1.12,
+      "bossHpMul": 0.82
+    },
+    "difficulties": {
+      "normal": {
+        "firstBossSpeedMul": 1.4,
+        "firstBossRewardMul": 0.7
+      }
+    },
+    "enemies": {
+      "yaksha": {
+        "reward": 132
+      },
+      "boss": {
+        "reward": 150
+      }
+    }
+  },
+  "curveInvariance": {
+    "seeds": 24,
+    "earlyWaves1To4": {
+      "comparisons": 96,
+      "differences": 0
+    },
+    "firstBossWave5": {
+      "comparisons": 24,
+      "differences": 24
+    },
+    "laterWaves6To50": {
+      "comparisons": 1080,
+      "differences": 0
+    }
+  },
+  "comparison": {
+    "seedsIdentical": true,
+    "strategies": {
+      "playtest": {
+        "reachedWave8Rate": {
+          "before": 1,
+          "after": 1,
+          "delta": 0
+        },
+        "waves": [
+          {
+            "wave": 1,
+            "incomeP50": {
+              "before": 101,
+              "after": 101,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 101,
+              "after": 101,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.8333,
+              "after": 0.8333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.08,
+              "after": 0.08,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 2,
+            "incomeP50": {
+              "before": 117,
+              "after": 117,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 219,
+              "after": 219,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.9167,
+              "after": 0.9167,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.1,
+              "after": 0.1,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 3,
+            "incomeP50": {
+              "before": 138,
+              "after": 138,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 357,
+              "after": 357,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 97,
+              "after": 97,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.3333,
+              "after": 0.3333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.14,
+              "after": 0.14,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 4,
+            "incomeP50": {
+              "before": 178,
+              "after": 178,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 219,
+              "after": 219,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 97,
+              "after": 97,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 1,
+              "after": 1,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.12,
+              "after": 0.12,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 5,
+            "incomeP50": {
+              "before": 291,
+              "after": 141,
+              "delta": -150
+            },
+            "goldEndP50": {
+              "before": 509,
+              "after": 382,
+              "delta": -127
+            },
+            "goddessHpP50": {
+              "before": 94,
+              "after": 65,
+              "delta": -29
+            },
+            "noLeakRate": {
+              "before": 0.9583,
+              "after": 0.375,
+              "delta": -0.5833
+            },
+            "pressureRatioP50": {
+              "before": 0.19,
+              "after": 0.24,
+              "delta": 0.05
+            }
+          },
+          {
+            "wave": 6,
+            "incomeP50": {
+              "before": 233,
+              "after": 226,
+              "delta": -7
+            },
+            "goldEndP50": {
+              "before": 734,
+              "after": 617,
+              "delta": -117
+            },
+            "goddessHpP50": {
+              "before": 88,
+              "after": 59,
+              "delta": -29
+            },
+            "noLeakRate": {
+              "before": 0.0417,
+              "after": 0.0833,
+              "delta": 0.0416
+            },
+            "pressureRatioP50": {
+              "before": 0.17,
+              "after": 0.17,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 7,
+            "incomeP50": {
+              "before": 237,
+              "after": 234,
+              "delta": -3
+            },
+            "goldEndP50": {
+              "before": 968,
+              "after": 851,
+              "delta": -117
+            },
+            "goddessHpP50": {
+              "before": 76,
+              "after": 49,
+              "delta": -27
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.19,
+              "after": 0.19,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 8,
+            "incomeP50": {
+              "before": 284,
+              "after": 284,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 1262,
+              "after": 1178,
+              "delta": -84
+            },
+            "goddessHpP50": {
+              "before": 46,
+              "after": 17,
+              "delta": -29
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.38,
+              "after": 0.38,
+              "delta": 0
+            }
+          }
+        ]
+      },
+      "boss-ready": {
+        "reachedWave8Rate": {
+          "before": 1,
+          "after": 1,
+          "delta": 0
+        },
+        "waves": [
+          {
+            "wave": 1,
+            "incomeP50": {
+              "before": 101,
+              "after": 101,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 101,
+              "after": 101,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.8333,
+              "after": 0.8333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.08,
+              "after": 0.08,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 2,
+            "incomeP50": {
+              "before": 117,
+              "after": 117,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 219,
+              "after": 219,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.9167,
+              "after": 0.9167,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.1,
+              "after": 0.1,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 3,
+            "incomeP50": {
+              "before": 138,
+              "after": 138,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 357,
+              "after": 357,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 97,
+              "after": 97,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.3333,
+              "after": 0.3333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.14,
+              "after": 0.14,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 4,
+            "incomeP50": {
+              "before": 178,
+              "after": 178,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 219,
+              "after": 219,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 97,
+              "after": 97,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 1,
+              "after": 1,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.12,
+              "after": 0.12,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 5,
+            "incomeP50": {
+              "before": 297,
+              "after": 238,
+              "delta": -59
+            },
+            "goldEndP50": {
+              "before": 348,
+              "after": 299,
+              "delta": -49
+            },
+            "goddessHpP50": {
+              "before": 97,
+              "after": 94,
+              "delta": -3
+            },
+            "noLeakRate": {
+              "before": 1,
+              "after": 0.7917,
+              "delta": -0.2083
+            },
+            "pressureRatioP50": {
+              "before": 0.17,
+              "after": 0.22,
+              "delta": 0.05
+            }
+          },
+          {
+            "wave": 6,
+            "incomeP50": {
+              "before": 242,
+              "after": 242,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 602,
+              "after": 538,
+              "delta": -64
+            },
+            "goddessHpP50": {
+              "before": 91,
+              "after": 88,
+              "delta": -3
+            },
+            "noLeakRate": {
+              "before": 0.125,
+              "after": 0.1667,
+              "delta": 0.0417
+            },
+            "pressureRatioP50": {
+              "before": 0.16,
+              "after": 0.16,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 7,
+            "incomeP50": {
+              "before": 265,
+              "after": 265,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 866,
+              "after": 799,
+              "delta": -67
+            },
+            "goddessHpP50": {
+              "before": 85,
+              "after": 82,
+              "delta": -3
+            },
+            "noLeakRate": {
+              "before": 0.0417,
+              "after": 0.0417,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.18,
+              "after": 0.18,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 8,
+            "incomeP50": {
+              "before": 309,
+              "after": 309,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 1232,
+              "after": 1151,
+              "delta": -81
+            },
+            "goddessHpP50": {
+              "before": 52,
+              "after": 49,
+              "delta": -3
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.35,
+              "after": 0.35,
+              "delta": 0
+            }
+          }
+        ]
+      },
+      "no-reinvest": {
+        "reachedWave8Rate": {
+          "before": 0.625,
+          "after": 0.5417,
+          "delta": -0.0833
+        },
+        "waves": [
+          {
+            "wave": 1,
+            "incomeP50": {
+              "before": 101,
+              "after": 101,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 101,
+              "after": 101,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.8333,
+              "after": 0.8333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.08,
+              "after": 0.08,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 2,
+            "incomeP50": {
+              "before": 117,
+              "after": 117,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 219,
+              "after": 219,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.9167,
+              "after": 0.9167,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.1,
+              "after": 0.1,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 3,
+            "incomeP50": {
+              "before": 138,
+              "after": 138,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 357,
+              "after": 357,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 97,
+              "after": 97,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.3333,
+              "after": 0.3333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.14,
+              "after": 0.14,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 4,
+            "incomeP50": {
+              "before": 133,
+              "after": 133,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 490,
+              "after": 490,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 85,
+              "after": 85,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.1667,
+              "after": 0.1667,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.19,
+              "after": 0.19,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 5,
+            "incomeP50": {
+              "before": 122,
+              "after": 117,
+              "delta": -5
+            },
+            "goldEndP50": {
+              "before": 611,
+              "after": 607,
+              "delta": -4
+            },
+            "goddessHpP50": {
+              "before": 53,
+              "after": 53,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.3,
+              "after": 0.39,
+              "delta": 0.09
+            }
+          },
+          {
+            "wave": 6,
+            "incomeP50": {
+              "before": 146,
+              "after": 146,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 762,
+              "after": 756,
+              "delta": -6
+            },
+            "goddessHpP50": {
+              "before": 32,
+              "after": 29,
+              "delta": -3
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.27,
+              "after": 0.27,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 7,
+            "incomeP50": {
+              "before": 129,
+              "after": 124,
+              "delta": -5
+            },
+            "goldEndP50": {
+              "before": 906,
+              "after": 872,
+              "delta": -34
+            },
+            "goddessHpP50": {
+              "before": 5,
+              "after": 5,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.31,
+              "after": 0.31,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 8,
+            "incomeP50": {
+              "before": 76,
+              "after": 80,
+              "delta": 4
+            },
+            "goldEndP50": {
+              "before": 1008,
+              "after": 996,
+              "delta": -12
+            },
+            "goddessHpP50": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.64,
+              "after": 0.62,
+              "delta": -0.02
+            }
+          }
+        ]
+      },
+      "all-arrow": {
+        "reachedWave8Rate": {
+          "before": 1,
+          "after": 1,
+          "delta": 0
+        },
+        "waves": [
+          {
+            "wave": 1,
+            "incomeP50": {
+              "before": 101,
+              "after": 101,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 121,
+              "after": 121,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 1,
+              "after": 1,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.05,
+              "after": 0.05,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 2,
+            "incomeP50": {
+              "before": 137,
+              "after": 137,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 257,
+              "after": 257,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 1,
+              "after": 1,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.07,
+              "after": 0.07,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 3,
+            "incomeP50": {
+              "before": 153,
+              "after": 153,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 414,
+              "after": 414,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 100,
+              "after": 100,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.5417,
+              "after": 0.5417,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.1,
+              "after": 0.1,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 4,
+            "incomeP50": {
+              "before": 177,
+              "after": 177,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 349,
+              "after": 349,
+              "delta": 0
+            },
+            "goddessHpP50": {
+              "before": 97,
+              "after": 97,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.8333,
+              "after": 0.8333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.08,
+              "after": 0.08,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 5,
+            "incomeP50": {
+              "before": 138,
+              "after": 131,
+              "delta": -7
+            },
+            "goldEndP50": {
+              "before": 501,
+              "after": 480,
+              "delta": -21
+            },
+            "goddessHpP50": {
+              "before": 65,
+              "after": 65,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.0833,
+              "after": 0,
+              "delta": -0.0833
+            },
+            "pressureRatioP50": {
+              "before": 0.13,
+              "after": 0.17,
+              "delta": 0.04
+            }
+          },
+          {
+            "wave": 6,
+            "incomeP50": {
+              "before": 228,
+              "after": 226,
+              "delta": -2
+            },
+            "goldEndP50": {
+              "before": 732,
+              "after": 709,
+              "delta": -23
+            },
+            "goddessHpP50": {
+              "before": 59,
+              "after": 59,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0.3333,
+              "after": 0.3333,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.12,
+              "after": 0.12,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 7,
+            "incomeP50": {
+              "before": 242,
+              "after": 242,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 978,
+              "after": 973,
+              "delta": -5
+            },
+            "goddessHpP50": {
+              "before": 50,
+              "after": 47,
+              "delta": -3
+            },
+            "noLeakRate": {
+              "before": 0.0417,
+              "after": 0.0417,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.14,
+              "after": 0.14,
+              "delta": 0
+            }
+          },
+          {
+            "wave": 8,
+            "incomeP50": {
+              "before": 253,
+              "after": 253,
+              "delta": 0
+            },
+            "goldEndP50": {
+              "before": 1294,
+              "after": 1267,
+              "delta": -27
+            },
+            "goddessHpP50": {
+              "before": 20,
+              "after": 20,
+              "delta": 0
+            },
+            "noLeakRate": {
+              "before": 0,
+              "after": 0,
+              "delta": 0
+            },
+            "pressureRatioP50": {
+              "before": 0.27,
+              "after": 0.27,
+              "delta": 0
+            }
+          }
+        ]
+      }
+    }
+  }
+}

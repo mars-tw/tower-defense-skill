@@ -250,6 +250,9 @@ function getMap() { return hasOwn(MAPS, _map) ? MAPS[_map] : MAPS.plains; }
 const DIFFICULTIES = {
   normal: { id: "normal", label: "普通", emoji: "🛡️", color: "#4ade80",
             hpMul: 1.0, goldMul: 1.0, goddessMul: 1.0, bossEvery: 5,
+            // R77: only the first normal Boss is a stronger, lower-payout build check.
+            // Later normal Bosses and every Boss in other difficulties keep the R76 curve.
+            firstBossSpeedMul: 1.40, firstBossRewardMul: 0.70,
             desc: "主流玩家能過，輕鬆上手享受塔防樂趣。" },
   brutal: { id: "brutal", label: "嚴酷", emoji: "🔥", color: "#f97316",
             hpMul: 1.42, goldMul: 0.88, goddessMul: 0.8, bossEvery: 4,

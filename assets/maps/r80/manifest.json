@@ -1,0 +1,87 @@
+{
+  "version": "R80",
+  "generation_interface": "Codex built-in imagegen",
+  "model_slug": null,
+  "model_note": "The built-in tool did not expose a model identifier; no inference made.",
+  "maps": [
+    "plains",
+    "canyon",
+    "lava"
+  ],
+  "runtime_assets": [
+    {
+      "map_id": "plains",
+      "variant": "terrain",
+      "path": "assets/maps/r80/plains-terrain.webp",
+      "width": 960,
+      "height": 640,
+      "bytes": 308362,
+      "sha256": "d3cda75cad6ddb49afad96572b52e49847b9498d3d25b9f4baa532a7c5734abf"
+    },
+    {
+      "map_id": "plains",
+      "variant": "preview",
+      "path": "assets/maps/r80/plains-preview.webp",
+      "width": 960,
+      "height": 640,
+      "bytes": 293152,
+      "sha256": "6301690e9166982487f29ebda3c78ade37d670b5a288d38c537cb16995f2165d"
+    },
+    {
+      "map_id": "canyon",
+      "variant": "terrain",
+      "path": "assets/maps/r80/canyon-terrain.webp",
+      "width": 960,
+      "height": 640,
+      "bytes": 337094,
+      "sha256": "493a84f1a1eb496a385e2025275c5bda42a5d4289ec93ad240ba1fd848f97a0a"
+    },
+    {
+      "map_id": "canyon",
+      "variant": "preview",
+      "path": "assets/maps/r80/canyon-preview.webp",
+      "width": 960,
+      "height": 640,
+      "bytes": 318674,
+      "sha256": "0da09e077d5ed826891e98f897cec460e71a2a61ccf80d3ed89198ebd146bab1"
+    },
+    {
+      "map_id": "lava",
+      "variant": "terrain",
+      "path": "assets/maps/r80/lava-terrain.webp",
+      "width": 960,
+      "height": 640,
+      "bytes": 281648,
+      "sha256": "04307fb8080d5b54dc19d69b9c6c4cc6568cb6e534ea432a20daae852c0de0c6"
+    },
+    {
+      "map_id": "lava",
+      "variant": "preview",
+      "path": "assets/maps/r80/lava-preview.webp",
+      "width": 960,
+      "height": 640,
+      "bytes": 267520,
+      "sha256": "281b685d1f0ffb6baec7939020e60dec0c01f99a278bf3f011d5521ff44315e7"
+    },
+    {
+      "map_id": null,
+      "variant": "bridge",
+      "path": "assets/maps/r80/stone-bridge.webp",
+      "width": 512,
+      "height": 131,
+      "bytes": 39592,
+      "sha256": "d69267c8c6266d0352fd1e68788b5ada6e64e5b77336fc1b63516b0fa33a8694"
+    }
+  ],
+  "total_runtime_bytes": 1846042,
+  "decoded_rgba_mib_all_variants": 14.318359375,
+  "generated_originals": "Final PNG masters retained in assets; historical revisions retained locally by the maintainer. Neither is requested or cached at runtime.",
+  "provenance": [
+    "docs/evidence/R80/art/builtin-generation-records.json",
+    "docs/evidence/R80/art/stone-bridge-generation.json",
+    "docs/evidence/R80/art/lava-shore-generation.json",
+    "docs/evidence/R80/art/plains-clearance-generation.json"
+  ],
+  "geometry_source": "src/config.js MAPS",
+  "paint_source_sha256": "ff3461448bcdf411701fcb827a705f1851a4503e0e5b005945f8de7bf1ff40b4"
+}

@@ -22,6 +22,23 @@ desktop.ini
 *.log
 *.bak
 .cache/
+.audit-tmp/
+output/
+docs/audit_openclose/
+
+# 本機完整稽核與中間圖：公開版保留整理後的 release 證據
+docs/evidence/R78/
+docs/evidence/R79/
+docs/evidence/R80/*
+!docs/evidence/R80/art/
+!docs/evidence/R80/art/*.json
+docs/evidence/R81/
+docs/evidence/R82/
+docs/evidence/R83/
+docs/evidence/R84/
+docs/playtest/
+assets/maps/r80/*-v1.png
+assets/maps/r80/*-before-*.png
 
 # 測試與覆蓋率輸出
 test-results/

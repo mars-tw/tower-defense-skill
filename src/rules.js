@@ -15,7 +15,7 @@
     ? require("./config.js")
     : root;
 
-  const META_VERSION = 7;
+  const META_VERSION = 8;
   const META_NUMERIC_KEYS = ["bestWave", "totalKills", "soulCrystal", "games", "gachaPity", "gachaCount", "runSeed"];
   const META_DEFAULT = {
     version: META_VERSION,
@@ -29,6 +29,7 @@
     board: {},
     achievements: {},
     beginnerMissions: {},
+    operationRuns: {},
     heroProgress: {},
     runSeed: 1,
     lastMap: "plains",
@@ -176,6 +177,30 @@
     return result;
   }
 
+  function sanitizeOperationRuns(value) {
+    const result = {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+    const limit = cfg.OPERATIONS && cfg.OPERATIONS.maxSavedRuns || 48;
+    const cleanFlags = (raw) => {
+      const flags = {};
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return flags;
+      for (const [id, flag] of Object.entries(raw)) {
+        if (/^chapter-[1-9][0-9]{0,3}-(clear|tactic)$/.test(id) && flag === true) flags[id] = true;
+      }
+      return flags;
+    };
+    for (const [key, ledger] of Object.entries(value).slice(-limit)) {
+      if (!/^op1-[0-9]{1,10}-[0-9]{1,10}-[A-Za-z0-9_-]{1,32}$/.test(key) || !ledger || typeof ledger !== "object" || Array.isArray(ledger)) continue;
+      if (ledger.version !== 1 || ledger.runKey !== key) continue;
+      result[key] = {
+        version: 1, runKey: key,
+        claimed: cleanFlags(ledger.claimed), skipped: cleanFlags(ledger.skipped),
+        observedWave: Math.max(0, Math.min(10000, Math.floor(safeNumber(ledger.observedWave, 0)))),
+      };
+    }
+    return result;
+  }
+
   function isSafeRecordKey(key) {
     return typeof key === "string" && /^[A-Za-z0-9_-]{1,48}$/.test(key) &&
       key !== "__proto__" && key !== "prototype" && key !== "constructor";
@@ -314,6 +339,7 @@
     meta.board = sanitizeBoard(meta.board);
     meta.achievements = sanitizeAchievements(meta.achievements);
     meta.beginnerMissions = sanitizeBeginnerMissions(meta.beginnerMissions);
+    meta.operationRuns = sanitizeOperationRuns(meta.operationRuns);
     meta.heroProgress = sanitizeHeroProgress(meta.heroProgress);
     meta.lastMap = sanitizeMapId(meta.lastMap);
     return meta;
@@ -324,7 +350,7 @@
     for (const key of META_NUMERIC_KEYS) {
       if (hasOwn(candidate, key) && !isFiniteNumber(candidate[key])) return true;
     }
-    const objectKeys = ["bestByDiff", "board", "achievements", "beginnerMissions", "heroProgress"];
+    const objectKeys = ["bestByDiff", "board", "achievements", "beginnerMissions", "operationRuns", "heroProgress"];
     for (const key of objectKeys) {
       if (hasOwn(candidate, key) && (!candidate[key] || typeof candidate[key] !== "object" || Array.isArray(candidate[key]))) return true;
     }
@@ -813,11 +839,14 @@
     const weak = weakestCoverageSample(towers, path, affixInput);
     const occupied = new Set(towers.map((tw) => `${tw.cx},${tw.cy}`));
     const blocked = pathBlockedCells(path, cell);
+    const mapDef = options && options.mapDef || (options && hasOwn(cfg.MAPS, options.mapId) ? cfg.MAPS[options.mapId] : Object.values(cfg.MAPS).find((map) => map.path === path));
+    const terrainBlocked = mapDef ? mapBlockedCells(mapDef, cell) : null;
     let best = null;
     for (let cy = 0; cy < Math.ceil(height / cell); cy++) {
       for (let cx = 0; cx < Math.ceil(width / cell); cx++) {
         if (occupied.has(`${cx},${cy}`)) continue;
         if (blocked.has(`${cx},${cy}`)) continue;
+        if (terrainBlocked && terrainBlocked.has(`${cx},${cy}`)) continue;
         const x = cx * cell + cell / 2;
         const y = cy * cell + cell / 2;
         if (x < 0 || y < 0 || x >= width || y >= height) continue;
@@ -826,7 +855,8 @@
         const targetDist = Math.hypot(x - weak.point.x, y - weak.point.y);
         const score = targetDist + Math.abs(pathDist - range * 0.58) * 0.25;
         if (!best || score < best.score) {
-          best = { cx, cy, x: Math.round(x), y: Math.round(y), zone: zoneLabel(weak.ratio), score, pathDistance: Math.round(pathDist) };
+          const zone = mapDef && mapDefenseZone(mapDef, weak.ratio);
+          best = { cx, cy, x: Math.round(x), y: Math.round(y), zone: zone ? zone.label : zoneLabel(weak.ratio), score, pathDistance: Math.round(pathDist) };
         }
       }
     }
@@ -1016,13 +1046,15 @@
       const byType = {};
       const rawTypes = entry.byType && typeof entry.byType === "object" ? entry.byType : {};
       let count = Math.max(0, Math.floor(safeNumber(entry.count, 0)));
+      let typeCount = 0;
       for (const [type, nRaw] of Object.entries(rawTypes)) {
         if (!isSafeRecordKey(type) || !hasOwn(cfg.ENEMIES, type)) continue;
         const n = Math.max(0, Math.floor(safeNumber(nRaw, 0)));
         if (n <= 0) continue;
         byType[type] = n;
-        if (!count) count += n;
+        typeCount += n;
       }
+      count = Math.max(count, typeCount);
       if (count <= 0) continue;
       const damage = Math.max(0, Math.floor(safeNumber(entry.damage, 0)));
       byWave[wave] = { wave, count, damage, byType };
@@ -1144,6 +1176,90 @@
     };
   }
 
+  // 每波診斷只使用已記錄的戰況。漏怪原因是依敵種與現有塔陣推論，
+  // 不把缺少的時間、傷害或敵人紀錄補成 0，也不假稱知道實際瞄準順序。
+  function analyzeWaveReport(input) {
+    const ctx = input && typeof input === "object" ? input : {};
+    const wave = Math.max(0, Math.floor(safeNumber(ctx.wave, 0)));
+    const telemetry = ctx.combatTelemetry && ctx.combatTelemetry.waves;
+    const row = telemetry && hasOwn(telemetry, String(wave)) ? telemetry[wave] : null;
+    const data = row && typeof row === "object" && !Array.isArray(row) ? row : null;
+    const metric = (key) => data && isFiniteNumber(data[key]) && data[key] >= 0 ? data[key] : null;
+    const damageBySource = {};
+    for (const [key, value] of Object.entries(data && data.damageBySource && typeof data.damageBySource === "object" ? data.damageBySource : {})) {
+      if (isSafeRecordKey(key) && isFiniteNumber(value) && value >= 0) damageBySource[key] = value;
+    }
+    const startedAt = data && data.startedAt;
+    const endedAt = data && data.endedAt;
+    const durationSeconds = isFiniteNumber(startedAt) && isFiniteNumber(endedAt) && endedAt >= startedAt ? endedAt - startedAt : null;
+    const metrics = {
+      kills: metric("kills"), leaks: metric("leaks"), goddessDamage: metric("goddessDamage"),
+      durationSeconds, killGold: metric("killGold"), waveGold: metric("waveGold"),
+      damageBySource, bossKills: metric("bossKills"), spawned: metric("spawned"), playerDamage: metric("playerDamage"),
+    };
+    const clear = data && safeNumber(ctx.clearedWave, 0) >= wave && wave > 0;
+    const status = !data || !wave ? "no-data" : clear ? "clear" : ctx.over === true ? "lost" : "in-progress";
+    const label = status === "no-data" ? "尚無戰況紀錄" : status === "lost" ? "防線失守" : status === "in-progress" ? "交戰中" : metrics.leaks === null ? "已守住，戰況缺記" : metrics.leaks === 0 ? "完整守住" : "已守住，需補漏口";
+    const nextInput = Object.assign({}, ctx, { queue: ctx.nextPlan && ctx.nextPlan.queue || [] });
+    const nextCounter = ctx.nextPlan && Array.isArray(ctx.nextPlan.queue) ? counterWarningForWave(nextInput) : null;
+    const leaks = normalizeLeakStats(ctx.runLeaks || ctx.leaks || {});
+    const leakEntry = leaks.byWave[wave];
+    const topEnemy = leakEntry && topLeakEnemy(leakEntry);
+    const towers = normalizeTowers(ctx.towers);
+    const rawTowers = Array.isArray(ctx.towers) ? ctx.towers : [];
+    let cause = null;
+    if (metrics.leaks > 0 && topEnemy) {
+      const inferred = inferLeakReason(leakEntry, rawTowers);
+      cause = { id: inferred.cause, text: inferred.text, type: topEnemy.type, count: topEnemy.count, inferred: true };
+    } else if (metrics.leaks > 0) {
+      cause = { id: "unresolved", text: "漏怪種類未留紀錄，先檢查路徑尾段。", type: null, count: metrics.leaks, inferred: false };
+    }
+    const recommendations = [];
+    const seen = new Set();
+    const add = (suggestion) => {
+      const key = `${suggestion.kind}:${suggestion.towerId || suggestion.title}`;
+      if (!seen.has(key) && recommendations.length < 2) { seen.add(key); recommendations.push(suggestion); }
+    };
+    const towerAction = (towerId, detail) => {
+      const def = cfg.TOWERS[towerId];
+      if (!def) return;
+      const existing = towers.filter((tower) => tower.type === towerId && tower.level < cfg.UPGRADE.maxLevel).sort((a, b) => b.level - a.level)[0];
+      const kind = existing ? "upgrade" : "build";
+      const cost = existing ? Math.round(def.cost * Math.pow(cfg.UPGRADE.costMul, existing.level)) : def.cost;
+      const gold = isFiniteNumber(ctx.gold) ? Math.max(0, ctx.gold) : null;
+      const missingGold = gold === null ? null : Math.max(0, Math.ceil(cost - gold));
+      const title = existing ? `把${def.name}升到 Lv.${existing.level + 1}` : `補一座${def.name}`;
+      add({ kind: missingGold > 0 ? "save" : kind, intendedKind: kind, towerId, title: missingGold > 0 ? `先存 ${missingGold} 金，再${title}` : title, detail, cost, missingGold, suggestSave: missingGold > 0 });
+    };
+    if (status !== "no-data") {
+      if (cause) {
+        const responseTower = { fast: "frost", shield: "poison", durable: "poison", mute: "sniper", reflect: "poison", aura: "mortar" }[cause.id];
+        if (responseTower) towerAction(responseTower, cfg.ENEMIES[cause.type].counterHint);
+        else if (cause.id === "counter") {
+          const element = cfg.ENEMIES[cause.type].element;
+          const counter = Object.keys(cfg.COUNTERS).find((key) => cfg.COUNTERS[key] === element);
+          const type = Object.values(cfg.TOWERS).find((def) => def.element === counter && !def.support);
+          if (type) towerAction(type.id, cfg.ENEMIES[cause.type].counterHint);
+        }
+        if (cause.id === "mute") add({ kind: "position", towerId: null, title: "把後續主力分到另一段", detail: "緘口妖僧只封住附近最近一座塔。下一座主力拉開位置，避免單點停火就留下空窗。", suggestSave: false });
+        else add({ kind: "position", towerId: null, title: "檢查路尾的接力火力", detail: "點尾段的攻擊塔看射程圈；若敵人走過一段空白路，再補控場或收尾塔。", suggestSave: false });
+      }
+      if (nextCounter) towerAction(nextCounter.towerId, nextCounter.message);
+      if (!recommendations.length) {
+        const main = towers.filter((tower) => !cfg.TOWERS[tower.type].support && tower.level < cfg.UPGRADE.maxLevel)
+          .sort((a, b) => towerDpsFor(b.type, b.level, ctx.affix) - towerDpsFor(a.type, a.level, ctx.affix))[0];
+        if (main) towerAction(main.type, "先看下波敵人組成，再集中升級主力，避免把金幣散在太多低級塔。");
+        else add({ kind: "focus", towerId: null, title: "先看下一波情報", detail: "依敵人元素、護盾與特殊能力選補強。沒有紀錄支持的漏怪原因，不直接下結論。", suggestSave: false });
+      }
+    }
+    const summary = status === "no-data" ? "開戰後才會留下擊殺、收入與漏怪紀錄。"
+      : status === "in-progress" ? `第 ${wave} 波仍在交戰，完成後再看防線是否需要補強。`
+      : metrics.leaks === null ? `第 ${wave} 波的漏怪紀錄不完整，先保留目前塔陣。`
+      : metrics.leaks === 0 ? `第 ${wave} 波沒有漏怪${metrics.bossKills > 0 ? `，擊倒 ${metrics.bossKills} 隻 Boss` : ""}。`
+      : `第 ${wave} 波漏過 ${metrics.leaks} 隻${topEnemy ? `，其中${topEnemy.enemy.name} ${topEnemy.count} 隻` : ""}${metrics.goddessDamage === null ? "。" : `，女神受到 ${Math.round(metrics.goddessDamage)} 點傷害。`}`;
+    return { wave, status, label, summary, metrics, cause, recommendations, nextCounter };
+  }
+
   function updateBoard(board, diffId, mapIdOrEntry, entryOrMaxEntries, maybeMaxEntries) {
     const legacySignature = mapIdOrEntry && typeof mapIdOrEntry === "object" && !Array.isArray(mapIdOrEntry);
     const entry = legacySignature ? mapIdOrEntry : entryOrMaxEntries;
@@ -1262,6 +1378,251 @@
     return distanceToPath(px, py, path) <= Math.max(0, safeNumber(range, 0)) + 1e-9;
   }
 
+  function pointInPolygon(point, points) {
+    if (!point || !Array.isArray(points) || points.length < 3) return false;
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+      const a = points[j], b = points[i];
+      if (distancePointToSegment(point.x, point.y, a, b) < 1e-8) return true;
+      if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+    }
+    return inside;
+  }
+  function segmentsIntersect(a, b, c, d) {
+    const cross = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    const on = (p, q, r) => Math.abs(cross(p, q, r)) < 1e-8 && r.x >= Math.min(p.x, q.x) - 1e-8 && r.x <= Math.max(p.x, q.x) + 1e-8 && r.y >= Math.min(p.y, q.y) - 1e-8 && r.y <= Math.max(p.y, q.y) + 1e-8;
+    const v1 = cross(a, b, c), v2 = cross(a, b, d), v3 = cross(c, d, a), v4 = cross(c, d, b);
+    return v1 * v2 < 0 && v3 * v4 < 0 || on(a, b, c) || on(a, b, d) || on(c, d, a) || on(c, d, b);
+  }
+  function rectCorners(rect) {
+    return [{ x: rect.left, y: rect.top }, { x: rect.right, y: rect.top }, { x: rect.right, y: rect.bottom }, { x: rect.left, y: rect.bottom }];
+  }
+  function pointInRect(point, rect) { return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom; }
+  function distancePointToRect(point, rect) { return Math.hypot(Math.max(rect.left - point.x, 0, point.x - rect.right), Math.max(rect.top - point.y, 0, point.y - rect.bottom)); }
+  function distanceSegmentToRect(a, b, rect) {
+    if (pointInRect(a, rect) || pointInRect(b, rect)) return 0;
+    const corners = rectCorners(rect);
+    let best = Math.min(distancePointToRect(a, rect), distancePointToRect(b, rect));
+    for (let i = 0; i < 4; i++) {
+      if (segmentsIntersect(a, b, corners[i], corners[(i + 1) % 4])) return 0;
+      best = Math.min(best, distancePointToSegment(corners[i].x, corners[i].y, a, b));
+    }
+    return best;
+  }
+  function regionIntersectsRect(region, rect) {
+    if (region.shape === "ellipse") {
+      const rx = safeNumber(region.rx, 0), ry = safeNumber(region.ry, 0);
+      if (!(rx > 0 && ry > 0)) return false;
+      const x = Math.max(rect.left, Math.min(rect.right, region.x)), y = Math.max(rect.top, Math.min(rect.bottom, region.y));
+      return ((x - region.x) / rx) ** 2 + ((y - region.y) / ry) ** 2 <= 1 + 1e-9;
+    }
+    const points = region.points;
+    if (region.shape !== "polygon" || !Array.isArray(points) || points.length < 3) return false;
+    // Most LOS samples are far from a region. Reject its bounding box before
+    // the corner/edge tests; touching bounds still takes the exact old path.
+    let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+    for (const point of points) { left = Math.min(left,point.x); right = Math.max(right,point.x); top = Math.min(top,point.y); bottom = Math.max(bottom,point.y); }
+    if (rect.right < left - 1e-8 || rect.left > right + 1e-8 || rect.bottom < top - 1e-8 || rect.top > bottom + 1e-8) return false;
+    const corners = rectCorners(rect);
+    if (corners.some((point) => pointInPolygon(point, points)) || points.some((point) => pointInRect(point, rect))) return true;
+    for (let i = 0; i < points.length; i++) for (let j = 0; j < 4; j++) if (segmentsIntersect(points[i], points[(i + 1) % points.length], corners[j], corners[(j + 1) % 4])) return true;
+    return false;
+  }
+  function corridorIntersectsRect(points, width, rect) {
+    if (!Array.isArray(points)) return false;
+    for (let i = 1; i < points.length; i++) if (distanceSegmentToRect(points[i - 1], points[i], rect) <= width / 2 + 1e-9) return true;
+    return false;
+  }
+  function mapDefinition(input) {
+    return typeof input === "string" ? hasOwn(cfg.MAPS, input) ? cfg.MAPS[input] : null : input && typeof input === "object" ? input : null;
+  }
+  function mapDefenseZone(mapInput, ratioInput) {
+    const map = mapDefinition(mapInput), ratio = Math.max(0, Math.min(1, safeNumber(ratioInput, 0)));
+    return map && (map.defenseNodes || []).find((node) => ratio >= node.from && (ratio < node.to || ratio === 1 && node.to === 1)) || null;
+  }
+  function mapWalkable(mapInput, x, y, radiusInput) {
+    const map = mapDefinition(mapInput), radius = Math.max(0, safeNumber(radiusInput, 8));
+    if (!map || !isFiniteNumber(x) || !isFiniteNumber(y) || x < radius || y < radius || x > 960 - radius || y > 640 - radius) return false;
+    const footprint = { left: x - radius, right: x + radius, top: y - radius, bottom: y + radius };
+    let bridge;
+    for (const region of map.regions || []) {
+      if (region.id === "altar-base") continue;
+      if (!regionIntersectsRect(region, footprint)) continue;
+      if (region.type === "ruin") return false;
+      if (bridge === undefined) bridge = (map.bridges || []).some((item) => distanceToPath(x,y,item.path) <= (item.width || 48) / 2 - radius * Math.SQRT2);
+      if (!bridge) return false;
+    }
+    return true;
+  }
+  function lineWalkable(mapInput, from, to, radiusInput) {
+    if (!from || !to || !isFiniteNumber(from.x) || !isFiniteNumber(from.y) || !isFiniteNumber(to.x) || !isFiniteNumber(to.y)) return false;
+    const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / 4));
+    for (let index = 0; index <= steps; index++) {
+      const k = index / steps;
+      if (!mapWalkable(mapInput, from.x + (to.x - from.x) * k, from.y + (to.y - from.y) * k, radiusInput)) return false;
+    }
+    return true;
+  }
+  const navigationCache = new WeakMap();
+  function navigationHeap() {
+    const items = [];
+    const before = (a,b) => a.priority < b.priority || a.priority === b.priority && a.order < b.order;
+    return {
+      get length() { return items.length; },
+      push(item) {
+        let index = items.length; items.push(item);
+        while (index > 0) { const parent = (index - 1) >> 1; if (!before(item,items[parent])) break; items[index] = items[parent]; index = parent; }
+        items[index] = item;
+      },
+      pop() {
+        const first = items[0], last = items.pop();
+        if (items.length) {
+          let index = 0;
+          while (index * 2 + 1 < items.length) {
+            let child = index * 2 + 1;
+            if (child + 1 < items.length && before(items[child + 1],items[child])) child++;
+            if (!before(items[child],last)) break;
+            items[index] = items[child]; index = child;
+          }
+          items[index] = last;
+        }
+        return first;
+      },
+    };
+  }
+  function heroRoute(mapInput, start, goal, options) {
+    const map = mapDefinition(mapInput), radius = Math.max(0, safeNumber(options && options.radius, 8)), cell = Math.max(12, Math.min(48, safeNumber(options && options.cellSize, 24)));
+    const fail = (reason) => ({ reachable: false, points: [], reason });
+    if (!map || !start || !goal || !mapWalkable(map, start.x, start.y, radius)) return fail("blocked-start");
+    if (!mapWalkable(map, goal.x, goal.y, radius)) return fail("blocked-target");
+    if (lineWalkable(map, start, goal, radius)) return { reachable: true, points: [{ x: goal.x, y: goal.y }], reason: null };
+    const signature = JSON.stringify([map.path, map.regions, map.bridges, cell, radius]);
+    let graph = navigationCache.get(map);
+    if (!graph || graph.signature !== signature) {
+      graph = { signature, nodes: [], byCell: new Map(), routes: new Map() };
+      for (let cy = 0; cy * cell <= 640; cy++) for (let cx = 0; cx * cell <= 960; cx++) {
+        const x = cx * cell, y = cy * cell;
+        if (!mapWalkable(map, x, y, radius)) continue;
+        const index = graph.nodes.length;
+        graph.nodes.push({ x, y, cx, cy, index, edges: [] }); graph.byCell.set(`${cx},${cy}`, index);
+      }
+      for (const node of graph.nodes) for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]) {
+        const index = graph.byCell.get(`${node.cx + dx},${node.cy + dy}`);
+        if (index !== undefined && lineWalkable(map, node, graph.nodes[index], radius)) node.edges.push({ index, cost: cell * (dx && dy ? Math.SQRT2 : 1) });
+      }
+      navigationCache.set(map, graph);
+    }
+    const anchor = (point) => {
+      const cx = Math.round(point.x / cell), cy = Math.round(point.y / cell), candidates = [];
+      for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) {
+        const index = graph.byCell.get(`${cx + dx},${cy + dy}`);
+        if (index !== undefined) candidates.push(graph.nodes[index]);
+      }
+      candidates.sort((a,b) => (a.x-point.x)**2+(a.y-point.y)**2-(b.x-point.x)**2-(b.y-point.y)**2);
+      return candidates.find((node) => lineWalkable(map,point,node,radius));
+    };
+    const first = anchor(start), last = anchor(goal);
+    if (!first || !last) return fail("no-anchor");
+    const key = `${first.index}:${last.index}`;
+    let indices = graph.routes.get(key);
+    if (!indices) {
+      const open = navigationHeap(), scores = new Map([[first.index,0]]), previous = new Map(), closed = new Set(), orders = new Map([[first.index,0]]);
+      let order = 1;
+      const estimate = (index) => Math.hypot(graph.nodes[index].x-last.x,graph.nodes[index].y-last.y);
+      const initialEstimate = estimate(first.index);
+      open.push({ index: first.index, score: 0, priority: initialEstimate, order: 0 });
+      let found = false;
+      while (open.length) {
+        const item = open.pop(), current = item.index;
+        if (closed.has(current) || item.score !== scores.get(current)) continue;
+        if (current === last.index) { found = true; break; }
+        closed.add(current);
+        for (const edge of graph.nodes[current].edges) {
+          if (closed.has(edge.index)) continue;
+          const score = scores.get(current) + edge.cost;
+          if (!scores.has(edge.index) || score < scores.get(edge.index)) {
+            scores.set(edge.index,score); previous.set(edge.index,current);
+            if (!orders.has(edge.index)) orders.set(edge.index,order++);
+            const heuristic = estimate(edge.index);
+            open.push({ index: edge.index, score, priority: score + heuristic, order: orders.get(edge.index) });
+          }
+        }
+      }
+      if (!found) return fail("no-route");
+      indices = [last.index];
+      while (indices[0] !== first.index) indices.unshift(previous.get(indices[0]));
+      if (graph.routes.size >= 512) graph.routes.delete(graph.routes.keys().next().value);
+      graph.routes.set(key, indices);
+    }
+    const raw = indices.map((index) => ({ x: graph.nodes[index].x, y: graph.nodes[index].y })).concat({ x: goal.x, y: goal.y });
+    const points = [];
+    let current = start, next = 0;
+    while (next < raw.length) {
+      let furthest = next;
+      // Test from the destination backwards and stop at the first visible
+      // node; checking every already-visible prefix wasted long line samples.
+      for (let index = raw.length - 1; index > next; index--) if (lineWalkable(map, current, raw[index], radius)) { furthest = index; break; }
+      points.push(raw[furthest]); current = raw[furthest]; next = furthest + 1;
+    }
+    return { reachable: true, points, reason: null };
+  }
+  function mapBuildRestriction(mapInput, x, y, cellSize) {
+    const map = mapDefinition(mapInput);
+    const cell = Math.max(1, Math.floor(safeNumber(cellSize, cfg.GAME.cellSize)));
+    if (!map || !isFiniteNumber(x) || !isFiniteNumber(y)) return { blocked: true, kind: "bounds", regionId: null, reason: "超出戰場" };
+    const cx = Math.floor(x / cell), cy = Math.floor(y / cell);
+    const rect = { left: cx * cell, right: (cx + 1) * cell, top: cy * cell, bottom: (cy + 1) * cell };
+    if (rect.left < 0 || rect.top < 0 || rect.right > 960 || rect.bottom > 640) return { blocked: true, kind: "bounds", regionId: null, reason: "格位超出戰場" };
+    for (const bridge of map.bridges || []) if (corridorIntersectsRect(bridge.path, bridge.width || 48, rect)) return { blocked: true, kind: "bridge", regionId: bridge.id, reason: `${bridge.label || "橋面"}不能建塔` };
+    if (corridorIntersectsRect(map.path, map.roadWidth || cell * .8, rect)) return { blocked: true, kind: "path", regionId: null, reason: "敵人路線上不能建塔" };
+    for (const region of map.regions || []) if (regionIntersectsRect(region, rect)) return { blocked: true, kind: region.type, regionId: region.id, reason: `${region.label || "地形"}不能建塔` };
+    return { blocked: false, kind: null, regionId: null, reason: "" };
+  }
+  const mapBlockedCache = new WeakMap();
+  function mapBlockedCells(mapInput, cellSize) {
+    const cell = Math.max(1, Math.floor(safeNumber(cellSize, cfg.GAME.cellSize)));
+    const map = mapDefinition(mapInput);
+    const signature = map && JSON.stringify([cell, map.path, map.roadWidth, map.regions, map.bridges]);
+    const cached = map && mapBlockedCache.get(map);
+    if (cached && cached.signature === signature) return new Set(cached.cells);
+    const blocked = new Set();
+    for (let cy = 0; cy < Math.ceil(640 / cell); cy++) for (let cx = 0; cx < Math.ceil(960 / cell); cx++) if (mapBuildRestriction(mapInput, cx * cell + cell / 2, cy * cell + cell / 2, cell).blocked) blocked.add(`${cx},${cy}`);
+    if (map) mapBlockedCache.set(map, { signature, cells: new Set(blocked) });
+    return blocked;
+  }
+  function towerPathCoverage(mapInput, x, y, range) {
+    const map = mapDefinition(mapInput);
+    if (!map || !isFiniteNumber(x) || !isFiniteNumber(y) || !(range > 0)) return { length: 0, fraction: 0, segments: 0 };
+    let covered = 0, segments = 0;
+    for (let i = 1; i < map.path.length; i++) {
+      const a = map.path[i - 1], b = map.path[i], dx = b.x - a.x, dy = b.y - a.y;
+      const aa = dx * dx + dy * dy;
+      if (aa <= 0) continue;
+      const ox = a.x - x, oy = a.y - y, bb = 2 * (ox * dx + oy * dy), cc = ox * ox + oy * oy - range * range;
+      const discriminant = bb * bb - 4 * aa * cc;
+      if (discriminant < 0) continue;
+      const start = Math.max(0, (-bb - Math.sqrt(discriminant)) / (2 * aa));
+      const end = Math.min(1, (-bb + Math.sqrt(discriminant)) / (2 * aa));
+      if (end > start) { covered += (end - start) * Math.sqrt(aa); segments++; }
+    }
+    return { length: covered, fraction: covered / Math.max(1, pathTotalLength(map.path)), segments };
+  }
+  function mapGeometryMetrics(mapInput, rangeInput) {
+    const map = mapDefinition(mapInput), range = Math.max(0, safeNumber(rangeInput, 130)), cell = cfg.GAME.cellSize;
+    if (!map) return null;
+    let legalCells = 0, reachableCells = 0, max = { x: null, y: null, length: 0, fraction: 0, segments: 0 };
+    for (let y = cell / 2; y < 640; y += cell) for (let x = cell / 2; x < 960; x += cell) {
+      if (mapBuildRestriction(map, x, y, cell).blocked) continue;
+      legalCells++;
+      if (!canReachPath(x, y, map.path, range)) continue;
+      reachableCells++;
+      const coverage = towerPathCoverage(map, x, y, range);
+      if (coverage.length > max.length) max = Object.assign({ x, y }, coverage);
+    }
+    return { mapId: map.id, length: pathTotalLength(map.path), range, legalCells, reachableCells, maxTowerCoverage: max,
+      pads: (map.buildPads || []).map((pad) => ({ id: pad.id, x: pad.x, y: pad.y, blocked: mapBuildRestriction(map, pad.x, pad.y, cell).blocked, pathDistance: distanceToPath(pad.x, pad.y, map.path) })) };
+  }
+
   function pathBlockedCells(path, cellSize, options) {
     const cell = Math.max(1, Math.floor(safeNumber(cellSize, cfg.GAME && cfg.GAME.cellSize || 48)));
     const step = Math.max(2, safeNumber(options && options.step, 10));
@@ -1308,6 +1669,7 @@
     adviseTowerActions,
     counterWarningForWave,
     analyzeRunReport,
+    analyzeWaveReport,
     protectMetaWrite,
     applyDifficulty,
     selectTowerMuteTarget,
@@ -1320,6 +1682,18 @@
     distancePointToSegment,
     distanceToPath,
     canReachPath,
+    mapBuildRestriction,
+    mapBlockedCells,
+    towerPathCoverage,
+    mapGeometryMetrics,
+    mapDefenseZone,
+    mapWalkable,
+    lineWalkable,
+    heroRoute,
+    pointInPolygon,
+    regionIntersectsRect,
+    pathTotalLength,
+    pointAtPathRatio,
     pathBlockedCells,
   };
 });

@@ -58,6 +58,12 @@ assert(MAP_LORE && ["plains", "canyon", "lava"].every((id) => MAP_LORE[id] && MA
   "三張地圖都有至少兩句短地誌");
 assert(mapLoreFor("canyon").title === "迂迴峽谷" && mapLoreFor("missing").title === "翠綠平原",
   "mapLoreFor 可查地圖 lore 並對未知值 fallback");
+assert(mapLoreFor("plains").lines.join("").includes("西側林口") && mapLoreFor("plains").lines.join("").includes("石橋") && !mapLoreFor("plains").lines.join("").includes("石井"),
+  "R80 平原地誌描述溪岸石門與石橋，不再捏造舊村石井");
+assert(mapLoreFor("canyon").lines.join("").includes("兩座石橋") && mapLoreFor("canyon").lines.join("").includes("南側長尾路"),
+  "R80 峽谷地誌對齊雙橋斷崖與崖腳尾線");
+assert(mapLoreFor("lava").lines.join("").includes("右上裂口") && mapLoreFor("lava").lines.join("").includes("南岸") && mapLoreFor("lava").lines.join("").includes("熔岩海"),
+  "R80 熔岩地誌明示東側入口、黑曜島台與南岸尾線");
 assert(WAVE_BEATS && [1, 5, 10, 15].every((w) => waveBeatFor(w) && waveBeatFor(w).title && waveBeatFor(w).line),
   "至少四個波次節點有標題與一行旁白");
 assert(waveBeatFor(2) === null, "未設定的波次節點回傳 null");

@@ -46,6 +46,13 @@ R70 Wave 1 的肖像與塔 contact sheet 使用內建 `image_gen`／`gpt-image-2
 
 遊戲會在 Canvas 執行時對這些紋理套色與合成。原始壓縮包、解壓內容與授權副本保留於 gitignored 的 `tools/` 目錄，不隨發行版提交。
 
+## R80 地圖與石橋
+
+- 製作工具：Codex 內建 `image_gen.imagegen`。三張地景、四次局部修正及一張透明石橋，共八次實際生成。
+- 工具未回傳模型識別，故不宣稱模型名稱。提示詞與來源工具紀錄保留於 [R80 素材紀錄](docs/evidence/R80/art/)。
+- 最終 PNG master 保留於 `assets/maps/r80/`；修訂前版本與私人輸出路徑留在本機，不隨公開版本提交。執行階段僅載入七張 WebP；版型縮放、透明邊界裁切與編碼均保留原稿。
+- 地形圖不含道路或橋樑。道路由一次快取的 Canvas 材質繪製器沿 `MAPS.path` 繪製；石橋貼圖依同一橋面幾何定位。選圖預覽由實際繪製器產生。
+
 ## 第三方開發工具
 
 - [Playwright](https://playwright.dev/) `^1.61.1`：僅供 E2E／RWD 測試使用，採 Apache License 2.0；不會打包進遊戲執行階段。

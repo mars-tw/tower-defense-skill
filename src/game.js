@@ -56,16 +56,30 @@
   function canCellReachPath(cx, cy, range) {
     return cellReachInfo(cx, cy, range).reachable;
   }
-  function markPathCells(path) {
+  function markPathCells(path, mapDef) {
     blocked.clear();
-    const shared = TDRules.pathBlockedCells ? TDRules.pathBlockedCells(path, CELL) : new Set();
+    const shared = TDRules.mapBlockedCells ? TDRules.mapBlockedCells(mapDef || getMap(), CELL) :
+      TDRules.pathBlockedCells ? TDRules.pathBlockedCells(path, CELL) : new Set();
     for (const key of shared) blocked.add(key);
   }
 
   // ===== 遊戲狀態 =====
   let state;
-  let lastT = 0;
-  let loopToken = 0;
+  // Control preference belongs to the device, rather than a particular run.
+  let touchControlMode = false;
+  // Physics always advances at 60 Hz; rendering follows the display refresh rate.
+  // Only this scheduler owns RAF. Debug/manual simulations can still hold running
+  // without starting the live scheduler (used by the existing balance harness).
+  const FIXED_STEP = 1 / 60;
+  const MAX_FRAME_DELTA = 0.1;
+  const MAX_FRAME_STEPS = 18;
+  let lastT = null;
+  let frameAccumulator = 0;
+  let liveLoopActive = false;
+  let visualClock = 0;
+  let sceneAssetVersion = 0;
+  const engineMetrics = { frames: 0, steps: 0, lastSteps: 0, droppedSeconds: 0, backgroundBakes: 0, pathBakes: 0, guideBakes: 0, placementBakes: 0,
+    navWarmups: 0, navWarmupMs: 0, navQueries: 0, navQueryMs: 0, navQueryMaxMs: 0, navQueryFailures: 0 };
   let uiRefreshScheduled = false;
   let reducedFlashCache;
   let forceEnemyAtlasFallback = false;
@@ -88,10 +102,26 @@
     spark: "assets/particles/kenney-spark.png",
     ice: "assets/particles/kenney-ice-ring.png",
   };
+  const MAX_HIT_FRAME_CACHE = 96;
+  const MAX_PROJECTILE_SPRITE_CACHE = 64;
+  const hitFrameCache = new Map();
+  const projectileSpriteCache = new Map();
+  let buildMagnifierFrame = null; // One 3×3-cell crop, reused only while a finger is active.
+  const TOWER_PRIORITIES = Object.freeze({ auto: "預設", first: "最前", boss: "Boss", strong: "高血量" });
+  let pathGuideVisible = true;
+  try { pathGuideVisible = localStorage.getItem("td_path_guide") !== "0"; } catch {}
+  function getPathGuideVisible() { return pathGuideVisible; }
+  function setPathGuideVisible(value) {
+    pathGuideVisible = !!value;
+    try { localStorage.setItem("td_path_guide", pathGuideVisible ? "1" : "0"); } catch {}
+    if (state) { render(); notifyUI(true); }
+    return pathGuideVisible;
+  }
+  const HERO_NAV_CELL = 24, HERO_NAV_RADIUS = 8;
   const MAP_VISUALS = {
-    plains: { ground: "#0e1a14", tint: "rgba(16,185,129,.12)", breath: "rgba(110,231,183,.12)", pathWash: "rgba(242,200,111,.62)", detail: "footprints" },
-    canyon: { ground: "#221912", tint: "rgba(180,83,9,.24)", breath: "rgba(251,191,36,.11)", pathWash: "rgba(242,228,190,.58)", detail: "slabs" },
-    lava: { ground: "#1d1014", tint: "rgba(153,27,27,.32)", breath: "rgba(251,113,133,.12)", pathWash: "rgba(205,220,228,.60)", detail: "cracks" },
+    plains: { ground: "#53644a", tint: "transparent", breath: "transparent", detail: "illustrated-earth" },
+    canyon: { ground: "#b5996b", tint: "transparent", breath: "transparent", detail: "illustrated-sandstone" },
+    lava: { ground: "#47484d", tint: "transparent", breath: "transparent", detail: "illustrated-basalt" },
   };
   function reducedFlashEnabled() {
     if (reducedFlashCache !== undefined) return reducedFlashCache;
@@ -454,6 +484,30 @@
     for (let i = 0; i < path.length - 1; i++) total += Math.hypot(path[i + 1].x - path[i].x, path[i + 1].y - path[i].y);
     return Math.max(1, total);
   }
+  function retainInPlace(items, predicate) {
+    let write = 0;
+    for (let read = 0; read < items.length; read++) {
+      const item = items[read];
+      if (predicate(item)) items[write++] = item;
+    }
+    items.length = write;
+  }
+  function updateParticles(dt) {
+    for (const p of state.particles) {
+      p.life -= dt;
+      if (p.toX != null && p.toY != null) {
+        const k = 1 - Math.exp(-dt * (p.flySpeed || 4.5));
+        p.x += (p.toX - p.x) * k;
+        p.y += (p.toY - p.y) * k;
+      } else if (!p.ring && !p.beam) {
+        p.x += (p.vx || 0) * dt;
+        p.y += (p.vy || 0) * dt;
+        if (p.texture) p.rotation = (p.rotation || 0) + (p.spin || 0) * dt;
+        if (!p.text && !p.muzzle && !p.texture) p.vy = (p.vy || 0) + 220 * dt;
+      }
+    }
+    retainInPlace(state.particles, (p) => p.life > 0);
+  }
   function getLore() { return window.TD_LORE || {}; }
   function openingLoreLines(mapDef, affix) {
     const lore = getLore();
@@ -477,9 +531,80 @@
     items.forEach((msg) => log(msg));
   }
 
+  const EXPEDITION_NEUTRAL = Object.freeze({
+    physicalPierceBonus: 0, cannonSplashMul: 1, frostDurationMul: 1,
+    thunderVsSlowMul: 1, poisonDpsMul: 1, skillCooldownMul: 1,
+    upgradeCostMul: 1, killGoldBonus: 0, healBetween: 0,
+    firstLeakWardPerWave: 0, heroDamageMul: 1, heroSpeedMul: 1, skillBan: false,
+  });
+  function isExpedition() { return !!(state && state.mode === "expedition" && state.expedition); }
+  function refreshExpeditionModifiers() {
+    state.expeditionModifiers = isExpedition()
+      ? Object.assign({}, EXPEDITION_NEUTRAL, window.TDExpedition.modifiers(state.expedition))
+      : EXPEDITION_NEUTRAL;
+  }
+  function expeditionModifier(key) {
+    const value = isExpedition() && state.expeditionModifiers ? state.expeditionModifiers[key] : EXPEDITION_NEUTRAL[key];
+    return Number.isFinite(value) ? value : EXPEDITION_NEUTRAL[key];
+  }
+  function canChooseExpedition() {
+    return isExpedition() && state.betweenWaves && !state.over && !state.expedition.completed;
+  }
+  function chooseContract(id) {
+    if (!canChooseExpedition() || state.expedition.draft) return false;
+    const next = window.TDExpedition.selectContract(state.expedition, id);
+    if (!next) return false;
+    state.expedition = next; refreshExpeditionModifiers(); notifyUI(true); return true;
+  }
+  function chooseRelic(id) {
+    if (!canChooseExpedition() || !state.expedition.draft) return false;
+    const next = window.TDExpedition.chooseRelic(state.expedition, id);
+    if (!next) return false;
+    state.expedition = next; refreshExpeditionModifiers(); notifyUI(true); return true;
+  }
+  function skipRelic() {
+    if (!canChooseExpedition() || !state.expedition.draft) return false;
+    const next = window.TDExpedition.skipDraft(state.expedition);
+    if (!next) return false;
+    state.expedition = next; refreshExpeditionModifiers(); notifyUI(true); return true;
+  }
+  function isSkillLocked() {
+    return isExpedition() && (state.over || state.expedition.completed || !!state.expedition.draft ||
+      (!state.betweenWaves && !!state.expeditionModifiers.skillBan));
+  }
+  function skillStat(id, key) {
+    const def = SKILLS[id];
+    if (!def) return undefined;
+    if (key === "cooldown") return def.cooldown * expeditionModifier("skillCooldownMul");
+    if (key === "freezeDur" && id === "freeze") return def.freezeDur * expeditionModifier("frostDurationMul");
+    return def[key];
+  }
+  function projectilePierce(element, base, splash) {
+    const bonus = expeditionModifier("physicalPierceBonus");
+    return element === "physical" && !splash && bonus > 0 ? (base || 1) + bonus : base;
+  }
+  function thunderSlowModifier(enemy, element) {
+    if (element !== "thunder" || !enemy) return 1;
+    const slowed = enemy.slowUntil > state.clock || enemy.frozenUntil > state.clock ||
+      (enemy.beaconSlowUntil > state.clock && enemy.beaconSlowFactor < 1);
+    return slowed ? expeditionModifier("thunderVsSlowMul") : 1;
+  }
+
   function newGame(options) {
     const opts = options || {};
-    loopToken++; // 作廢任何正在跑的舊迴圈
+    const mode = opts.mode === "expedition" ? "expedition" : "classic";
+    if (mode === "expedition" && (!window.TDExpedition || typeof window.TDExpedition.createRun !== "function")) {
+      throw new Error("遠征內容模組尚未載入。");
+    }
+    cancelTouchPlacement(true);
+    liveLoopActive = false;
+    resetFrameTiming();
+    visualClock = 0;
+    engineMetrics.steps = engineMetrics.frames = engineMetrics.lastSteps = engineMetrics.droppedSeconds = 0;
+    engineMetrics.backgroundBakes = engineMetrics.pathBakes = 0;
+    engineMetrics.guideBakes = engineMetrics.placementBakes = 0;
+    engineMetrics.navWarmups = engineMetrics.navWarmupMs = engineMetrics.navQueries = engineMetrics.navQueryMs = 0;
+    engineMetrics.navQueryMaxMs = engineMetrics.navQueryFailures = 0;
     const mapDef = getMap();
     const path = mapDef.path;
     const hasRunSeed = Object.prototype.hasOwnProperty.call(opts, "runSeed");
@@ -487,7 +612,7 @@
     const runSeed = normalizedSeed(opts.runSeed, hasRunSeed ? 1 : randomRunSeed());
     const affixSeed = normalizedSeed(opts.affixSeed, hasAffixSeed ? 1 : randomRunSeed());
     const affix = TDRules.selectMapAffix ? TDRules.selectMapAffix(affixSeed) : null;
-    markPathCells(path);
+    markPathCells(path, mapDef);
     const end = path[path.length - 1];
     state = {
       gold: Math.round(GAME.startGold * (mapDef.goldMul || 1)), wave: 0, score: 0,
@@ -495,8 +620,11 @@
       goddess: (() => { const gm = getDifficulty().goddessMul; const hp = Math.round(GODDESS.baseHp * gm); return { level: 1, hp, maxHp: hp, x: end.x, y: end.y, smiteCd: 0, hitFlash: 0 }; })(),
       towers: [], heroes: [], enemies: [], bullets: [], particles: [],
       spawnQueue: [], spawnTimer: 0, clock: 0, mouse: null,
-      mapId: mapDef.id, mapDef, path, runSeed, affixSeed, affix,
+      mapId: mapDef.id, mapDef, path, runSeed, affixSeed, affix, mode,
+      expedition: window.TDExpedition ? window.TDExpedition.createRun({ mode, mapId: mapDef.id, runSeed }) : null,
+      expeditionLeakWardUsed: false, victory: false,
       pathTotalLength: pathLength(path),
+      pathSegmentLengths: path.map((p, i) => i ? Math.max(1, Math.hypot(p.x - path[i - 1].x, p.y - path[i - 1].y)) : 1),
       waveSeeds: {}, backgroundCache: null, pathDetailCache: null, buildableReachCache: null,
       performance: perfState,
       combo: 0, comboTimer: 0, kills: 0,  // D5 連殺系統
@@ -509,11 +637,17 @@
       // the real update loop. They are observational only and never feed combat.
       combatTelemetry: { waves: {} },
       running: false, over: false, betweenWaves: true, waveTotal: 0, waveResolved: 0,
+      paused: false,
       selectedTowerType: null,   // 準備建造的塔
       selectedTower: null,        // 已選中的塔（看升級）
       selectedGoddess: false,     // R64：直接點女神後顯示就地升級
       buildMenuTarget: null,      // R64：直接點空格後顯示就地建塔輪盤（不持久化）
+      touchBuildPreview: null,    // R79：按住／拖曳精準定位；放開不會建塔
+      buildPlacementFeedback: "",
       pendingSkill: null,         // 準備施放的技能
+      touchSkillPreview: null,
+      skillGhost: null,
+      touchControlMode,
       skillCooldowns: {},         // 技能冷卻計時
       speed: 1,                    // 遊戲速度倍率
       towerSeq: 0,
@@ -521,11 +655,16 @@
       advisorMode: "control",
       advisorBuildConfirm: false,
       advisorUpgradeTarget: null,
+      debugIgnoreTerrain: false,
     };
+    refreshExpeditionModifiers();
     state.introLogs = openingLoreLines(mapDef, affix);
     state.banner = { text: mapDef.label, color: "#fde047", life: 2.0 };
     Object.keys(SKILLS).forEach((k) => (state.skillCooldowns[k] = 0));
-    state.map = buildMapLayout(); // 亂數地圖佈局
+    state.map = buildMapLayout();
+    getImg(terrainPlatePath(mapDef), true);
+    if (window.TDMapArt) getImg(window.TDMapArt.BRIDGE_SPRITE, true);
+    prewarmHeroNavigation();
     emitIntroLogs();
     notifyUI(true);
     const battlefield = document.getElementById("battlefieldScroll");
@@ -536,27 +675,21 @@
     }
   }
 
-  // 亂數地圖佈局：每格隨機草地變化 + 隨機裝飾物（避開路徑）
+  // R80 layout: authored geography and legal building cells, no random tile/decor.
   function buildMapLayout() {
-    const cols = Math.ceil(W / CELL), rows = Math.ceil(H / CELL);
-    const grass = [];   // 每格用哪種草地圖 index（0~2）
-    for (let cy = 0; cy < rows; cy++) {
-      const row = [];
-      for (let cx = 0; cx < cols; cx++) row.push(1 + Math.floor(Math.random() * 3)); // grass1~3
-      grass.push(row);
+    const cols = Math.ceil(W / CELL), rows = Math.ceil(H / CELL), buildCells = [];
+    for (let cy = 0; cy < rows; cy++) for (let cx = 0; cx < cols; cx++) {
+      if (!blocked.has(cellKey(cx, cy))) buildCells.push({ cx, cy, ...cellCenter(cx, cy) });
     }
-    // 裝飾物：在非路徑格隨機撒
-    const decor = [];
-    const kinds = ["rock", "bush", "tree"];
-    for (let i = 0; i < 18; i++) {
-      const cx = Math.floor(Math.random() * cols), cy = Math.floor(Math.random() * rows);
-      if (blocked.has(cellKey(cx, cy))) continue; // 不放路徑上
-      decor.push({ kind: kinds[Math.floor(Math.random() * kinds.length)],
-        x: cx * CELL + CELL / 2 + (Math.random() * 16 - 8),
-        y: cy * CELL + CELL / 2 + (Math.random() * 16 - 8),
-        size: CELL * (0.5 + Math.random() * 0.4) });
-    }
-    return { cols, rows, grass, decor };
+    return { cols, rows, buildCells };
+  }
+  function prewarmHeroNavigation() {
+    if (!TDRules.heroRoute || !state.mapDef || !(state.mapDef.buildPads || []).length) return;
+    const started = performance.now();
+    const start = state.mapDef.core || state.goddess, target = state.mapDef.buildPads[0];
+    const route = TDRules.heroRoute(state.mapDef, start, target, { cellSize: HERO_NAV_CELL, radius: HERO_NAV_RADIUS });
+    engineMetrics.navWarmups++; engineMetrics.navWarmupMs = performance.now() - started;
+    state.navigationReady = route.reachable;
   }
 
   // 下一波預告（D4）：回傳下一波的敵人數、是否 Boss、主元素傾向。
@@ -573,7 +706,8 @@
     return state.waveSeeds[key];
   }
   function wavePlanFor(wave) {
-    return TDRules.generateWaveQueue(wave, getDifficulty(), waveSeedFor(wave), state.affix);
+    const base = TDRules.generateWaveQueue(wave, getDifficulty(), waveSeedFor(wave), state.affix);
+    return isExpedition() ? window.TDExpedition.planWave(base, { run: state.expedition, wave }) : base;
   }
   function previewNextWave(options) {
     const opts = options || {};
@@ -588,19 +722,39 @@
       .slice(0, 4)
       .map(([type, count]) => ({ type, count }));
     const recommendations = TDRules.recommendTowersForWave ? TDRules.recommendTowersForWave(plan) : [];
-    const advisorInput = { queue: plan.queue, towers: state.towers, gold: state.gold, path: state.path, affix: state.affix, width: W, height: H, advisorMode };
+    const advisorInput = { queue: plan.queue, towers: state.towers, gold: state.gold, path: state.path, mapDef: state.mapDef, mapId: state.mapId, affix: state.affix, width: W, height: H, advisorMode };
     const advisor = TDRules.adviseTowerActions ? TDRules.adviseTowerActions(advisorInput) : [];
     const counterWarning = TDRules.counterWarningForWave ? TDRules.counterWarningForWave(advisorInput) : null;
-    return { wave: w, seed, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, queue: plan.queue.map((item) => Object.assign({}, item)), enemyTypes, recommendations, advisor, counterWarning, advisorMode };
+    return { wave: w, seed, count: plan.count, totalCount: plan.totalCount, isBoss: plan.isBoss, theme: plan.theme, event: plan.event, affix: plan.affix, queue: plan.queue.map((item) => Object.assign({}, item)), enemyTypes, recommendations, advisor, counterWarning, advisorMode,
+      mode: state.mode, expedition: plan.expedition || false, finale: !!plan.finale, phase: plan.phase || null,
+      waveLabel: plan.waveLabel || null, missionId: plan.missionId || null, contract: plan.contract || null,
+      completed: !!(isExpedition() && state.expedition.completed) };
   }
 
   // ===== 波次系統（無盡隨機遞增）=====
+  function canStartFirstWave() {
+    return state.towers.some((tower) => {
+      const def = TOWERS[tower.type];
+      return def && !def.support && def.damage > 0;
+    }) || state.heroes.some((hero) => HEROES[hero.id] && HEROES[hero.id].atk > 0);
+  }
   function startWave() {
-    if (state.over) return;
-    if (state.wave === 0 && state.towers.length === 0) {
-      flashText(W / 2, H * 0.28, "先建一座塔！", { color: "#fde047", size: 22, big: true });
-      log("先建一座塔再開始第 1 波。", "bad");
+    if (state.over) return false;
+    if (isExpedition() && (!state.betweenWaves || state.expedition.draft || state.expedition.completed)) return false;
+    if (state.wave === 0 && !canStartFirstWave()) {
+      flashText(W / 2, H * 0.28, "先建攻擊塔或派出英雄", { color: "#fde047", size: 22, big: true });
+      log("先建攻擊塔或派出英雄，再開始第 1 波。", "bad");
       return false;
+    }
+    if (isExpedition()) {
+      const next = window.TDExpedition.beginWave(state.expedition, state.wave + 1);
+      if (!next) return false;
+      state.expedition = next; refreshExpeditionModifiers();
+      state.expeditionLeakWardUsed = false;
+      if (state.expeditionModifiers.skillBan) {
+        cancelTouchPlacement(true);
+        state.pendingSkill = null; canvas.style.cursor = "default";
+      }
     }
     state.wave++;
     state.betweenWaves = false;
@@ -661,6 +815,7 @@
     }
     if (w === 1 && state.affix) log(`${state.affix.emoji} 本局詞綴：${state.affix.label}｜${state.affix.desc}`);
     notifyUI();
+    return true;
   }
   // 事件波橫幅提示（畫面中央短暫顯示）
   function flashBanner(text, color, opts) {
@@ -699,10 +854,14 @@
   }
 
   function heroBattleStat(hero, key) {
+    if (typeof hero === "string") hero = { id: hero, level: 1, longBonus: 0 };
+    if (!hero || !HEROES[hero.id]) return 0;
     const value = heroStat(hero, key);
+    if (key === "speed") return value * expeditionModifier("heroSpeedMul");
     if (key !== "hp" && key !== "atk") return value;
     const bonus = hero && typeof hero.longBonus === "number" ? hero.longBonus : 0;
-    return Math.round(value * (1 + bonus));
+    const base = Math.round(value * (1 + bonus));
+    return key === "atk" ? base * expeditionModifier("heroDamageMul") : base;
   }
 
   function applyAffixWaveStart(wave) {
@@ -791,7 +950,7 @@
   function applyDamage(e, amount, opts) {
     if (!e || e._dead || e._leaked) return 0;
     opts = opts || {};
-    let dmg = Math.max(0, amount || 0);
+    let dmg = Math.max(0, amount || 0) * thunderSlowModifier(e, opts.element);
     if (dmg <= 0) return 0;
     e._dodgedLastHit = false;
     e._reflectedLastHit = false;
@@ -960,31 +1119,68 @@
   }
 
   // ===== 主迴圈 =====
-  // loopToken 確保同時只有一個迴圈在跑：每次 startLoop 換新 token，
-  // 舊迴圈發現 token 變了就自行結束（避免 newGame/startWave 造成多重迴圈疊加，
-  // 那會讓 update 每幀被呼叫多次、單位移動量爆增）。lastT/loopToken 已在上方宣告。
+  function resetFrameTiming() {
+    lastT = null;
+    frameAccumulator = 0;
+    perfState.sampleStart = 0;
+    perfState.sampleFrames = 0;
+    perfState.lowSamples = perfState.highSamples = 0;
+  }
   function startLoop() {
-    if (state.running) return; // 已在跑
+    if (state.running) return;
     state.running = true;
-    const myToken = ++loopToken;
-    lastT = 0; // 重置時間基準，避免第一幀 dt 異常
-    function loop(t) {
-      if (myToken !== loopToken || !state.running || state.over) return; // 不是當前迴圈或已結束
-      updatePerformanceMonitor(t);
-      if (!t) t = 0;
-      if (!lastT) lastT = t; // 第一幀對齊
-      let dt = (t - lastT) / 1000;
-      lastT = t;
-      if (dt > 0.05) dt = 0.05; // 防止分頁切換造成大跳
-      if (!state.paused) { dt *= state.speed; update(dt); } // 暫停時不更新邏輯
-      render();
-      if (state.paused) drawPauseOverlay();
-      requestAnimationFrame(loop);
+    liveLoopActive = true;
+    resetFrameTiming();
+  }
+  function advanceFrame(t, shouldRender) {
+    engineMetrics.lastSteps = 0;
+    if (!state || document.hidden) { resetFrameTiming(); return 0; }
+    const timestamp = Number.isFinite(t) ? t : 0;
+    const elapsed = lastT == null ? 0 : Math.max(0, (timestamp - lastT) / 1000);
+    lastT = timestamp;
+    const wallDt = Math.min(MAX_FRAME_DELTA, elapsed);
+    engineMetrics.frames++;
+    updatePerformanceMonitor(timestamp);
+    if (!state.paused && !state.over) visualClock += wallDt;
+    if (state.running && liveLoopActive && !state.over && !state.paused) {
+      const speed = Math.max(1, Math.min(3, Number(state.speed) || 1));
+      frameAccumulator += wallDt * speed;
+      engineMetrics.droppedSeconds += Math.max(0, elapsed - wallDt) * speed;
+      while (frameAccumulator + 1e-9 >= FIXED_STEP && engineMetrics.lastSteps < MAX_FRAME_STEPS) {
+        update(FIXED_STEP);
+        frameAccumulator = Math.max(0, frameAccumulator - FIXED_STEP);
+        engineMetrics.lastSteps++;
+        engineMetrics.steps++;
+        if (state.over || state.paused || !state.running) { frameAccumulator = 0; break; }
+      }
+      if (frameAccumulator >= FIXED_STEP) {
+        const remainder = frameAccumulator % FIXED_STEP;
+        engineMetrics.droppedSeconds += frameAccumulator - remainder;
+        frameAccumulator = remainder;
+      }
+    } else {
+      frameAccumulator = 0;
+      if (!state.running && !state.paused && !state.over) {
+        if (state.banner && state.banner.life > 0) state.banner.life -= wallDt;
+        updateParticles(wallDt);
+      }
     }
-    requestAnimationFrame(loop);
+    if (shouldRender !== false && (!state.running || liveLoopActive)) {
+      render(state.running && !state.paused && !state.over ? frameAccumulator / FIXED_STEP : 1);
+      if (state.paused) drawPauseOverlay();
+    }
+    return engineMetrics.lastSteps;
   }
   // D10 暫停切換
-  function togglePause() { state.paused = !state.paused; return state.paused; }
+  function setPaused(value) { state.paused = !!value; resetFrameTiming(); return state.paused; }
+  function togglePause() { return setPaused(!state.paused); }
+  document.addEventListener("visibilitychange", () => {
+    // Hiding the tab freezes the clock without changing the player's pause choice.
+    resetFrameTiming();
+    if (document.hidden) {
+      for (const voice of audioState.activeVoices.slice()) evictSfxVoice(voice);
+    }
+  });
   function drawPauseOverlay() {
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,.5)"; ctx.fillRect(0, 0, W, H);
@@ -998,6 +1194,10 @@
   }
 
   function update(dt) {
+    if (!(dt > 0) || !Number.isFinite(dt) || state.over) return;
+    for (const group of [state.enemies, state.heroes, state.bullets]) {
+      for (const entity of group) { entity._renderPrevX = entity.x; entity._renderPrevY = entity.y; }
+    }
     const rawDt = dt;
     if (state.slowMoLeft > 0 && !reducedEffectsEnabled()) {
       const scale = Math.max(0.15, Math.min(1, state.slowMoScale || 0.35));
@@ -1013,9 +1213,9 @@
     // 生成本波敵人
     if (state.spawnQueue.length > 0) {
       state.spawnTimer -= dt;
-      if (state.spawnTimer <= 0) {
+      while (state.spawnTimer <= 0 && state.spawnQueue.length) {
         spawnEnemy(state.spawnQueue.shift());
-        state.spawnTimer = GAME.spawnInterval;
+        state.spawnTimer += Math.max(FIXED_STEP, GAME.spawnInterval);
       }
     }
 
@@ -1064,21 +1264,30 @@
       const frostFactor = e.slowUntil > state.clock ? e.slowFactor : 1;
       const beaconFactor = e.beaconSlowUntil > state.clock ? e.beaconSlowFactor : 1;
       const spd = frozen ? 0 : e.speed * Math.min(frostFactor, beaconFactor);
-      const target = state.path[e.wp];
-      if (!target) { leak(e); continue; }
-      const dx = target.x - e.x, dy = target.y - e.y;
-      const dist = Math.hypot(dx, dy);
-      const step = spd * dt;
-      if (dist > 0.001) {
-        e.vx = dx / dist;
-        e.vy = dy / dist;
-        if (Math.abs(e.vx) > 0.08) e.flipX = e.vx < 0;
+      let remaining = spd * dt;
+      // Keep unspent distance at corners. This also handles zero-length waypoints.
+      while (!e._leaked) {
+        const target = state.path[e.wp];
+        if (!target) { leak(e); break; }
+        const dx = target.x - e.x, dy = target.y - e.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0.001) {
+          if (remaining <= 0) break;
+          e.vx = dx / dist; e.vy = dy / dist;
+          if (Math.abs(e.vx) > 0.08) e.flipX = e.vx < 0;
+        }
+        const step = Math.min(remaining, dist);
+        e.walkDist += step;
+        remaining -= step;
+        if (remaining < 1e-9 && step < dist) {
+          e.x += e.vx * step; e.y += e.vy * step; break;
+        }
+        if (step >= dist) { e.x = target.x; e.y = target.y; e.wp++; }
+        else { e.x += e.vx * step; e.y += e.vy * step; break; }
+        if (state.over) break;
       }
-      if (step > 0) e.walkDist += Math.min(step, dist);
-      if (step >= dist) { e.x = target.x; e.y = target.y; e.wp++; if (e.wp >= state.path.length) leak(e); }
-      else { e.x += e.vx * step; e.y += e.vy * step; }
     }
-    state.enemies = state.enemies.filter((e) => {
+    retainInPlace(state.enemies, (e) => {
       if (e._leaked) return false;
       if (!e._dead) return true;
       const startedAt = Number.isFinite(e.deathStartedAt) ? e.deathStartedAt : state.clock;
@@ -1090,10 +1299,10 @@
     for (const tw of state.towers) {
       if (TOWERS[tw.type].support) continue;
       if (towerDisabled(tw)) continue;
-      tw.cd -= dt;
+      tw.cd = Math.max(-dt, tw.cd - dt);
       if (tw.cd > 0) continue;
       const target = acquireTarget(tw);
-      if (target) { fire(tw, target); tw.cd = 1 / towerStat(tw, "fireRate"); }
+      if (target) { fire(tw, target); tw.cd += 1 / towerStat(tw, "fireRate"); }
     }
 
     // 英雄：自主尋敵、移動、攻擊
@@ -1101,7 +1310,7 @@
 
     // 子彈移動
     for (const b of state.bullets) {
-      if (b.target && !b.target._dead) {
+      if (b.target && !b.target._dead && !b.target._leaked) {
         const dx = b.target.x - b.x, dy = b.target.y - b.y;
         const d = Math.hypot(dx, dy);
         const step = b.speed * dt;
@@ -1109,31 +1318,26 @@
         else { b.x += (dx / d) * step; b.y += (dy / d) * step; }
       } else { b._done = true; }
     }
-    state.bullets = state.bullets.filter((b) => !b._done);
+    retainInPlace(state.bullets, (b) => !b._done);
 
     // 粒子（擴張環不移動；爆裂粒子受重力；文字往上飄不受重力）
-    for (const p of state.particles) {
-      p.life -= fxDt;
-      if (p.toX != null && p.toY != null) {
-        const k = Math.min(1, fxDt * (p.flySpeed || 4.5));
-        p.x += (p.toX - p.x) * k;
-        p.y += (p.toY - p.y) * k;
-      } else if (!p.ring && !p.beam) {
-        p.x += p.vx * fxDt;
-        p.y += p.vy * fxDt;
-        if (p.texture) p.rotation = (p.rotation || 0) + (p.spin || 0) * fxDt;
-        if (!p.text && !p.muzzle && !p.texture) p.vy += 220 * fxDt;
-      }
-    }
-    state.particles = state.particles.filter((p) => p.life > 0);
+    updateParticles(fxDt);
 
     state.clock += dt;
 
     // 波次結束判定
-    if (!state.betweenWaves && state.spawnQueue.length === 0 && state.enemies.length === 0) {
+    if ((!isExpedition() || !state.over) && !state.betweenWaves && state.spawnQueue.length === 0 && state.enemies.length === 0) {
       state.betweenWaves = true;
       state.clearedWave = Math.max(state.clearedWave || 0, state.wave);
-      const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1) * affixMul("waveGoldMul")); // 指數成長獎勵（D2）
+      let expeditionGold = 0;
+      if (isExpedition()) {
+        const result = window.TDExpedition.finishWave(state.expedition, state.wave);
+        state.expedition = result.run; refreshExpeditionModifiers();
+        expeditionGold = result.goldBonus;
+        state.goddess.hp = Math.min(state.goddess.maxHp, state.goddess.hp + result.heal);
+        if (state.expedition.completed) state.victory = true;
+      }
+      const bonus = Math.round(waveGoldBonus(state.wave) * ((state.mapDef && state.mapDef.goldMul) || 1) * affixMul("waveGoldMul")) + expeditionGold; // 經典獎勵 + 當波一次性遠征獎勵
       state.gold += bonus;
       const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
       if (telemetry) {
@@ -1158,6 +1362,7 @@
             reward: soulReward,
             total: state.runSoulEarned,
             difficultyId: getDifficulty().id,
+            ...(isExpedition() ? { mode: state.mode, missionId: state.expedition.missionId, victory: !!state.victory } : {}),
           });
         }
       } else {
@@ -1165,6 +1370,10 @@
       }
       celebrateWaveClear(state.wave, bonus, clean);
       notifyUI();
+      if (isExpedition() && state.expedition.completed) {
+        state.victory = true;
+        gameOver();
+      }
     }
   }
   // 敵人漏過終點 = 攻擊守護女神
@@ -1175,7 +1384,11 @@
       state.waveResolved = Math.min(state.waveTotal || Infinity, (state.waveResolved || 0) + 1);
       e._waveTracked = false;
     }
-    const dmg = Math.round(e.leak * (e.boss ? 4 : 3) * affixMul("leakDamageMul")); // 漏過對女神造成的傷害
+    let dmg = Math.round(e.leak * (e.boss ? 4 : 3) * affixMul("leakDamageMul")); // 漏過對女神造成的傷害
+    const ward = expeditionModifier("firstLeakWardPerWave");
+    if (ward > 0 && !state.betweenWaves && !state.expeditionLeakWardUsed) {
+      dmg *= ward; state.expeditionLeakWardUsed = true;
+    }
     const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
     if (telemetry) {
       telemetry.leaks += 1;
@@ -1220,6 +1433,13 @@
       walkDist: 0, animSeed: Math.random(), moving: false,
       attackPhase: "idle", attackTimer: 0, attackTarget: null, attackConnected: false,
     };
+    // A sprite's full footprint must start on land, including the lava shoreline.
+    if (TDRules.mapWalkable && !TDRules.mapWalkable(state.mapDef, h.x, h.y, HERO_NAV_RADIUS)) {
+      const candidates = [{ x: end.x - 50, y: end.y - 50 }, end].concat(state.mapDef.buildPads || []);
+      const safe = candidates.find((point) => TDRules.mapWalkable(state.mapDef, point.x, point.y, HERO_NAV_RADIUS));
+      if (!safe) return false;
+      h.x = safe.x; h.y = safe.y;
+    }
     state.heroes.push(h);
     const loreData = getLore();
     const quote = typeof loreData.deployQuoteFor === "function" ? loreData.deployQuoteFor(heroId) : "";
@@ -1236,6 +1456,7 @@
   function selectHeroGuard(uid) {
     const h = state.heroes.find((hero) => hero.uid === uid);
     if (!h) return false;
+    cancelTouchPlacement(true);
     state.pendingHero = h.uid;
     state.selectedTowerType = null;
     state.selectedTower = null;
@@ -1272,22 +1493,22 @@
     // 尋找敵人；駐守模式只鎖定駐守範圍內的敵人
     let target = null, best = Infinity;
     for (const e of state.enemies) {
-      if (e._dead) continue;
-      const d = Math.hypot(e.x - h.x, e.y - h.y);
+      if (e._dead || e._leaked) continue;
+      const d = (e.x - h.x) ** 2 + (e.y - h.y) ** 2;
       // 駐守模式：只打駐守點半徑內的敵人（不追遠的）
       if (h.guardPoint) {
-        const dh = Math.hypot(e.x - homeX, e.y - homeY);
-        if (dh > HERO_GUARD_RADIUS + def.range) continue;
+        const dh = (e.x - homeX) ** 2 + (e.y - homeY) ** 2;
+        if (dh > (HERO_GUARD_RADIUS + def.range) ** 2) continue;
       }
       if (d < best) { best = d; target = e; }
     }
     if (!target) {
-      moveToward(h, homeX, homeY, def.speed, dt); // 無目標：回家/駐守點
+      moveHeroAlongTerrain(h, homeX, homeY, heroBattleStat(h, "speed"), dt, "home");
       return;
     }
     const range = def.range;
-    if (best > range) {
-      moveToward(h, target.x, target.y, def.speed, dt); // 追敵
+    if (best > range * range) {
+      moveHeroAlongTerrain(h, target.x, target.y, heroBattleStat(h, "speed"), dt, target.uid || target.seq || target.type);
     } else {
       faceToward(h, target.x, target.y);
       if (h.cd <= 0) heroAttack(h, target);
@@ -1304,7 +1525,7 @@
 
   function moveToward(h, tx, ty, speed, dt) {
     const dx = tx - h.x, dy = ty - h.y, d = Math.hypot(dx, dy);
-    if (d < 2) return;
+    if (d < .001) return;
     faceToward(h, tx, ty); // 先定朝向，再移動
     const step = Math.min(d, speed * dt);
     h.x += (dx / d) * step; h.y += (dy / d) * step;
@@ -1312,10 +1533,57 @@
     h.moving = step > 0;
   }
 
+  function queryHeroRoute(start, goal) {
+    const started = performance.now();
+    const route = TDRules.heroRoute(state.mapDef, start, goal, { cellSize: HERO_NAV_CELL, radius: HERO_NAV_RADIUS });
+    const elapsed = performance.now() - started;
+    engineMetrics.navQueries++; engineMetrics.navQueryMs += elapsed;
+    engineMetrics.navQueryMaxMs = Math.max(engineMetrics.navQueryMaxMs, elapsed);
+    if (!route.reachable) engineMetrics.navQueryFailures++;
+    return route;
+  }
+
+  function moveHeroAlongTerrain(h, tx, ty, speed, dt, intent) {
+    if (state.debugIgnoreTerrain || !TDRules.heroRoute) { moveToward(h, tx, ty, speed, dt); return; }
+    const goal = { x: Math.max(HERO_NAV_RADIUS, Math.min(W - HERO_NAV_RADIUS, tx)),
+      y: Math.max(HERO_NAV_RADIUS, Math.min(H - HERO_NAV_RADIUS, ty)) };
+    const key = `${intent}:${Math.floor(goal.x / HERO_NAV_CELL)},${Math.floor(goal.y / HERO_NAV_CELL)}`;
+    let nav = h.navigation;
+    const displaced = nav && nav.goal ? Math.hypot(goal.x - nav.goal.x, goal.y - nav.goal.y) : Infinity;
+    // Follow an already safe corridor while a distant target moves a few
+    // pixels. Replan on a material displacement, return/guard intent, failed
+    // route, or end of the corridor; don't bunch eight A* calls at each cell.
+    if (!nav || nav.key !== key && (!nav.reachable || intent === "home" || nav.intent === "home" ||
+      displaced > HERO_NAV_CELL * 3 || nav.index >= nav.points.length)) {
+      const route = queryHeroRoute(h, goal);
+      nav = h.navigation = { key, intent, goal, points: route.points, index: 0, reachable: route.reachable };
+    }
+    if (!nav.reachable) return;
+    // Changing target pixels inside one navigation cell only updates the final
+    // leg after it is reached; never run A* once per hero per simulation tick.
+    if (nav.index >= nav.points.length) {
+      if (Math.hypot(goal.x - h.x, goal.y - h.y) < 2) return;
+      if (!TDRules.lineWalkable(state.mapDef, h, goal, HERO_NAV_RADIUS)) {
+        const route = queryHeroRoute(h, goal);
+        nav = h.navigation = { key, intent, goal, points: route.points, index: 0, reachable: route.reachable };
+        if (!nav.reachable) return;
+      } else { nav.points = [goal]; nav.index = 0; }
+    }
+    let remaining = Math.max(0, speed * dt);
+    while (remaining > 0 && nav.index < nav.points.length) {
+      const point = nav.points[nav.index], distance = Math.hypot(point.x - h.x, point.y - h.y);
+      if (distance < .001) { nav.index++; continue; }
+      const step = Math.min(distance, remaining);
+      moveToward(h, point.x, point.y, speed, step / speed);
+      remaining -= step;
+      if (step >= distance - .001) nav.index++;
+    }
+  }
+
   // 攻擊輸入只進入前搖；此函式不得造成傷害或建立子彈。
   function heroAttack(h, target) {
     const def = HEROES[h.id];
-    if (!target || target._dead || (h.attackPhase && h.attackPhase !== HERO_ATTACK_PHASE.IDLE)) return false;
+    if (!target || target._dead || target._leaked || (h.attackPhase && h.attackPhase !== HERO_ATTACK_PHASE.IDLE)) return false;
     faceToward(h, target.x, target.y);
     h.attackPhase = HERO_ATTACK_PHASE.ANTICIPATION;
     h.attackTimer = heroAttackPhaseDuration(def, HERO_ATTACK_PHASE.ANTICIPATION);
@@ -1351,7 +1619,7 @@
   function resolveHeroAttackImpact(h) {
     const def = HEROES[h.id];
     const target = h.attackTarget;
-    if (!target || target._dead) return false;
+    if (!target || target._dead || target._leaked) return false;
     const activeRange = def.range + (def.role === "ranged" ? 12 : 18);
     if (Math.hypot(target.x - h.x, target.y - h.y) > activeRange) return false; // 揮空：impact 無命中
     const atk = heroBattleStat(h, "atk");
@@ -1361,6 +1629,7 @@
       state.bullets.push({
         x: h.x, y: h.y, target, speed: 360, color: def.color,
         damage: atk, element: def.element, splash: def.splash || 0, slow: def.slow || 0,
+        pierce: projectilePierce(def.element, 0, def.splash) || 0,
         projectile: PROJECTILE_BY_ELEMENT[def.element] || "arrow",
         _heroOwner: h, activeHitbox: true, attackPhase: HERO_ATTACK_PHASE.IMPACT,
       });
@@ -1434,7 +1703,7 @@
 
   // 擊殺
   function killEnemy(e) {
-    if (e._dead) return;
+    if (e._dead || e._leaked) return;
     e._dead = true;
     e.deathStartedAt = state.clock;
     e.deathDuration = ENEMY_ANIMATION_ATLAS.deathDuration;
@@ -1448,7 +1717,7 @@
     state.comboTimer = 2.5; // 2.5 秒內再擊殺才接續
     state.kills++;
     const comboMul = 1 + Math.min(state.combo - 1, 20) * 0.05; // 每連殺 +5%，上限 +100%
-    const reward = Math.round(e.reward * comboMul);
+    const reward = Math.round(e.reward * comboMul) + expeditionModifier("killGoldBonus");
     state.gold += reward;
     const telemetry = state.combatTelemetry && state.combatTelemetry.waves[state.wave];
     if (telemetry) {
@@ -1472,7 +1741,7 @@
       screenShake();
     }
     // combo 達門檻時畫面跳大數字
-    if (state.combo >= 3) flashText(e.x, e.y - 12, `COMBO x${state.combo}`, { color: "#fde047", size: 14 + Math.min(state.combo, 10), big: true });
+    if (state.combo >= 3 && !window.__tdBattleChrome) flashText(e.x, e.y - 12, `COMBO x${state.combo}`, { color: "#fde047", size: 14 + Math.min(state.combo, 10), big: true });
     notifyUI();
   }
 
@@ -1480,7 +1749,10 @@
   function towerStat(tw, key) {
     const base = TOWERS[tw.type][key];
     if (key === "damage") return (base || 0) * Math.pow(UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul") * eventMul("towerDamageMul");
-    if (key === "poisonDps") return (base || 0) * Math.pow(UPGRADE.poisonDpsMul || UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul") * eventMul("towerDamageMul");
+    if (key === "poisonDps") return (base || 0) * Math.pow(UPGRADE.poisonDpsMul || UPGRADE.damageMul, tw.level - 1) * affixMul("towerDamageMul") * eventMul("towerDamageMul") * expeditionModifier("poisonDpsMul");
+    if (key === "pierce") return projectilePierce(TOWERS[tw.type].element, base, TOWERS[tw.type].splash);
+    if (key === "splash" && tw.type === "cannon") return base * expeditionModifier("cannonSplashMul");
+    if (key === "slowDuration") return TOWERS[tw.type].slow ? 1.5 * (tw.type === "frost" ? expeditionModifier("frostDurationMul") : 1) : 0;
     if (key === "range") return base * Math.pow(UPGRADE.rangeMul, tw.level - 1) * affixMul("towerRangeMul");
     if (key === "minRange") return base || 0;
     if (key === "buff") return (base || 0) + (tw.level - 1) * (TOWERS[tw.type].buffPerLevel || 0);
@@ -1502,8 +1774,9 @@
     const def = TOWERS[tw.type];
     if (!def || def.support) return 0;
     let dps = towerStat(tw, "damage") * (def.fireRate || 0);
-    if (def.splash) dps *= 2.2;
-    if (def.pierce) dps *= (1 + (def.pierce - 1) * 0.6);
+    if (towerStat(tw, "splash")) dps *= 2.2;
+    const pierce = towerStat(tw, "pierce");
+    if (pierce) dps *= (1 + (pierce - 1) * 0.6);
     return dps;
   }
   function supportDpsGain(support) {
@@ -1520,33 +1793,55 @@
   }
   function acquireTarget(tw) {
     const def = TOWERS[tw.type];
+    if (!def || def.support) return null;
+    const priority = getTowerPriority(tw) || "auto";
     const range = towerStat(tw, "range");
     const minRange = towerStat(tw, "minRange") || 0;
-    let best = null, bestScore = -Infinity;
+    let best = null, bestScore = -Infinity, bestProgress = -Infinity;
     for (const e of state.enemies) {
-      if (e._dead) continue;
-      const d = Math.hypot(e.x - tw.x, e.y - tw.y);
-      if (d <= range && d >= minRange) {
+      if (e._dead || e._leaked || e.hp <= 0) continue;
+      const d = (e.x - tw.x) ** 2 + (e.y - tw.y) ** 2;
+      if (d <= range * range && d >= minRange * minRange) {
         const target = state.path[e.wp];
         const prev = state.path[Math.max(0, e.wp - 1)];
-        const segLen = target && prev ? Math.max(1, Math.hypot(target.x - prev.x, target.y - prev.y)) : 1;
+        const segLen = state.pathSegmentLengths[e.wp] || (target && prev ? Math.max(1, Math.hypot(target.x - prev.x, target.y - prev.y)) : 1);
         const distToWaypoint = target ? Math.hypot(target.x - e.x, target.y - e.y) : 0;
         const prog = e.wp - Math.min(1, distToWaypoint / segLen); // 越前面越優先
         let score = prog;
-        if (def && def.targetPriority === "midpath") {
+        if (priority === "auto" && def.targetPriority === "midpath") {
           const ratio = Math.max(0, Math.min(1, (e.walkDist || 0) / (state.pathTotalLength || 1)));
           score = 100 - Math.abs(ratio - 0.55) * 100 + prog * 0.001;
         }
-        if (score > bestScore) { bestScore = score; best = e; }
+        if (priority === "boss") score = e.boss ? 1 : 0;
+        else if (priority === "strong") score = Math.max(0, Number(e.hp) || 0) + Math.max(0, Number(e.shield) || 0);
+        if (score > bestScore || (priority !== "auto" && score === bestScore && prog > bestProgress)) {
+          bestScore = score; bestProgress = prog; best = e;
+        }
       }
     }
     return best;
+  }
+  function getTowerPriority(tower) {
+    const tw = tower || state && state.selectedTower;
+    const def = tw && TOWERS[tw.type];
+    if (!def || def.support) return null;
+    return Object.prototype.hasOwnProperty.call(TOWER_PRIORITIES, tw.targetMode) ? tw.targetMode : "auto";
+  }
+  function setTowerPriority(tower, priority) {
+    if (!state || state.over || !tower || !state.towers.includes(tower) || getTowerPriority(tower) === null ||
+      !Object.prototype.hasOwnProperty.call(TOWER_PRIORITIES, priority)) return false;
+    // This is a targeting preference, not another attack input. Keep cooldown,
+    // already-launched projectiles and impact-time damage exactly as they are.
+    tower.targetMode = priority;
+    notifyUI();
+    return true;
   }
   // 塔/元素對應的投射物圖
   const PROJECTILE_BY_TOWER = { arrow: "arrow", cannon: "cannonball", frost: "iceshard", tesla: "lightning", poison: "arrow", sniper: "arrow", arcane: "lightning", mortar: "fireball" };
   const PROJECTILE_BY_ELEMENT = { physical: "arrow", fire: "fireball", ice: "iceshard", thunder: "lightning" };
 
   function fire(tw, target) {
+    if (!target || target._dead || target._leaked) return false;
     const def = TOWERS[tw.type];
     const poisonDps = towerStat(tw, "poisonDps");
     muzzleFlash(tw, target);
@@ -1554,7 +1849,8 @@
     state.bullets.push({
       x: tw.x, y: tw.y, target, speed: def.id === "mortar" ? 250 : 320, color: def.color,
       damage: effectiveTowerDamage(tw), element: def.element,
-      splash: def.splash || 0, slow: def.slow || 0, pierce: def.pierce || 0, type: tw.type,
+      splash: towerStat(tw, "splash") || 0, slow: def.slow || 0, slowDuration: towerStat(tw, "slowDuration"),
+      pierce: towerStat(tw, "pierce") || 0, type: tw.type,
       poison: poisonDps ? { dps: poisonDps, duration: def.poisonDuration, maxStacks: def.poisonMaxStacks } : null,
       vuln: def.vuln || null,
       projectile: PROJECTILE_BY_TOWER[tw.type] || PROJECTILE_BY_ELEMENT[def.element],
@@ -1564,7 +1860,7 @@
     if (b.splash) {
       // 範圍傷害
       for (const e of state.enemies) {
-        if (e._dead) continue;
+        if (e._dead || e._leaked || e.hp <= 0) continue;
         if (Math.hypot(e.x - b.target.x, e.y - b.target.y) <= b.splash) dealDamage(e, b);
       }
       burst(b.target.x, b.target.y, b.color, 12);
@@ -1581,7 +1877,7 @@
       // 穿透：主目標一定要吃到傷害，其餘依「距主目標的距離」排序取最近的——
       // 原本取 filter 後的前 N 個（＝生成順序），被瞄準的敵人可能反而完全沒受傷
       const near = state.enemies
-        .filter((e) => !e._dead && Math.hypot(e.x - b.target.x, e.y - b.target.y) < 60)
+        .filter((e) => !e._dead && !e._leaked && e.hp > 0 && Math.hypot(e.x - b.target.x, e.y - b.target.y) < 60)
         .sort((a, c) => Math.hypot(a.x - b.target.x, a.y - b.target.y) - Math.hypot(c.x - b.target.x, c.y - b.target.y));
       const hits = near.includes(b.target) ? near : [b.target, ...near];
       hits.slice(0, b.pierce).forEach((e) => dealDamage(e, b));
@@ -1591,7 +1887,7 @@
     }
   }
   function dealDamage(e, b) {
-    if (e._dead) return;
+    if (!e || e._dead || e._leaked) return;
     const mult = elementMultiplier(b.element, e.element);
     // D6 塔協同：被減速或冰凍的敵人受傷 +25%（救活寒冰塔 → 成為增傷樞紐）
     const chilled = (e.slowUntil > state.clock) || (e.frozenUntil > state.clock);
@@ -1603,7 +1899,7 @@
     damageNumber(e.x, e.y, dealt || dmg, mult * synergy); // V2：傷害浮字（克制/協同放大變紅）
     if (b.poison) applyPoison(e, b.poison);
     if (b.vuln) markVulnerable(e, b.vuln.mult, b.vuln.duration);
-    if (b.slow) { e.slowUntil = state.clock + 1.5; e.slowFactor = 1 - b.slow; }
+    if (b.slow) { e.slowUntil = state.clock + (Number.isFinite(b.slowDuration) ? b.slowDuration : 1.5); e.slowFactor = 1 - b.slow; }
     // Splash 紋理只在爆心合成一次，避免命中 N 隻怪時疊成同色霧牆。
     if (b.type !== "mortar" && !(b.type === "cannon" && b.splash)) {
       if (b.poison) texturedImpact("poison", e.x, e.y, "#4ade80", { fxKind: "poison-hit" });
@@ -1617,7 +1913,7 @@
   // ===== 主動技能 =====
   function castSkill(skillId, x, y) {
     const sk = SKILLS[skillId];
-    if (!sk || state.skillCooldowns[skillId] > 0) return false;
+    if (!sk || state.skillCooldowns[skillId] > 0 || isSkillLocked()) return false;
     const impactX = Number.isFinite(x) ? x : W / 2;
     const impactY = Number.isFinite(y) ? y : H / 2;
     const targets = state.enemies.filter((e) => !e._dead && !e._leaked && Math.hypot(e.x - impactX, e.y - impactY) <= sk.radius);
@@ -1628,14 +1924,14 @@
       notifyUI();
       return false;
     }
-    state.skillCooldowns[skillId] = sk.cooldown;
+    state.skillCooldowns[skillId] = skillStat(skillId, "cooldown");
     state.skillCasts = (state.skillCasts || 0) + 1;
     let appliedHits = 0;
     for (const e of targets) {
       const mult = elementMultiplier(sk.element, e.element);
       const dealt = applyDamage(e, sk.damage * mult, { source: "skill", element: sk.element });
       if (e._reflectedLastHit) continue;
-      if (sk.freezeDur) e.frozenUntil = state.clock + sk.freezeDur;
+      if (sk.freezeDur) e.frozenUntil = state.clock + skillStat(skillId, "freezeDur");
       if (sk.rootDur) e.frozenUntil = state.clock + sk.rootDur;
       if (sk.vuln) markVulnerable(e, sk.vuln.mult, sk.vuln.duration);
       if (appliedHits < 5) {
@@ -1662,9 +1958,11 @@
     const buildRange = def ? def.range * affixMul("towerRangeMul") : 0;
     const reach = def ? cellReachInfo(cx, cy, buildRange) : { distance: Infinity, reachable: false };
     const pathDistance = reach.distance;
+    const terrain = TDRules.mapBuildRestriction ? TDRules.mapBuildRestriction(state.mapDef, px, py, CELL) : null;
     let reason = "";
     if (!def) reason = "尚未選塔";
     else if (px < 0 || py < 0 || px >= W || py >= H) reason = "超出戰場";
+    else if (terrain && terrain.blocked) reason = terrain.reason;
     else if (blocked.has(cellKey(cx, cy))) reason = "路徑上不能放";
     else if (state.towers.some((t) => t.cx === cx && t.cy === cy)) reason = "已有塔";
     else if (!reach.reachable) reason = "太遠打不到路徑";
@@ -1678,7 +1976,11 @@
       y: center.y,
       range: buildRange,
       type: def ? def.id : null,
+      typeId: def ? def.id : null,
+      cost: def ? def.cost : 0,
       pathDistance: Number.isFinite(pathDistance) ? Math.round(pathDistance) : null,
+      terrainKind: terrain && terrain.kind || null,
+      regionId: terrain && terrain.regionId || null,
     };
   }
 
@@ -1706,10 +2008,11 @@
     state.towers.push({
       type: state.selectedTowerType, cx, cy,
       x: cx * CELL + CELL / 2, y: cy * CELL + CELL / 2,
-      level: 1, cd: 0, order: state.towerSeq++,
+      level: 1, cd: 0, order: state.towerSeq++, targetMode: "auto",
     });
     state.towersBuilt = (state.towersBuilt || 0) + 1;
     state.buildGhost = null;
+    state.buildPlacementFeedback = "";
     state.buildMenuTarget = null;
     state.mouse = null;
     playSfx("build");
@@ -1719,7 +2022,7 @@
   }
   function upgradeTower(tw) {
     if (tw.level >= UPGRADE.maxLevel) { log("已達最高等級！", "bad"); return; }
-    const cost = Math.round(TOWERS[tw.type].cost * Math.pow(UPGRADE.costMul, tw.level));
+    const cost = upgradeCost(tw);
     if (state.gold < cost) { log("金錢不足以升級！", "bad"); return; }
     state.gold -= cost;
     tw.level++;
@@ -1728,7 +2031,7 @@
     log(`${TOWERS[tw.type].name} 升到 ${tw.level} 級！`);
     notifyUI();
   }
-  function upgradeCost(tw) { return Math.round(TOWERS[tw.type].cost * Math.pow(UPGRADE.costMul, tw.level)); }
+  function upgradeCost(tw) { return Math.round(TOWERS[tw.type].cost * Math.pow(UPGRADE.costMul, tw.level) * expeditionModifier("upgradeCostMul")); }
   function sellTower(tw) {
     const refund = Math.round(TOWERS[tw.type].cost * 0.6 * tw.level);
     state.gold += refund;
@@ -1740,6 +2043,7 @@
 
   function buildTowerAt(type, px, py) {
     if (!TOWERS[type] || !Number.isFinite(px) || !Number.isFinite(py)) return false;
+    cancelTouchPlacement(true);
     state.selectedTowerType = type;
     state.selectedTower = null;
     state.selectedGoddess = false;
@@ -1755,6 +2059,7 @@
   }
 
   function closeSceneMenus() {
+    cancelTouchPlacement(true);
     state.buildMenuTarget = null;
     state.selectedTower = null;
     state.selectedGoddess = false;
@@ -1896,15 +2201,19 @@
     if (!state || (reducedEffectsEnabled() && !allowReduced)) return false;
     const priority = particlePriority(p);
     if (p.text) {
-      const textCount = state.particles.filter((x) => x.text).length;
+      let textCount = 0, coinCount = 0;
+      for (const existing of state.particles) {
+        if (existing.text) textCount++;
+        if (existing.toX != null) coinCount++;
+      }
       if (textCount >= MAX_TEXT_PARTICLES && !(p.criticalFx && evictParticle((x) => x.text, priority))) return false;
       if (p.toX != null) {
-        const coinCount = state.particles.filter((x) => x.toX != null).length;
         if (coinCount >= MAX_COIN_PARTICLES && !(p.criticalFx && evictParticle((x) => x.toX != null, priority))) return false;
       }
     }
     if (p.ring) {
-      const ringCount = state.particles.filter((x) => x.ring).length;
+      let ringCount = 0;
+      for (const existing of state.particles) if (existing.ring) ringCount++;
       if (ringCount >= MAX_RING_PARTICLES && !(p.criticalFx && evictParticle((x) => x.ring, priority))) return false;
     }
     while (state.particles.length >= MAX_PARTICLES) {
@@ -1961,7 +2270,7 @@
   function ring(x, y, color, maxR, opts) {
     if (reducedEffectsEnabled()) return;
     opts = opts || {};
-    if (performanceLow() && state.particles.length > 24) return;
+    if (performanceLow() && state.particles.length > 24 && !opts.criticalFx) return;
     pushParticle({ x, y, vx: 0, vy: 0, life: 0.5, color, ring: true, maxR: (maxR || 60) * (performanceLow() ? 0.78 : 1), r0: 6,
       criticalFx: !!opts.criticalFx, fxKind: opts.fxKind || null });
   }
@@ -1990,11 +2299,14 @@
 
   function gameOver() {
     if (state.over) return; // 重入保護：同一幀多隻敵人 leak 會觸發多次，魂晶/場次會被重複結算
+    cancelTouchPlacement(true);
     state.over = true; state.running = false;
-    log(`💀 遊戲結束！撐到第 ${state.wave} 波，得分 ${state.score}`, "bad");
+    log(state.victory ? `🏆 遠征完成！通過 ${state.wave} 波，得分 ${state.score}` : `💀 遊戲結束！撐到第 ${state.wave} 波，得分 ${state.score}`, state.victory ? undefined : "bad");
     if (typeof window.__tdGameOver === "function") {
       window.__tdGameOver(state.wave, state.score, {
+        ...(isExpedition() ? { victory: !!state.victory, mode: state.mode, missionId: state.expedition.missionId } : {}),
         kills: state.kills,
+        bossKills: state.bossKills || 0,
         difficulty: getDifficulty(),
         soulEarned: state.runSoulEarned || 0,
         leaks: state.runLeaks,
@@ -2011,7 +2323,18 @@
   }
 
   // ===== 渲染 =====
-  function render() {
+  function drawInterpolatedEntity(draw, entity, alpha) {
+    if (alpha >= 1 || !Number.isFinite(entity._renderPrevX) || !Number.isFinite(entity._renderPrevY)) {
+      draw(entity); return;
+    }
+    // Visual interpolation never writes into the physics root or collider.
+    ctx.save();
+    ctx.translate((entity._renderPrevX - entity.x) * (1 - alpha), (entity._renderPrevY - entity.y) * (1 - alpha));
+    draw(entity);
+    ctx.restore();
+  }
+  function render(interpolation) {
+    const alpha = Number.isFinite(interpolation) ? Math.max(0, Math.min(1, interpolation)) : 1;
     ctx.clearRect(0, 0, W, H);
     drawBackground();
     drawPath();
@@ -2020,17 +2343,20 @@
     drawGoddess();
     const towerProfile = towerRenderProfile();
     for (let i = 0; i < state.towers.length; i++) drawTower(state.towers[i], i, state.towers.length, towerProfile);
-    for (const h of state.heroes) drawHero(h);
-    for (const e of state.enemies) drawEnemy(e);
-    for (const b of state.bullets) drawBullet(b);
+    for (const h of state.heroes) drawInterpolatedEntity(drawHero, h, alpha);
+    for (const e of state.enemies) drawInterpolatedEntity(drawEnemy, e, alpha);
+    for (const b of state.bullets) drawInterpolatedEntity(drawBullet, b, alpha);
+    if (state.touchBuildPreview) captureBuildMagnifierFrame();
     for (const p of state.particles) drawParticle(p);
     if (state.selectedTower) drawTowerRange(state.selectedTower);
     drawAdvisorHighlight();
     drawGuardPoints();
+    if (state.pendingSkill) drawSkillPreview();
     drawComboHud();
     drawStreakHud();
     drawBanner();
     drawRedVignette();
+    if (state.touchBuildPreview) drawBuildMagnifier();
   }
 
   // D9 駐守點視覺（旗標 + 範圍圈）
@@ -2053,6 +2379,7 @@
 
   // D8 事件波橫幅（畫面中央，淡入淡出）
   function drawBanner() {
+    if (window.__tdBattleChrome) return; // The live HUD announces events outside the battlefield.
     if (!state.banner || state.banner.life <= 0) return;
     const b = state.banner;
     if (b.boss) {
@@ -2119,6 +2446,7 @@
 
   // D5 連殺指示器（畫在 canvas 左上）
   function drawComboHud() {
+    if (window.__tdBattleChrome) return;
     if (state.combo < 3) return;
     const x = 16, y = 28;
     const scale = 1 + Math.min(state.combo, 15) * 0.04;
@@ -2139,6 +2467,7 @@
     ctx.restore();
   }
   function drawStreakHud() {
+    if (window.__tdBattleChrome) return;
     if (!state.cleanStreak || state.cleanStreak < 2) return;
     const x = W - 18, y = 28;
     const pulse = 1 + Math.sin(state.clock * 7) * 0.04;
@@ -2245,188 +2574,83 @@
     ctx.fillText("Lv." + gd.level, gd.x, gd.y + CELL * 0.85);
   }
 
+  function terrainPlatePath(mapDef) {
+    const art = window.TDMapArt;
+    return art && art.TERRAIN_PLATES[mapDef.id] || "assets/maps/r80/" + mapDef.id + "-terrain.webp";
+  }
   function bakeBackground() {
-    const c = document.createElement("canvas");
-    c.width = W;
-    c.height = H;
-    const bg = c.getContext("2d");
-    usePixelArt(bg);
-    let ready = true;
-    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
-    bg.fillStyle = visual.ground; bg.fillRect(0, 0, W, H);
-    const map = state.map;
-    // 用草地磚塊亂數鋪滿（圖未載入時退回純色格）
-    if (map) {
-      for (let cy = 0; cy < map.rows; cy++) {
-        for (let cx = 0; cx < map.cols; cx++) {
-          const im = getImg(`assets/tiles/grass${map.grass[cy][cx]}.png`, true);
-          if (im && im.complete && im.naturalWidth > 0) {
-            bg.drawImage(im, cx * CELL, cy * CELL, CELL, CELL);
-          } else {
-            ready = false;
-            bg.fillStyle = (cx + cy) % 2 ? "#13241a" : "#15281d";
-            bg.fillRect(cx * CELL, cy * CELL, CELL, CELL);
-          }
-          // R75 磚面層次：確定性（cx,cy 雜湊）頂緣亮光＋底緣壓影＋稀疏色斑，
-          // 砍掉整片平鋪的「換色占位」塑膠感；只在 bake 時畫一次，不加每幀成本。
-          const tileHash = (((cx + 1) * 73856093) ^ ((cy + 1) * 19349663)) >>> 0;
-          const topAlpha = 0.03 + (tileHash % 5) * 0.008;
-          const bottomAlpha = 0.055 + ((tileHash >> 3) % 5) * 0.011;
-          bg.fillStyle = `rgba(236,252,233,${topAlpha.toFixed(3)})`;
-          bg.fillRect(cx * CELL, cy * CELL, CELL, 2);
-          bg.fillStyle = `rgba(4,10,7,${bottomAlpha.toFixed(3)})`;
-          bg.fillRect(cx * CELL, cy * CELL + CELL - 3, CELL, 3);
-          if (tileHash % 7 === 0) {
-            bg.fillStyle = "rgba(8,20,12,.10)";
-            bg.beginPath();
-            bg.arc(cx * CELL + 8 + (tileHash % Math.max(1, CELL - 16)),
-              cy * CELL + 8 + ((tileHash >> 5) % Math.max(1, CELL - 16)),
-              5 + (tileHash % 8), 0, Math.PI * 2);
-            bg.fill();
-          }
-        }
-      }
+    engineMetrics.backgroundBakes++; engineMetrics.pathBakes++;
+    const layer = document.createElement("canvas"); layer.width = W; layer.height = H;
+    const background = layer.getContext("2d"), art = window.TDMapArt;
+    const platePath = terrainPlatePath(state.mapDef), plate = getImg(platePath, true);
+    let info = { ready: false, terrainPlate: platePath, biome: state.mapDef.biome };
+    if (art) info = art.paintBoard(background, state.mapDef, { width: W, height: H, plate, bridgeSprite: getImg(art.BRIDGE_SPRITE, true),
+      isBuildable: (x, y) => !TDRules.mapBuildRestriction(state.mapDef, x, y, CELL).blocked });
+    else {
+      // Headless/asset-loading fallback. The live page loads map-art.js before game.js.
+      background.fillStyle = (MAP_VISUALS[state.mapId] || MAP_VISUALS.plains).ground;
+      background.fillRect(0, 0, W, H); background.strokeStyle = "#c3ad87";
+      background.lineWidth = state.mapDef.roadWidth || 42; background.lineCap = "round"; background.lineJoin = "round";
+      background.beginPath(); background.moveTo(state.path[0].x, state.path[0].y);
+      for (let i = 1; i < state.path.length; i++) background.lineTo(state.path[i].x, state.path[i].y);
+      background.stroke();
     }
-    // V3 場景深度：暗角 vignette（中心透明 → 邊緣壓暗）
-    const vig = bg.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.75);
-    vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,.4)");
-    bg.fillStyle = vig; bg.fillRect(0, 0, W, H);
-    return { canvas: c, ready };
+    state.pathDetailCache = layer;
+    return { canvas: layer, ready: info.ready, assetVersion: sceneAssetVersion, info };
   }
   function drawBackground() {
-    if (!state.backgroundCache || !state.backgroundCache.ready) {
-      const baked = bakeBackground();
-      if (baked.ready) state.backgroundCache = baked;
-      ctx.drawImage(baked.canvas, 0, 0);
-      return;
-    }
+    if (!state.backgroundCache || state.backgroundCache.assetVersion !== sceneAssetVersion) state.backgroundCache = bakeBackground();
     ctx.drawImage(state.backgroundCache.canvas, 0, 0);
   }
   function drawMapAtmosphere() {
-    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
-    ctx.save();
-    ctx.fillStyle = visual.tint;
-    ctx.fillRect(0, 0, W, H);
-    if (!state.over && !reducedEffectsEnabled() && !performanceLow()) {
-      const now = (window.performance && performance.now ? performance.now() : Date.now()) / 1000;
-      // 波間呼吸仍是主光；戰鬥只留極弱 ambient，讓宣傳混戰畫面保有地圖氣氛。
-      const strength = state.betweenWaves
-        ? 0.48 + (Math.sin(now * 1.25) + 1) * 0.16
-        : 0.20 + (Math.sin(now * 0.8) + 1) * 0.025;
-      const glow = ctx.createRadialGradient(W * 0.52, H * 0.48, H * 0.08, W * 0.52, H * 0.48, H * 0.72);
-      glow.addColorStop(0, visual.breath.replace(/\.[0-9]+\)$/, `${(0.16 * strength).toFixed(3)})`));
-      glow.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-    }
-    ctx.restore();
-  }
-  function buildPathDetailCache() {
-    const c = document.createElement("canvas");
-    c.width = W; c.height = H;
-    const px = c.getContext("2d");
-    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
-    const path = state.path || getMap().path;
-    for (let s = 0; s < path.length - 1; s++) {
-      const a = path[s], b = path[s + 1];
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const len = Math.max(1, Math.hypot(dx, dy));
-      const angle = Math.atan2(dy, dx);
-      for (let d = 22; d < len; d += visual.detail === "slabs" ? 48 : 40) {
-        const x = a.x + dx * (d / len), y = a.y + dy * (d / len);
-        px.save(); px.translate(x, y); px.rotate(angle);
-        if (visual.detail === "footprints") {
-          px.fillStyle = "rgba(31,41,32,.32)";
-          px.beginPath(); px.ellipse(-6, -7, 4.5, 8, -.18, 0, Math.PI * 2); px.fill();
-          px.beginPath(); px.ellipse(8, 7, 4.5, 8, .18, 0, Math.PI * 2); px.fill();
-        } else if (visual.detail === "slabs") {
-          px.strokeStyle = "rgba(45,31,22,.36)"; px.lineWidth = 3;
-          px.beginPath(); px.moveTo(0, -CELL * .34); px.lineTo(0, CELL * .34); px.stroke();
-          px.strokeStyle = "rgba(255,237,213,.07)"; px.lineWidth = 1;
-          px.strokeRect(-19, -CELL * .31, 38, CELL * .62);
-        } else {
-          px.strokeStyle = "rgba(46,16,24,.42)"; px.lineWidth = 3;
-          px.beginPath(); px.moveTo(-13, -12); px.lineTo(-3, -3); px.lineTo(-9, 9); px.lineTo(13, 15); px.stroke();
-          px.strokeStyle = "rgba(251,113,133,.09)"; px.lineWidth = 1; px.stroke();
-        }
-        px.restore();
-      }
-    }
-    return c;
-  }
-  function drawPathDetails() {
-    if (!state.pathDetailCache) state.pathDetailCache = buildPathDetailCache();
-    ctx.drawImage(state.pathDetailCache, 0, 0);
-  }
-  function r72PathTile(pathImg) {
-    if (state.pathTileVisualCache) return state.pathTileVisualCache;
-    const c = document.createElement("canvas");
-    c.width = CELL; c.height = CELL;
-    const px = c.getContext("2d");
-    const visual = MAP_VISUALS[state.mapId] || MAP_VISUALS.plains;
-    px.drawImage(pathImg, 0, 0, CELL, CELL);
-    px.fillStyle = visual.pathWash;
-    px.fillRect(0, 0, CELL, CELL);
-    state.pathTileVisualCache = c;
-    return c;
+    // R80 lighting is authored into the raster plate. Do not wash it in a full
+    // green tint or rebuild atmosphere gradients in the live rendering path.
   }
   function drawPath() {
-    // 路徑：先畫底色路（保證可見），再用路徑磚平鋪沿線蓋上
-    ctx.strokeStyle = "#3b2f1f"; ctx.lineWidth = CELL * 0.9; ctx.lineCap = "round"; ctx.lineJoin = "round";
-    const path = state.path || getMap().path;
-    ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
-    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-    ctx.stroke();
-    // 路徑磚塊圖蓋在路徑格上
-    const pathImg = getImg("assets/tiles/path.png", true);
-    if (pathImg && pathImg.complete && pathImg.naturalWidth > 0 && state.map) {
-      // R72：同一張原始 path PNG 一次性著色後沿用；不增加每幀 draw call 或改 blocked cells。
-      const readablePathTile = r72PathTile(pathImg);
-      for (const key of blocked) {
-        const [cx, cy] = key.split(",").map(Number);
-        if (cx < 0 || cy < 0) continue;
-        ctx.drawImage(readablePathTile, cx * CELL, cy * CELL, CELL, CELL);
-      }
+    if (!getPathGuideVisible() || !window.TDMapArt) return;
+    const scale = Math.max(.25, canvas.getBoundingClientRect().width / W);
+    const showLabels = !state.selectedTowerType && !state.pendingSkill;
+    const key = state.mapId + ":" + (state.mapDef.designVersion || 1) + ":" + Math.round(scale * 100) + ":" + showLabels;
+    if (!state.pathRenderCache || state.pathRenderCache.key !== key) {
+      const layer = document.createElement("canvas"); layer.width = W; layer.height = H;
+      window.TDMapArt.paintGuide(layer.getContext("2d"), state.mapDef, { cssScale: scale, showLabels });
+      state.pathRenderCache = { canvas: layer, key }; engineMetrics.guideBakes++;
     }
-    // R72 玩法可讀性由 map-specific path tile wash 提供；原始素材與碰撞資料維持不變。
-    drawPathDetails();
-    // 裝飾物（在非路徑格）
-    if (state.map) {
-      for (const d of state.map.decor) {
-        drawSprite(`assets/tiles/${d.kind}.png`, "", d.x, d.y, d.size);
-      }
-    }
-    // 終點由守護女神鎮守（drawGoddess 繪製）
+    ctx.drawImage(state.pathRenderCache.canvas, 0, 0);
   }
   function drawBuildableCells(def) {
     if (!def) return;
-    const cols = state.map ? state.map.cols : Math.ceil(W / CELL);
-    const rows = state.map ? state.map.rows : Math.ceil(H / CELL);
-    const occupied = new Set(state.towers.map((t) => cellKey(t.cx, t.cy)));
-    const range = def.range * affixMul("towerRangeMul");
-    ctx.save();
-    ctx.lineWidth = 1;
-    for (let cy = 0; cy < rows; cy++) {
-      for (let cx = 0; cx < cols; cx++) {
-        const key = cellKey(cx, cy);
-        if (blocked.has(key) || occupied.has(key)) continue;
-        if (canCellReachPath(cx, cy, range)) {
-          ctx.fillStyle = "rgba(74,222,128,.10)";
-          ctx.strokeStyle = "rgba(74,222,128,.22)";
-        } else {
-          ctx.fillStyle = "rgba(15,23,42,.28)";
-          ctx.strokeStyle = "rgba(148,163,184,.10)";
-        }
-        ctx.fillRect(cx * CELL + 1, cy * CELL + 1, CELL - 2, CELL - 2);
-        if (!performanceLow()) ctx.strokeRect(cx * CELL + 4, cy * CELL + 4, CELL - 8, CELL - 8);
+    const scale = Math.max(.25, canvas.getBoundingClientRect().width / W), range = def.range * affixMul("towerRangeMul");
+    const key = state.mapId + ":" + def.id + ":" + Math.round(range * 100) + ":" + state.towerSeq + ":" + state.towers.length + ":" + Math.round(scale * 100);
+    if (!state.placementCache || state.placementCache.key !== key) {
+      const layer = document.createElement("canvas"); layer.width = W; layer.height = H;
+      const points = layer.getContext("2d"), occupied = new Set(state.towers.map((t) => cellKey(t.cx, t.cy)));
+      const radius = Math.min(8, Math.max(4, 2.2 / scale));
+      for (const cell of state.map.buildCells || []) {
+        if (occupied.has(cellKey(cell.cx, cell.cy)) || !canCellReachPath(cell.cx, cell.cy, range)) continue;
+        points.fillStyle = "rgba(186,223,184,.20)"; points.beginPath(); points.arc(cell.x, cell.y, radius + 3, 0, Math.PI * 2); points.fill();
+        points.fillStyle = "rgba(226,239,197,.60)"; points.beginPath(); points.arc(cell.x, cell.y, radius, 0, Math.PI * 2); points.fill();
       }
+      if (!state.towers.length && state.wave === 0 && !def.support && !def.slowAura) {
+        const first = (state.mapDef.buildPads || []).find(p => p.id === "front-arrow");
+        if (first && buildPreviewAt(first.x, first.y).ok) {
+          points.strokeStyle = "#f0d69d"; points.lineWidth = Math.max(2, 1.5 / scale);
+          const half = CELL * .36, arm = CELL * .14;
+          for (const sx of [-1,1]) for (const sy of [-1,1]) {
+            points.beginPath();points.moveTo(first.x+sx*(half-arm),first.y+sy*half);
+            points.lineTo(first.x+sx*half,first.y+sy*half);points.lineTo(first.x+sx*half,first.y+sy*(half-arm));points.stroke();
+          }
+        }
+      }
+      state.placementCache = { canvas: layer, key }; engineMetrics.placementBakes++;
     }
-    ctx.restore();
+    ctx.drawImage(state.placementCache.canvas, 0, 0);
   }
   function drawBuildPreview() {
     const def = TOWERS[state.selectedTowerType];
     if (!def) return;
     drawBuildableCells(def);
-    const m = state.buildGhost || state.mouse; if (!m) return;
+    const m = state.touchBuildPreview || state.buildGhost || state.mouse; if (!m) return;
     const preview = buildPreviewAt(m.x, m.y);
     ctx.fillStyle = preview.ok ? "rgba(74,222,128,.3)" : "rgba(239,68,68,.32)";
     ctx.fillRect(preview.cx * CELL, preview.cy * CELL, CELL, CELL);
@@ -2444,13 +2668,85 @@
     ctx.globalAlpha = 0.55;
     drawSprite(towerSpritePath(def, 1), "", preview.x, preview.y, CELL * 0.7);
     ctx.restore();
-    if (!preview.ok && preview.reason) {
-      const labelX = Math.max(78, Math.min(W - 78, preview.x));
-      const labelY = Math.max(18, Math.min(H - 18, preview.y - CELL * 0.62));
-      ctx.font = '900 13px "Segoe UI", sans-serif'; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.strokeStyle = "rgba(0,0,0,.75)"; ctx.lineWidth = 3; ctx.strokeText(preview.reason, labelX, labelY);
-      ctx.fillStyle = "#fecaca"; ctx.fillText(preview.reason, labelX, labelY);
+    const cssScale = Math.max(0.25, canvas.getBoundingClientRect().width / W);
+    const touchPreview = !!(state.touchBuildPreview || state.buildGhost) && cssScale < 0.7;
+    if (touchPreview) {
+      const color = preview.ok ? "#b6e7c6" : "#fca5a5";
+      ctx.save();
+      ctx.strokeStyle = "rgba(5,12,15,.95)"; ctx.lineWidth = 5 / cssScale;
+      ctx.strokeRect(preview.cx * CELL + 2, preview.cy * CELL + 2, CELL - 4, CELL - 4);
+      ctx.strokeStyle = color; ctx.lineWidth = 2.2 / cssScale;
+      ctx.strokeRect(preview.cx * CELL + 2, preview.cy * CELL + 2, CELL - 4, CELL - 4);
+      ctx.beginPath();
+      const gap = CELL * 0.58, arm = CELL * 1.25;
+      for (const sign of [-1, 1]) {
+        ctx.moveTo(preview.x + gap * sign, preview.y); ctx.lineTo(preview.x + arm * sign, preview.y);
+        ctx.moveTo(preview.x, preview.y + gap * sign); ctx.lineTo(preview.x, preview.y + arm * sign);
+      }
+      ctx.stroke(); ctx.restore();
     }
+    const label = state.touchBuildPreview ? "" : !preview.ok ? preview.reason : touchPreview ? "按確認建造" : "";
+    if (label) {
+      const fontSize = touchPreview ? 15 / cssScale : 13;
+      ctx.font = `900 ${fontSize}px "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const halfWidth = Math.min(W / 2 - 8, ctx.measureText(label).width / 2 + 10);
+      const labelX = Math.max(halfWidth + 4, Math.min(W - halfWidth - 4, preview.x));
+      const labelY = Math.max(fontSize, Math.min(H - fontSize, preview.y - CELL * (touchPreview ? 1.55 : 0.62)));
+      ctx.strokeStyle = "rgba(0,0,0,.9)"; ctx.lineWidth = touchPreview ? 4 / cssScale : 3;
+      ctx.strokeText(label, labelX, labelY);
+      ctx.fillStyle = preview.ok ? "#dcfce7" : "#fecaca"; ctx.fillText(label, labelX, labelY);
+    }
+  }
+  function captureBuildMagnifierFrame() {
+    const placement = getBuildPlacement();
+    if (!placement || !placement.active) return;
+    const span = CELL * 3;
+    if (!buildMagnifierFrame) {
+      const layer = document.createElement("canvas"); layer.width = layer.height = span;
+      buildMagnifierFrame = { canvas: layer, x: 0, y: 0 };
+    }
+    buildMagnifierFrame.x = Math.max(0, Math.min(W - span, (placement.preview.cx - 1) * CELL));
+    buildMagnifierFrame.y = Math.max(0, Math.min(H - span, (placement.preview.cy - 1) * CELL));
+    const frame = buildMagnifierFrame.canvas.getContext("2d"); usePixelArt(frame);
+    frame.clearRect(0, 0, span, span);
+    // Take the crop before particles and UI labels. Enlarging those annotations
+    // would cover the cell with huge duplicate text instead of showing terrain.
+    frame.drawImage(canvas, buildMagnifierFrame.x, buildMagnifierFrame.y, span, span, 0, 0, span, span);
+  }
+  function drawBuildMagnifier() {
+    const placement = getBuildPlacement();
+    if (!placement || !placement.active) return;
+    const rect = canvas.getBoundingClientRect(), scale = Math.max(0.25, rect.width / W);
+    const available = Math.min(rect.width - 14, rect.height - 35);
+    if (available < 48) return;
+    const size = Math.min(available, 180, Math.max(132, CELL * 3 * scale * 1.6)) / scale;
+    const pad = 7 / scale, header = 21 / scale;
+    const preview = placement.preview, span = CELL * 3;
+    if (!buildMagnifierFrame) return;
+    const sx = buildMagnifierFrame.x, sy = buildMagnifierFrame.y;
+    // Put the temporary loupe diagonally away from the selected cell. It stays
+    // inside Canvas, owns no DOM hit targets, and never covers external controls.
+    const x = preview.x < W / 2 ? W - size - pad : pad;
+    const y = preview.y < H / 2 ? H - size - header - pad : pad;
+    const contentY = y + header, color = preview.ok ? "#a9d6bd" : "#fca5a5";
+    ctx.save(); ctx.shadowBlur = 0; ctx.filter = "none"; ctx.globalAlpha = 1;
+    ctx.fillStyle = "#11201b"; ctx.fillRect(x - 3 / scale, y - 3 / scale, size + 6 / scale, size + header + 6 / scale);
+    ctx.strokeStyle = "rgba(169,214,189,.7)"; ctx.lineWidth = 1.5 / scale;
+    ctx.strokeRect(x - 2 / scale, y - 2 / scale, size + 4 / scale, size + header + 4 / scale);
+    ctx.beginPath(); ctx.rect(x, contentY, size, size); ctx.clip();
+    usePixelArt(ctx);
+    ctx.drawImage(buildMagnifierFrame.canvas, 0, 0, span, span, x, contentY, size, size);
+    const factor = size / span;
+    ctx.fillStyle = preview.ok ? "rgba(126,193,151,.20)" : "rgba(239,68,68,.20)";
+    ctx.fillRect(x + (preview.cx * CELL - sx) * factor, contentY + (preview.cy * CELL - sy) * factor, CELL * factor, CELL * factor);
+    ctx.strokeStyle = color; ctx.lineWidth = 2.3 / scale;
+    ctx.strokeRect(x + (preview.cx * CELL - sx) * factor + 1 / scale,
+      contentY + (preview.cy * CELL - sy) * factor + 1 / scale, CELL * factor - 2 / scale, CELL * factor - 2 / scale);
+    ctx.restore();
+    ctx.save(); ctx.shadowBlur = 0; ctx.fillStyle = "#d3e5d9";
+    ctx.font = `700 ${11 / scale}px "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(!preview.ok ? preview.reason : placement.dragging ? "精準定位 · 放開不會建造" : "按住拖曳 · 放大定位", x + size / 2, y + header / 2);
+    ctx.restore();
   }
   function drawTowerRange(tw) {
     ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.lineWidth = 1.5;
@@ -2485,7 +2781,10 @@
     if (imgCache[path] === undefined) {
       imgCache[path] = null; // 預設 null（載入/去背完成前用佔位）
       const im = new Image();
-      im.onload = () => { imgCache[path] = noBg ? im : removeBg(im); };
+      im.onload = () => {
+        imgCache[path] = noBg ? im : removeBg(im);
+        if (path.startsWith("assets/maps/r80/")) sceneAssetVersion++;
+      };
       im.onerror = () => { imgCache[path] = null; };
       im.src = path;
     }
@@ -2781,6 +3080,29 @@
     ctx.restore();
   }
 
+  function drawEnemyHitFrame(atlas, animation, column, e, size) {
+    if (forceEnemyAtlasFallback || !atlas || !atlas.complete || !(atlas.naturalWidth > 0)) {
+      drawEnemyAtlasFrame(atlas, animation, column, e, size); return;
+    }
+    const cell = ENEMY_ANIMATION_ATLAS.cellSize;
+    const source = r75OutlinedSprite(atlas, "enemy-atlas", cell, cell, 4) || atlas;
+    const key = `${animation.row}:${column}`;
+    let entry = hitFrameCache.get(key);
+    if (!entry || entry.source !== source) {
+      // Crop the CURRENT true frame once, then make an alpha-preserving white
+      // texture. A live Canvas filter on a full atlas can force expensive GPU
+      // flushes when the following projectile asks for shadowBlur.
+      const layer = document.createElement("canvas"); layer.width = cell; layer.height = cell;
+      const flash = layer.getContext("2d"); usePixelArt(flash);
+      flash.drawImage(source, column * cell, animation.row * cell, cell, cell, 0, 0, cell, cell);
+      flash.globalCompositeOperation = "source-in";
+      flash.fillStyle = "#fff"; flash.fillRect(0, 0, cell, cell);
+      if (!hitFrameCache.has(key) && hitFrameCache.size >= MAX_HIT_FRAME_CACHE) hitFrameCache.delete(hitFrameCache.keys().next().value);
+      entry = { source, canvas: layer }; hitFrameCache.set(key, entry);
+    }
+    ctx.drawImage(entry.canvas, -size / 2, -size / 2, size, size);
+  }
+
   function drawEnemy(e) {
     const size = e.boss ? CELL * 1.1 : CELL * 0.6;
     const animation = ENEMY_ANIMATIONS[e.id] || ENEMY_ANIMATIONS.slime;
@@ -2817,8 +3139,7 @@
     const flash = reduced ? 0 : (e.hitFlash || 0);
     if (flash > 0 && !e._dead) {
       ctx.globalAlpha = Math.min(0.78, flash / 0.14 * 0.72);
-      ctx.filter = "brightness(0) saturate(100%) invert(1)";
-      drawEnemyAtlasFrame(atlas, animation, frameColumn, e, size);
+      drawEnemyHitFrame(atlas, animation, frameColumn, e, size);
     }
     ctx.restore();
 
@@ -2906,6 +3227,24 @@
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
+  function projectileVisualSprite(image, projectile, color) {
+    const key = `${projectile || "point"}:${color}`;
+    let entry = projectileSpriteCache.get(key);
+    if (entry && entry.source === image) return entry.canvas;
+    const layer = document.createElement("canvas"); layer.width = layer.height = 64;
+    const bullet = layer.getContext("2d"); usePixelArt(bullet);
+    bullet.shadowColor = color; bullet.shadowBlur = image ? 6 : 8;
+    if (image) {
+      const size = projectile === "cannonball" ? 22 : 26;
+      bullet.drawImage(image, 32 - size / 2, 32 - size / 2, size, size);
+    } else {
+      bullet.fillStyle = color;
+      bullet.beginPath(); bullet.arc(32, 32, 4, 0, Math.PI * 2); bullet.fill();
+    }
+    if (!projectileSpriteCache.has(key) && projectileSpriteCache.size >= MAX_PROJECTILE_SPRITE_CACHE) projectileSpriteCache.delete(projectileSpriteCache.keys().next().value);
+    entry = { source: image, canvas: layer }; projectileSpriteCache.set(key, entry);
+    return layer;
+  }
   function drawBullet(b) {
     // 有投射物圖 → 畫圖並朝飛行方向旋轉；否則退回發光圓點
     const im = b.projectile ? getImg(`assets/projectiles/${b.projectile}.png`) : null;
@@ -2916,12 +3255,15 @@
       const sz = b.projectile === "cannonball" ? 22 : 26;
       ctx.save();
       ctx.translate(b.x, b.y); ctx.rotate(ang);
-      ctx.shadowColor = b.color; ctx.shadowBlur = performanceLow() ? 0 : 6;
-      ctx.drawImage(im, -sz / 2, -sz / 2, sz, sz);
+      ctx.shadowBlur = 0;
+      if (performanceLow()) ctx.drawImage(im, -sz / 2, -sz / 2, sz, sz);
+      else ctx.drawImage(projectileVisualSprite(im, b.projectile, b.color), -32, -32);
       ctx.restore();
     } else {
-      ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = performanceLow() ? 0 : 8;
-      ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.shadowBlur = 0;
+      if (performanceLow()) {
+        ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill();
+      } else ctx.drawImage(projectileVisualSprite(null, null, b.color), b.x - 32, b.y - 32);
     }
   }
   function drawParticle(p) {
@@ -3004,9 +3346,245 @@
   }
 
   // ===== 輸入 =====
+  const TOUCH_DRAG_THRESHOLD = 6;
+  const TOUCH_FINE_GAIN = 0.5;
+  const TOUCH_SNAP_CSS_RADIUS = 24;
+  const TOUCH_SNAP_WORLD_RADIUS = CELL * 1.5;
+  let touchGesture = null;
+  let suppressCanvasClickUntil = 0;
+  function cancelTouchPlacement(clearGhost) {
+    touchGesture = null;
+    if (!state) return;
+    state.touchBuildPreview = null;
+    state.touchSkillPreview = null;
+    if (clearGhost) { state.buildGhost = null; state.skillGhost = null; state.mouse = null; state.buildPlacementFeedback = ""; }
+  }
+  function setTouchControlMode(enabled) {
+    const next = !!enabled;
+    if (next === touchControlMode) return touchControlMode;
+    cancelTouchPlacement(true);
+    touchControlMode = next;
+    if (state) state.touchControlMode = next;
+    notifyUI();
+    return touchControlMode;
+  }
+  function skillPreviewFor(skillId, x, y) {
+    const sk = SKILLS[skillId], inBounds = Number.isFinite(x) && Number.isFinite(y) && x >= 0 && y >= 0 && x < W && y < H;
+    const targetCount = sk && inBounds ? state.enemies.filter(e => !e._dead && !e._leaked && e.hp > 0 && Math.hypot(e.x - x, e.y - y) <= sk.radius).length : 0;
+    const reason = !sk ? "請先選擇技能" : state.over ? "本局已結束" : !inBounds ? "超出戰場" : isSkillLocked() ? "目前無法使用技能" :
+      state.skillCooldowns[skillId] > 0 ? "技能冷卻中" : !targetCount ? "範圍內沒有目標" : "";
+    return { skillId, x, y, radius: sk ? sk.radius : 0, targetCount, ok: !reason, reason };
+  }
+  function getSkillPlacement() {
+    if (!state || state.over || !SKILLS[state.pendingSkill]) return null;
+    const active = state.touchSkillPreview;
+    const candidate = active || state.skillGhost || { x: W / 2, y: H / 2, source: "default", skillId: state.pendingSkill };
+    if (candidate.skillId !== state.pendingSkill) return null;
+    return { active: !!active, dragging: !!(active && active.dragging), requiresConfirmation: !active && !!state.skillGhost,
+      source: candidate.source || (active ? "touch" : "tap"), preview: skillPreviewFor(state.pendingSkill, candidate.x, candidate.y) };
+  }
+  function armSkillPreview(x, y, source) {
+    if (!SKILLS[state.pendingSkill] || state.over) return false;
+    state.skillGhost = { x, y, skillId: state.pendingSkill, source: source || "tap" };
+    state.mouse = { x, y };
+    notifyUI();
+    return true; // An empty or invalid aim remains adjustable and never casts.
+  }
+  function previewSkillAt(x, y) {
+    if (!SKILLS[state.pendingSkill] || state.over || state.touchSkillPreview || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+    return armSkillPreview(x, y, "preset");
+  }
+  function moveSkillPreview(dx, dy) {
+    const placement = getSkillPlacement(), xStep = Math.sign(Number(dx)), yStep = Math.sign(Number(dy));
+    if (!placement || placement.active || !Number.isFinite(Number(dx)) || !Number.isFinite(Number(dy)) || (!xStep && !yStep) || (xStep && yStep)) return false;
+    const x = Math.max(0, Math.min(W - 1, placement.preview.x + xStep * CELL)), y = Math.max(0, Math.min(H - 1, placement.preview.y + yStep * CELL));
+    return armSkillPreview(x, y, "nudge");
+  }
+  function confirmSkillPreview() {
+    const placement = getSkillPlacement();
+    if (!placement || placement.active || !placement.requiresConfirmation || !placement.preview.ok) { notifyUI(); return false; }
+    const { skillId, x, y } = placement.preview;
+    if (!castSkill(skillId, x, y)) return false;
+    cancelTouchPlacement(true);
+    state.pendingSkill = null;
+    state.buildMenuTarget = null;
+    state.selectedGoddess = false;
+    canvas.style.cursor = "default";
+    notifyUI();
+    return true;
+  }
+  function drawSkillPreview() {
+    const placement = getSkillPlacement();
+    if (!placement) return;
+    const p = placement.preview, sk = SKILLS[p.skillId];
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+    ctx.save();
+    ctx.strokeStyle = p.ok ? sk.color : "#f87171";
+    ctx.fillStyle = p.ok ? sk.color : "#f87171";
+    ctx.globalAlpha = 0.12;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.lineWidth = 2; ctx.setLineDash([8, 5]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x - 22, p.y); ctx.lineTo(p.x + 22, p.y); ctx.moveTo(p.x, p.y - 22); ctx.lineTo(p.x, p.y + 22); ctx.stroke();
+    ctx.restore();
+  }
+  function inspectTower(order) {
+    if (!state || !["number", "string"].includes(typeof order) || typeof order === "string" && !order.trim()) return false;
+    const id = Number(order), tower = Number.isInteger(id) ? state.towers.find(t => t.order === id) : null;
+    if (!tower) return false;
+    cancelTouchPlacement(true);
+    state.selectedTowerType = null; state.pendingSkill = null; state.pendingHero = null;
+    state.selectedTower = tower; state.selectedGoddess = false; state.buildMenuTarget = null;
+    state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null;
+    canvas.style.cursor = "default";
+    revealCanvasPoint(tower.x, tower.y); notifyUI();
+    return true;
+  }
+  function selectGoddess() {
+    if (!state) return false;
+    cancelTouchPlacement(true);
+    state.selectedTowerType = null; state.pendingSkill = null; state.pendingHero = null;
+    state.selectedTower = null; state.selectedGoddess = true; state.buildMenuTarget = null;
+    state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null;
+    canvas.style.cursor = "default";
+    revealCanvasPoint(state.goddess.x, state.goddess.y); notifyUI();
+    return true;
+  }
+  function nearbyTouchTower(point) {
+    const rect = canvas.getBoundingClientRect();
+    if (!(rect.width > 0 && rect.height > 0) || point.x < 0 || point.y < 0 || point.x >= W || point.y >= H) return null;
+    const candidates = state.towers.map(tower => ({ tower, distance2: ((tower.x - point.x) * rect.width / W) ** 2 + ((tower.y - point.y) * rect.height / H) ** 2 }))
+      .filter(item => item.distance2 <= TOUCH_SNAP_CSS_RADIUS ** 2 + 1e-8)
+      .sort((a, b) => a.distance2 - b.distance2 || a.tower.order - b.tower.order);
+    return candidates.length ? candidates[0].tower : null;
+  }
+  function getBuildPlacementFeedback() { return state && state.buildPlacementFeedback || ""; }
+  function getBuildPlacement() {
+    if (!state || state.over || !state.selectedTowerType) return null;
+    const active = state.touchBuildPreview;
+    const candidate = active || state.buildGhost;
+    if (!candidate || candidate.typeId && candidate.typeId !== state.selectedTowerType) return null;
+    const preview = buildPreviewAt(candidate.x, candidate.y);
+    const source = candidate.source || (active ? "touch" : candidate.dragAdjusted ? "drag" : candidate.advisor ? "advisor" : "tap");
+    const snapped = !!candidate.snapped;
+    return { active: !!active, dragging: !!(active && active.dragging),
+      requiresConfirmation: !active && !!state.buildGhost,
+      source, snapped, feedback: getBuildPlacementFeedback(),
+      inputPoint: Number.isFinite(candidate.inputX) && Number.isFinite(candidate.inputY) ? { x: candidate.inputX, y: candidate.inputY } : null,
+      preview: { ...preview, source, snapped, typeId: state.selectedTowerType, cost: TOWERS[state.selectedTowerType].cost } };
+  }
+  function armBuildPreview(x, y, source, metadata) {
+    if (!state.selectedTowerType) return false;
+    const preview = buildPreviewAt(x, y);
+    state.buildGhost = { x, y, cx: preview.cx, cy: preview.cy, typeId: state.selectedTowerType,
+      source, dragAdjusted: source === "drag", snapped: !!(metadata && metadata.snapped),
+      inputX: metadata && metadata.inputX, inputY: metadata && metadata.inputY };
+    state.mouse = { x, y };
+    state.buildPlacementFeedback = preview.ok ? "" : preview.reason;
+    notifyUI();
+    return preview.ok;
+  }
+  function buildSnapCrossesPath(from, to) {
+    const cross = (a, b, p) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    const on = (a, b, p) => Math.abs(cross(a, b, p)) <= 1e-8 && p.x >= Math.min(a.x, b.x) - 1e-8 &&
+      p.x <= Math.max(a.x, b.x) + 1e-8 && p.y >= Math.min(a.y, b.y) - 1e-8 && p.y <= Math.max(a.y, b.y) + 1e-8;
+    const paths = [state.mapDef.path || state.path].concat((state.mapDef.bridges || []).map(bridge => bridge.path));
+    for (const path of paths) for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1], b = path[i], x1 = cross(from, to, a), x2 = cross(from, to, b), x3 = cross(a, b, from), x4 = cross(a, b, to);
+      if (x1 * x2 < 0 && x3 * x4 < 0 || on(from, to, a) || on(from, to, b) || on(a, b, from) || on(a, b, to)) return true;
+    }
+    return false;
+  }
+  function safeBuildSnap(from, to) {
+    // Walking LOS checks use existing geography, without A* or new collision data.
+    // An actual water/cliff/lava point stays red; a land point whose tile footprint
+    // touches the shore may align to a nearby cell on the same bank.
+    return (!TDRules.lineWalkable || TDRules.lineWalkable(state.mapDef, from, to, 0)) && !buildSnapCrossesPath(from, to);
+  }
+  function nearbyBuildCandidate(point, cssRadius) {
+    const cx = Math.floor(point.x / CELL), cy = Math.floor(point.y / CELL), rect = canvas.getBoundingClientRect();
+    if (!(rect.width > 0 && rect.height > 0)) return null;
+    const scaleX = rect.width / W, scaleY = rect.height / H, candidates = [];
+    const maxCx = Math.floor(W / CELL) - 1, maxCy = Math.floor(H / CELL) - 1;
+    for (let row = Math.max(0, cy - 1); row <= Math.min(maxCy, cy + 1); row++) {
+      for (let col = Math.max(0, cx - 1); col <= Math.min(maxCx, cx + 1); col++) {
+        const center = cellCenter(col, row), dx = center.x - point.x, dy = center.y - point.y, distance2 = dx * dx + dy * dy;
+        if (distance2 > TOUCH_SNAP_WORLD_RADIUS ** 2 + 1e-8) continue;
+        if (Number.isFinite(cssRadius) && (dx * scaleX) ** 2 + (dy * scaleY) ** 2 > cssRadius ** 2 + 1e-8) continue;
+        const preview = buildPreviewAt(center.x, center.y);
+        if (!preview.ok || !safeBuildSnap(point, center)) continue;
+        candidates.push({ ...preview, distance2 });
+      }
+    }
+    candidates.sort((a, b) => Math.abs(a.distance2 - b.distance2) > 1e-8 ? a.distance2 - b.distance2 : a.cy - b.cy || a.cx - b.cx);
+    return candidates[0] || null;
+  }
+  function resolveTouchBuildPoint(point) {
+    const result = { x: point.x, y: point.y, inputX: point.x, inputY: point.y, snapped: false };
+    const def = TOWERS[state.selectedTowerType], raw = buildPreviewAt(point.x, point.y);
+    if (raw.ok || !def || state.gold < def.cost || !Number.isFinite(point.x) || !Number.isFinite(point.y) ||
+      point.x < 0 || point.y < 0 || point.x >= W || point.y >= H || raw.terrainKind === "bounds") return result;
+    const nearby = nearbyBuildCandidate(point, TOUCH_SNAP_CSS_RADIUS);
+    return nearby ? { ...result, x: nearby.x, y: nearby.y, snapped: true } : result;
+  }
+  function suggestBuildPlacement() {
+    const def = TOWERS[state.selectedTowerType];
+    if (!def || state.over || state.touchBuildPreview) {
+      state.buildPlacementFeedback = state.touchBuildPreview ? "放開手指後再選建議位" : "請先選擇砲塔";
+      notifyUI(); return false;
+    }
+    if (state.gold < def.cost) { state.buildPlacementFeedback = "金錢不足"; notifyUI(); return false; }
+    const preferredPad = def.id === "arrow" ? "front-arrow" : ["frost", "beacon"].includes(def.id) ? "front-control" :
+      ["poison", "sniper"].includes(def.id) ? "rear-main" : null;
+    const zones = ["poison", "sniper"].includes(def.id) ? ["rear", "crossfire", "front"] :
+      ["cannon", "tesla", "mortar", "support"].includes(def.id) ? ["crossfire", "front", "rear"] : ["front", "rear", "crossfire"];
+    const padRank = (pad) => pad.id === preferredPad ? -1 : zones.indexOf(pad.zone) < 0 ? 3 : zones.indexOf(pad.zone);
+    const pads = (state.mapDef.buildPads || []).map((pad, index) => ({ pad, index }))
+      .sort((a, b) => padRank(a.pad) - padRank(b.pad) || a.index - b.index);
+    for (const { pad } of pads) {
+      const exact = buildPreviewAt(pad.x, pad.y), chosen = exact.ok ? exact : nearbyBuildCandidate(pad, Infinity);
+      if (!chosen) continue;
+      cancelTouchPlacement(true); state.advisorBuildConfirm = false;
+      return armBuildPreview(chosen.x, chosen.y, "suggest");
+    }
+    state.buildPlacementFeedback = "目前沒有適合此塔的合法建議位";
+    notifyUI(); return false;
+  }
+  function moveBuildPreview(dx, dy) {
+    const placement = getBuildPlacement(), xStep = Math.sign(Number(dx)), yStep = Math.sign(Number(dy));
+    if (!placement || placement.active) { state.buildPlacementFeedback = placement && placement.active ? "放開手指後再微調" : "先點棋盤或選建議位"; notifyUI(); return false; }
+    if (!Number.isFinite(xStep) || !Number.isFinite(yStep) || (!xStep && !yStep) || (xStep && yStep)) return false;
+    const maxCx = Math.floor(W / CELL) - 1, maxCy = Math.floor(H / CELL) - 1;
+    const cx = Math.max(0, Math.min(maxCx, placement.preview.cx + xStep)), cy = Math.max(0, Math.min(maxCy, placement.preview.cy + yStep));
+    const center = cellCenter(cx, cy);
+    cancelTouchPlacement(true); state.advisorBuildConfirm = false;
+    armBuildPreview(center.x, center.y, "nudge");
+    return true; // Movement succeeded; an invalid cell remains a red, unpaid preview.
+  }
+  function confirmBuildPreview() {
+    const placement = getBuildPlacement();
+    if (!placement || placement.active || !placement.requiresConfirmation) return false;
+    const ghost = state.buildGhost;
+    if (!placement.preview.ok) { state.buildPlacementFeedback = placement.preview.reason; notifyUI(); return false; }
+    const built = !!tryBuildTower(ghost.x, ghost.y);
+    if (built) {
+      state.touchBuildPreview = null;
+      state.advisorBuildConfirm = false;
+      state.selectedTowerType = null; canvas.style.cursor = "default";
+    }
+    notifyUI();
+    return built;
+  }
   function canvasPos(clientX, clientY) {
     const r = canvas.getBoundingClientRect();
     return { x: (clientX - r.left) * (W / r.width), y: (clientY - r.top) * (H / r.height) };
+  }
+  function fineTouchPoint(gesture, clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(W - 1, gesture.anchorX + (clientX - gesture.x) * W / rect.width * TOUCH_FINE_GAIN)),
+      y: Math.max(0, Math.min(H - 1, gesture.anchorY + (clientY - gesture.y) * H / rect.height * TOUCH_FINE_GAIN)),
+    };
   }
   function revealCanvasPoint(x, y) {
     const host = document.getElementById("battlefieldScroll");
@@ -3018,18 +3596,13 @@
   }
   // 點擊/觸控的共用處理（座標已換算，RWD 縮放下也正確）
   function handleBuildTap(p, isTouch) {
-    if (state.advisorBuildConfirm) {
+    const assisted = isTouch || touchControlMode;
+    if (state.advisorBuildConfirm && !assisted) {
       const preview = buildPreviewAt(p.x, p.y);
       const ghost = state.buildGhost;
       const same = preview.ok && ghost && preview.cx === ghost.cx && preview.cy === ghost.cy;
       if (same) {
-        const built = tryBuildTower(preview.x, preview.y);
-        state.advisorBuildConfirm = false;
-        state.selectedTowerType = null;
-        state.buildGhost = null;
-        canvas.style.cursor = "default";
-        notifyUI();
-        return built;
+        return confirmBuildPreview();
       }
       state.advisorBuildConfirm = false;
       state.selectedTowerType = null;
@@ -3039,27 +3612,28 @@
       notifyUI();
       return false;
     }
-    if (!isTouch) { tryBuildTower(p.x, p.y); return; }
-    const preview = buildPreviewAt(p.x, p.y);
+    if (!assisted) { tryBuildTower(p.x, p.y); return; }
+    const raw = buildPreviewAt(p.x, p.y), point = resolveTouchBuildPoint(p), preview = buildPreviewAt(point.x, point.y);
+    // A snapped invalid tap is never a second confirming tap, even if it aligns
+    // back to the already armed cell. Only touching the actual legal cell buys.
+    const same = raw.ok && !point.snapped && state.buildGhost && state.buildGhost.cx === raw.cx && state.buildGhost.cy === raw.cy &&
+      (!state.buildGhost.typeId || state.buildGhost.typeId === state.selectedTowerType);
+    if (same) { confirmBuildPreview(); return; }
+    state.advisorBuildConfirm = false;
+    armBuildPreview(point.x, point.y, "tap", point);
     if (!preview.ok) {
-      state.buildGhost = { x: p.x, y: p.y, cx: preview.cx, cy: preview.cy };
       flashText(preview.x, preview.y - 18, preview.reason, { color: "#f87171", size: 14, big: true });
       log(preview.reason + "！", "bad");
-      return;
     }
-    const same = state.buildGhost && state.buildGhost.cx === preview.cx && state.buildGhost.cy === preview.cy;
-    state.buildGhost = { x: p.x, y: p.y, cx: preview.cx, cy: preview.cy };
-    if (!same) {
-      flashText(preview.x, preview.y - 18, "再點一次確認", { color: "#fde047", size: 13, big: true });
-      return;
-    }
-    tryBuildTower(p.x, p.y);
   }
 
   function handleTap(p, isTouch) {
+    const assisted = isTouch || touchControlMode;
     if (state.pendingSkill) {
+      if (assisted) { armSkillPreview(p.x, p.y, "tap"); return; }
       const casted = castSkill(state.pendingSkill, p.x, p.y);
       if (casted) {
+        cancelTouchPlacement(true);
         state.pendingSkill = null;
         state.buildMenuTarget = null;
         state.selectedGoddess = false;
@@ -3074,7 +3648,16 @@
       const h = state.heroes.find((x) => x.uid === state.pendingHero);
       if (h) {
         const onSelf = Math.hypot(p.x - h.x, p.y - h.y) < CELL * 0.6;
+        if (!onSelf && !state.debugIgnoreTerrain && TDRules.heroRoute) {
+          const route = queryHeroRoute(h, p);
+          if (!route.reachable) {
+            log("這裡無法駐守，請選陸地或橋面。", "bad");
+            flashText(p.x, p.y - 18, "請選可到達的陸地", { color: "#f87171", size: 13, big: true });
+            notifyUI(); return;
+          }
+        }
         h.guardPoint = onSelf ? null : { x: p.x, y: p.y };
+        h.navigation = null;
         log(onSelf ? `${HEROES[h.id].name} 解除駐守，自由作戰。` : `${HEROES[h.id].name} 駐守此地！`);
       }
       state.pendingHero = null; canvas.style.cursor = "default";
@@ -3083,6 +3666,11 @@
       notifyUI();
       return;
     }
+    const cx = Math.floor(p.x / CELL), cy = Math.floor(p.y / CELL);
+    const exactTower = state.towers.find((t) => t.cx === cx && t.cy === cy);
+    if (assisted && exactTower) { inspectTower(exactTower.order); return; }
+    // Touching a tower's actual cell wins over a hero passing in front of it.
+    // The existing mouse selection order stays unchanged on a pure desktop.
     // 點到地圖上的英雄 → 選中它（準備設駐守點）
     const hero = state.heroes.find((x) => Math.hypot(p.x - x.x, p.y - x.y) < CELL * 0.5);
     if (hero) {
@@ -3094,8 +3682,7 @@
       notifyUI();
       return;
     }
-    const cx = Math.floor(p.x / CELL), cy = Math.floor(p.y / CELL);
-    const tw = state.towers.find((t) => t.cx === cx && t.cy === cy);
+    const tw = exactTower || (assisted ? nearbyTouchTower(p) : null);
     const onGoddess = Math.hypot(p.x - state.goddess.x, p.y - state.goddess.y) <= CELL * 0.85;
     if (onGoddess) {
       state.selectedTower = null;
@@ -3105,6 +3692,7 @@
       return;
     }
     if (tw) {
+      if (assisted) { inspectTower(tw.order); return; }
       state.selectedTower = tw;
       state.selectedGoddess = false;
       state.buildMenuTarget = null;
@@ -3119,33 +3707,104 @@
     notifyUI();
   }
   canvas.addEventListener("mousemove", (ev) => { state.mouse = canvasPos(ev.clientX, ev.clientY); });
-  canvas.addEventListener("click", (ev) => { handleTap(canvasPos(ev.clientX, ev.clientY), false); });
+  canvas.addEventListener("click", (ev) => {
+    if (state.touchBuildPreview || state.touchSkillPreview || performance.now() < suppressCanvasClickUntil || ev.sourceCapabilities && ev.sourceCapabilities.firesTouchEvents) return;
+    handleTap(canvasPos(ev.clientX, ev.clientY), false);
+  });
   // 觸控支援：tap 建塔/選塔/放技能
-  let touchGesture = null;
   canvas.addEventListener("touchstart", (ev) => {
-    if (ev.touches.length) {
-      const t = ev.touches[0];
-      touchGesture = { x: t.clientX, y: t.clientY, moved: false };
-      state.mouse = canvasPos(t.clientX, t.clientY);
+    suppressCanvasClickUntil = performance.now() + 700;
+    if (ev.touches.length !== 1) { cancelTouchPlacement(true); notifyUI(); return; }
+    const t = ev.touches[0], point = canvasPos(t.clientX, t.clientY);
+    const ghost = state.selectedTowerType ? state.buildGhost : state.pendingSkill ? state.skillGhost : null;
+    const sameGhost = ghost && ghost.cx === Math.floor(point.x / CELL) && ghost.cy === Math.floor(point.y / CELL);
+    touchGesture = { id: t.identifier, x: t.clientX, y: t.clientY, moved: false,
+      typeId: state.selectedTowerType, skillId: state.pendingSkill, anchorX: sameGhost ? ghost.x : point.x, anchorY: sameGhost ? ghost.y : point.y };
+    state.mouse = point;
+    if (state.selectedTowerType) {
+      const previewPoint = resolveTouchBuildPoint({ x: touchGesture.anchorX, y: touchGesture.anchorY });
+      state.touchBuildPreview = { ...previewPoint, source: "touch", typeId: state.selectedTowerType, dragging: false };
+      notifyUI();
+    } else if (state.pendingSkill) {
+      state.touchSkillPreview = { ...point, source: "touch", skillId: state.pendingSkill, dragging: false };
+      notifyUI();
     }
   }, { passive: true });
   canvas.addEventListener("touchmove", (ev) => {
-    if (!touchGesture || !ev.touches.length) return;
-    const t = ev.touches[0];
-    if (Math.hypot(t.clientX - touchGesture.x, t.clientY - touchGesture.y) > 10) touchGesture.moved = true;
-  }, { passive: true });
+    if (!touchGesture) return;
+    if (ev.touches.length !== 1) { cancelTouchPlacement(true); notifyUI(); return; }
+    const t = Array.from(ev.touches).find((touch) => touch.identifier === touchGesture.id);
+    if (!t) { cancelTouchPlacement(true); notifyUI(); return; }
+    const dx = t.clientX - touchGesture.x, dy = t.clientY - touchGesture.y;
+    if (Math.hypot(dx, dy) >= (touchGesture.typeId || touchGesture.skillId ? TOUCH_DRAG_THRESHOLD : 10)) touchGesture.moved = true;
+    if (touchGesture.skillId) {
+      if (touchGesture.skillId !== state.pendingSkill || state.over) { cancelTouchPlacement(true); notifyUI(); return; }
+      if (ev.cancelable) ev.preventDefault();
+      const point = fineTouchPoint(touchGesture, t.clientX, t.clientY);
+      state.touchSkillPreview = { ...point, source: "touch", skillId: touchGesture.skillId, dragging: touchGesture.moved };
+      notifyUI();
+      return;
+    }
+    if (!touchGesture.typeId) return;
+    if (touchGesture.typeId !== state.selectedTowerType || state.over) { cancelTouchPlacement(true); notifyUI(); return; }
+    if (ev.cancelable) ev.preventDefault();
+    const previous = state.touchBuildPreview;
+    const previewPoint = resolveTouchBuildPoint(fineTouchPoint(touchGesture, t.clientX, t.clientY));
+    const { x, y } = previewPoint;
+    state.touchBuildPreview = { ...previewPoint, source: "touch", typeId: touchGesture.typeId, dragging: touchGesture.moved };
+    state.buildPlacementFeedback = buildPreviewAt(x, y).ok ? "" : buildPreviewAt(x, y).reason;
+    if (!previous || previous.dragging !== touchGesture.moved ||
+      previous.snapped !== previewPoint.snapped || Math.floor(previous.x / CELL) !== Math.floor(x / CELL) || Math.floor(previous.y / CELL) !== Math.floor(y / CELL)) notifyUI();
+  }, { passive: false });
   canvas.addEventListener("touchend", (ev) => {
     ev.preventDefault(); // 避免觸發後續的合成 click（重複觸發）
-    const t = ev.changedTouches[0];
-    const moved = touchGesture && touchGesture.moved;
+    suppressCanvasClickUntil = performance.now() + 700;
+    if (!touchGesture) return;
+    const gesture = touchGesture;
+    const t = Array.from(ev.changedTouches).find((touch) => touch.identifier === gesture.id);
     touchGesture = null;
-    if (t && !moved) handleTap(canvasPos(t.clientX, t.clientY), true);
+    state.touchBuildPreview = null;
+    state.touchSkillPreview = null;
+    if (!t || ev.touches.length || gesture.typeId && gesture.typeId !== state.selectedTowerType || gesture.skillId && gesture.skillId !== state.pendingSkill) { cancelTouchPlacement(true); notifyUI(); return; }
+    // Chrome may coalesce a short drag and deliver no touchmove before touchend.
+    // Check the release displacement too; an already armed cell must never make
+    // that missing move event look like a confirming tap.
+    const moved = gesture.moved || Math.hypot(t.clientX - gesture.x, t.clientY - gesture.y) >=
+      (gesture.typeId || gesture.skillId ? TOUCH_DRAG_THRESHOLD : 10);
+    if (gesture.skillId) {
+      const point = moved ? fineTouchPoint(gesture, t.clientX, t.clientY) : canvasPos(t.clientX, t.clientY);
+      armSkillPreview(point.x, point.y, moved ? "drag" : "tap");
+      return;
+    }
+    if (gesture.typeId && moved) {
+      const preview = resolveTouchBuildPoint(fineTouchPoint(gesture, t.clientX, t.clientY));
+      state.advisorBuildConfirm = false;
+      armBuildPreview(preview.x, preview.y, "drag", preview);
+      return;
+    }
+    if (!moved) handleTap(canvasPos(t.clientX, t.clientY), true);
+    notifyUI();
   }, { passive: false });
-  canvas.addEventListener("touchcancel", () => { touchGesture = null; }, { passive: true });
+  canvas.addEventListener("touchcancel", () => {
+    suppressCanvasClickUntil = performance.now() + 700;
+    cancelTouchPlacement(true); notifyUI();
+  }, { passive: true });
+  function cancelPlacementAfterViewportChange() {
+    if (!state || !(touchGesture || state.touchBuildPreview || state.buildGhost || state.touchSkillPreview || state.skillGhost)) return;
+    suppressCanvasClickUntil = performance.now() + 700;
+    cancelTouchPlacement(true);
+    state.advisorBuildConfirm = false;
+    notifyUI();
+  }
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("resize", cancelPlacementAfterViewportChange);
+    window.addEventListener("orientationchange", cancelPlacementAfterViewportChange);
+  }
 
   function previewAdvisorAction(action) {
     if (!action || state.over) return false;
     if (action.kind === "build" && TOWERS[action.towerId]) {
+      cancelTouchPlacement(true);
       const rawX = Number.isFinite(action.x) ? action.x : (Number.isFinite(action.cx) ? action.cx * CELL + CELL / 2 : W / 2);
       const rawY = Number.isFinite(action.y) ? action.y : (Number.isFinite(action.cy) ? action.cy * CELL + CELL / 2 : H / 2);
       state.selectedTowerType = action.towerId;
@@ -3175,7 +3834,7 @@
         return false;
       }
       state.advisorBuildConfirm = true;
-      state.buildGhost = { x: preview.x, y: preview.y, cx: preview.cx, cy: preview.cy, advisor: true };
+      state.buildGhost = { x: preview.x, y: preview.y, cx: preview.cx, cy: preview.cy, advisor: true, typeId: action.towerId };
       state.mouse = { x: preview.x, y: preview.y };
       revealCanvasPoint(preview.x, preview.y);
       canvas.style.cursor = "crosshair";
@@ -3188,6 +3847,7 @@
       const index = Math.max(0, Math.floor(Number(action.towerIndex)));
       const tw = state.towers[index];
       if (!tw) return false;
+      cancelTouchPlacement(true);
       state.selectedTower = tw;
       state.selectedTowerType = null;
       state.selectedGoddess = false;
@@ -3218,15 +3878,11 @@
   }
   bootstrap();
 
-  // 閒置渲染迴圈：主迴圈只在波次進行中跑（startLoop/state.running），
-  // 第一波開始前的建塔準備階段與 gameOver 後畫面完全不會重繪——
-  // 放了塔看不到、滑鼠 hover 的建塔預覽也不會動。這個迴圈只在主迴圈沒跑時輕量補渲染。
-  (function idleLoop(t) {
-    if (!state.running) {
-      updatePerformanceMonitor(t);
-      render();
-    }
-    requestAnimationFrame(idleLoop);
+  // One RAF drives both the preparation view and the live battle. Starting or
+  // restarting a run changes state only and cannot add another RAF chain.
+  (function frameLoop(t) {
+    advanceFrame(t);
+    requestAnimationFrame(frameLoop);
   })();
 
   // ===== 對外接口（給 UI 與測試）=====
@@ -3234,9 +3890,18 @@
     state: () => state,
     newGame: (options) => { newGame(options); state.clock = 0; render(); },
     startWave,
-    selectTower: (type) => { state.selectedTowerType = type; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; },
-    cancelBuild: () => { state.selectedTowerType = null; state.buildGhost = null; state.advisorBuildConfirm = false; },
-    selectSkill: (id) => { if (state.skillCooldowns[id] <= 0) { state.pendingSkill = id; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "crosshair"; playSfx("ui"); } },
+    canStartFirstWave,
+    chooseContract, chooseRelic, skipRelic, skipDraft: skipRelic,
+    isSkillLocked, skillStat, heroBattleStat,
+    getExpeditionModifiers: () => Object.assign({}, state.expeditionModifiers),
+    TOWER_PRIORITIES, getTowerPriority, setTowerPriority,
+    getBuildPlacement, confirmBuildPreview, suggestBuildPlacement, moveBuildPreview, getBuildPlacementFeedback,
+    setTouchControlMode, getTouchControlMode: () => touchControlMode,
+    getSkillPlacement, previewSkillAt, moveSkillPreview, confirmSkillPreview,
+    inspectTower, selectGoddess,
+    selectTower: (type) => { cancelTouchPlacement(true); state.selectedTowerType = TOWERS[type] ? type : null; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.pendingHero = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; },
+    cancelBuild: () => { cancelTouchPlacement(true); state.selectedTowerType = null; state.advisorBuildConfirm = false; notifyUI(); },
+    selectSkill: (id) => { if (SKILLS[id] && state.skillCooldowns[id] <= 0 && !isSkillLocked()) { cancelTouchPlacement(true); state.selectedTowerType = null; state.pendingHero = null; state.pendingSkill = id; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "crosshair"; playSfx("ui"); return true; } return false; },
     upgradeSelected: () => { if (state.selectedTower) upgradeTower(state.selectedTower); },
     sellSelected: () => { if (state.selectedTower) sellTower(state.selectedTower); },
     upgradeGoddess, goddessUpgradeCost,
@@ -3251,6 +3916,7 @@
     setMap, getMap,
     setAdvisorMode: (mode) => { state.advisorMode = (TDRules.ADVISOR_MODES && TDRules.ADVISOR_MODES[mode]) ? mode : "control"; },
     setPerformanceMode,
+    setPathGuideVisible, getPathGuideVisible,
     getPerformanceStatus,
     setReducedEffects,
     setAudioMuted,
@@ -3258,15 +3924,22 @@
     getJuiceSettings,
     playSfx,
     togglePause,                   // 暫停（D10）
-    setPaused: (v) => { state.paused = !!v; }, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
-    cancelSelect: () => { state.selectedTowerType = null; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.buildGhost = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },
-    setSpeed: (s) => { state.speed = s; },
+    setPaused, // 強制暫停/恢復（抽卡動畫用，不能用 toggle）
+    cancelSelect: () => { cancelTouchPlacement(true); state.selectedTowerType = null; state.selectedTower = null; state.selectedGoddess = false; state.buildMenuTarget = null; state.pendingSkill = null; state.pendingHero = null; state.advisorBuildConfirm = false; state.advisorUpgradeTarget = null; canvas.style.cursor = "default"; notifyUI(); },
+    setSpeed: (s) => { state.speed = Math.max(1, Math.min(3, Number(s) || 1)); },
     buildPreviewAt: (x, y) => buildPreviewAt(x, y),
     drainIntroLogs: () => {
       const items = state && Array.isArray(state.introLogs) ? state.introLogs.splice(0) : [];
       return items;
     },
     debug: {
+      advanceFrame: (timestamp, shouldRender) => advanceFrame(timestamp, shouldRender === true),
+      engineStats: () => ({ ...engineMetrics, fixedStepSeconds: FIXED_STEP, maxFrameSteps: MAX_FRAME_STEPS,
+        accumulatorSeconds: frameAccumulator, backgroundFrozen: !!document.hidden, liveLoopActive,
+        hitFrameEntries: hitFrameCache.size, maxHitFrameEntries: MAX_HIT_FRAME_CACHE,
+        projectileSpriteEntries: projectileSpriteCache.size, maxProjectileSpriteEntries: MAX_PROJECTILE_SPRITE_CACHE,
+        mapArtReady: !!window.TDMapArt, terrainPlateReady: !!(state.backgroundCache && state.backgroundCache.ready),
+        navigationReady: !!state.navigationReady, terrainNavigationEnabled: !state.debugIgnoreTerrain }),
       spawnEnemy: (type, overrides) => {
         const e = createEnemy({ type, hpScale: 1 }, overrides);
         state.enemies.push(e);

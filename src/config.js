@@ -89,7 +89,7 @@ const ENEMIES = {
                counterHint: "優先電磁塔穿透或加農砲範圍擊殺，避免拖長治療。" },
   frostwraith: { id: "frostwraith", name: "冰魄妖", emoji: "👻", element: "ice", hp: 68, shield: 42, speed: 42, reward: 20, leak: 2, color: "#67e8f9",
                  ability: { id: "shieldRegen", label: "冰甲再生", desc: "脫離攻擊後冰甲會快速回復。", delay: 2.5, perSec: 20 },
-                 counterHint: "雷系穿盾與持續壓制能阻止冰甲再生。" },
+                 counterHint: "火系克制冰甲，毒霧可穿盾咬本體；持續集火阻止回盾。" },
   lavagolem: { id: "lavagolem", name: "熔岩魔像", emoji: "🪨", element: "fire", hp: 120, shield: 65, speed: 30, reward: 25, leak: 3, color: "#f97316",
                ability: { id: "shieldRegen", label: "熔甲再生", desc: "脫離攻擊後熔岩護甲會回復。", delay: 2.8, perSec: 18 },
                counterHint: "電磁塔克制火系並持續壓盾，毒霧塔可咬本體。" },
@@ -212,31 +212,88 @@ const MAP_AFFIXES = {
 const MAPS = {
   plains: {
     id: "plains", label: "翠綠平原", emoji: "🌿", goldMul: 1.0,
-    desc: "標準蜿蜒路線，資源完整，適合熟悉塔陣。",
+    desc: "溪谷兩岸分段守：前線控速，石橋集火，東岸尾線護壇。",
+    designVersion: 1, biome: "river-sanctuary", roadWidth: 42,
+    entry: { x: 0, y: 168, label: "西側林口", direction: "east" },
+    core: { x: 900, y: 556, label: "東岸石壇" },
     path: [
-      { x: 0,   y: 120 }, { x: 360, y: 120 }, { x: 360, y: 300 },
-      { x: 120, y: 300 }, { x: 120, y: 460 }, { x: 600, y: 460 },
-      { x: 600, y: 220 }, { x: 840, y: 220 }, { x: 840, y: 556 }, { x: 900, y: 556 },
+      { x: 0, y: 168 }, { x: 144, y: 168 }, { x: 240, y: 96 },
+      { x: 384, y: 120 }, { x: 432, y: 264 }, { x: 312, y: 360 },
+      { x: 384, y: 456 }, { x: 576, y: 432 }, { x: 624, y: 288 },
+      { x: 768, y: 336 }, { x: 816, y: 480 }, { x: 900, y: 556 },
     ],
+    regions: [
+      { id: "river", type: "water", label: "溪流", shape: "polygon", points: [{ x: 470, y: 0 }, { x: 522, y: 0 }, { x: 504, y: 168 }, { x: 534, y: 312 }, { x: 506, y: 480 }, { x: 522, y: 640 }, { x: 466, y: 640 }, { x: 480, y: 480 }, { x: 474, y: 312 }, { x: 460, y: 168 }] },
+      { id: "northern-pool", type: "water", label: "北岸淺潭", shape: "ellipse", x: 654, y: 126, rx: 108, ry: 58 },
+      { id: "old-stones", type: "ruin", label: "倒塌石門", shape: "ellipse", x: 192, y: 474, rx: 56, ry: 46 },
+      { id: "altar-base", type: "ruin", label: "女神石壇", shape: "ellipse", x: 900, y: 556, rx: 39, ry: 35 },
+    ],
+    bridges: [{ id: "river-crossing", label: "溪谷石橋", path: [{ x: 432, y: 450 }, { x: 552, y: 435 }], width: 48 }],
+    defenseNodes: [
+      { id: "front", label: "前線林口", x: 258, y: 162, radius: 125, from: 0, to: 0.34, role: "先緩速，再集中輸出" },
+      { id: "crossfire", label: "石橋集火", x: 414, y: 396, radius: 132, from: 0.34, to: 0.68, role: "過橋前後接力，不靠一座塔包辦" },
+      { id: "rear", label: "東岸尾線", x: 750, y: 420, radius: 124, from: 0.68, to: 1, role: "收掉過橋後的殘血與高速敵人" },
+    ],
+    buildPads: [{ id: "front-arrow", x: 120, y: 72, zone: "front" }, { id: "front-control", x: 264, y: 216, zone: "front" }, { id: "bridge-west", x: 264, y: 408, zone: "crossfire" }, { id: "bridge-east", x: 600, y: 504, zone: "crossfire" }, { id: "rear-main", x: 744, y: 456, zone: "rear" }],
+    landmarks: [{ id: "forest-gate", kind: "gate", x: 36, y: 168, radius: 22 }, { id: "broken-gate", kind: "ruin", x: 192, y: 474, radius: 42 }, { id: "sanctuary", kind: "altar", x: 900, y: 556, radius: 35 }],
+    routeTips: ["林口先用弓箭搭寒冰，第一段只需兩座有射程的攻擊塔。", "溪流與石門不能建塔，石橋兩岸留出接力火線。", "過橋後還有一段東岸路，尾線別只放支援塔。"],
   },
   canyon: {
     id: "canyon", label: "迂迴峽谷", emoji: "⛰️", goldMul: 0.85,
-    desc: "更長更曲折，但補給較少，適合挑戰精密佈陣。",
+    desc: "兩座石橋串起斷崖高地，先守西口，再接東岸與下層尾線。",
+    designVersion: 1, biome: "broken-highlands", roadWidth: 42,
+    entry: { x: 0, y: 168, label: "西側關口", direction: "east" },
+    core: { x: 900, y: 556, label: "下層聖壇" },
     path: [
-      { x: 0, y: 80 }, { x: 200, y: 80 }, { x: 200, y: 220 },
-      { x: 70, y: 220 }, { x: 70, y: 380 }, { x: 320, y: 380 },
-      { x: 320, y: 150 }, { x: 520, y: 150 }, { x: 520, y: 500 },
-      { x: 760, y: 500 }, { x: 760, y: 280 }, { x: 900, y: 280 }, { x: 900, y: 556 },
+      { x: 0, y: 168 }, { x: 144, y: 216 }, { x: 240, y: 96 },
+      { x: 408, y: 144 }, { x: 576, y: 144 }, { x: 720, y: 264 },
+      { x: 768, y: 432 }, { x: 576, y: 480 }, { x: 408, y: 432 },
+      { x: 384, y: 552 }, { x: 600, y: 576 }, { x: 900, y: 556 },
     ],
+    regions: [
+      { id: "great-chasm", type: "cliff", label: "斷崖裂谷", shape: "polygon", points: [{ x: 444, y: 0 }, { x: 508, y: 0 }, { x: 528, y: 184 }, { x: 502, y: 294 }, { x: 530, y: 382 }, { x: 506, y: 472 }, { x: 474, y: 504 }, { x: 438, y: 476 }, { x: 456, y: 394 }, { x: 424, y: 296 }, { x: 444, y: 180 }] },
+      { id: "western-ruins", type: "ruin", label: "倒塌瞭望塔", shape: "ellipse", x: 264, y: 384, rx: 72, ry: 54 },
+      { id: "eastern-rubble", type: "cliff", label: "東岸碎岩", shape: "ellipse", x: 864, y: 180, rx: 60, ry: 82 },
+      { id: "altar-base", type: "ruin", label: "女神石壇", shape: "ellipse", x: 900, y: 556, rx: 39, ry: 35 },
+    ],
+    bridges: [{ id: "upper-bridge", label: "上層石橋", path: [{ x: 408, y: 144 }, { x: 576, y: 144 }], width: 48 }, { id: "lower-bridge", label: "下層石橋", path: [{ x: 552, y: 473 }, { x: 408, y: 432 }], width: 48 }],
+    defenseNodes: [
+      { id: "front", label: "西口高地", x: 250, y: 144, radius: 132, from: 0, to: 0.34, role: "先守上橋前的爬坡段" },
+      { id: "crossfire", label: "東岸雙口", x: 666, y: 340, radius: 148, from: 0.34, to: 0.68, role: "用兩段射程接住過橋與下坡敵人" },
+      { id: "rear", label: "下層尾線", x: 618, y: 564, labelX: 612, labelY: 524, radius: 148, from: 0.68, to: 1, role: "守住下橋出口與長尾路段" },
+    ],
+    buildPads: [{ id: "front-arrow", x: 72, y: 72, zone: "front" }, { id: "front-control", x: 264, y: 216, zone: "front" }, { id: "east-highland", x: 648, y: 312, zone: "crossfire" }, { id: "lower-overwatch", x: 600, y: 408, zone: "crossfire" }, { id: "rear-main", x: 744, y: 504, zone: "rear" }],
+    landmarks: [{ id: "west-gate", kind: "gate", x: 36, y: 180, radius: 23 }, { id: "watchtower", kind: "ruin", x: 264, y: 384, radius: 48 }, { id: "sanctuary", kind: "altar", x: 900, y: 556, radius: 35 }],
+    routeTips: ["起始補給較少，西口先用兩座便宜塔，不急著買支援。", "斷崖不能建塔；兩座石橋都是敵人的必經窄口。", "下橋後會繞進下層長尾線，留一座收尾塔。"],
   },
   lava: {
     id: "lava", label: "熔岩峽道", emoji: "🌋", goldMul: 0.95,
-    desc: "熔岩裂谷路線曲折，金流略低但有足夠迴旋空間。",
+    desc: "妖潮從東側裂口進場，繞過黑曜島台，再沿南側尾線逼近聖壇。",
+    designVersion: 1, biome: "obsidian-islands", roadWidth: 42,
+    entry: { x: 960, y: 120, label: "東側裂口", direction: "west" },
+    core: { x: 900, y: 556, label: "南岸黑曜壇" },
     path: [
-      { x: 0, y: 140 }, { x: 280, y: 140 }, { x: 280, y: 300 },
-      { x: 120, y: 300 }, { x: 120, y: 480 }, { x: 500, y: 480 },
-      { x: 500, y: 220 }, { x: 720, y: 220 }, { x: 720, y: 556 }, { x: 900, y: 556 },
+      { x: 960, y: 120 }, { x: 816, y: 144 }, { x: 672, y: 96 },
+      { x: 576, y: 216 }, { x: 720, y: 312 }, { x: 648, y: 456 },
+      { x: 480, y: 480 }, { x: 384, y: 336 }, { x: 240, y: 360 },
+      { x: 144, y: 480 }, { x: 288, y: 576 }, { x: 672, y: 576 }, { x: 900, y: 556 },
     ],
+    regions: [
+      { id: "northwestern-lava", type: "lava", label: "北側熔岩海", shape: "polygon", points: [{ x: 0, y: 0 }, { x: 540, y: 0 }, { x: 558, y: 92 }, { x: 480, y: 228 }, { x: 324, y: 288 }, { x: 0, y: 264 }] },
+      { id: "upper-fissure", type: "lava", label: "上層熔池", shape: "ellipse", x: 650, y: 280, rx: 68, ry: 48 },
+      { id: "island-fissure", type: "lava", label: "島台裂隙", shape: "ellipse", x: 432, y: 432, rx: 72, ry: 48 },
+      { id: "eastern-lava", type: "lava", label: "東側熔池", shape: "ellipse", x: 804, y: 414, rx: 102, ry: 54 },
+      { id: "altar-base", type: "ruin", label: "女神石壇", shape: "ellipse", x: 900, y: 556, rx: 39, ry: 35 },
+    ],
+    bridges: [{ id: "upper-causeway", label: "上層黑曜堤", path: [{ x: 576, y: 216 }, { x: 720, y: 312 }], width: 48 }, { id: "island-causeway", label: "島台黑曜堤", path: [{ x: 480, y: 480 }, { x: 384, y: 336 }], width: 48 }],
+    defenseNodes: [
+      { id: "front", label: "裂口前線", x: 768, y: 154, radius: 130, from: 0, to: 0.34, role: "入口在東邊，先沿上層路段控速" },
+      { id: "crossfire", label: "黑曜島台", x: 534, y: 390, radius: 138, from: 0.34, to: 0.68, role: "兩座島台接力，優先補厚甲輸出" },
+      { id: "rear", label: "南岸尾線", x: 630, y: 566, radius: 148, from: 0.68, to: 1, role: "把尾線當最後一段火力，不只留女神反擊" },
+    ],
+    buildPads: [{ id: "front-arrow", x: 888, y: 72, zone: "front" }, { id: "front-control", x: 744, y: 216, zone: "front" }, { id: "island-upper", x: 552, y: 360, zone: "crossfire" }, { id: "island-lower", x: 312, y: 456, zone: "crossfire" }, { id: "rear-main", x: 696, y: 504, zone: "rear" }],
+    landmarks: [{ id: "rift-gate", kind: "gate", x: 924, y: 126, radius: 24 }, { id: "obsidian-spire", kind: "spire", x: 528, y: 360, radius: 28 }, { id: "sanctuary", kind: "altar", x: 900, y: 556, radius: 35 }],
+    routeTips: ["入口在右上；弓箭與寒冰先守東側，不要照其他地圖放左邊。", "熔池不能建塔，黑曜堤上也不能建塔；選島台邊緣集火。", "南岸尾線很長，留收尾射程處理殘血獵犬。"],
   },
 };
 
@@ -361,6 +418,34 @@ const BEGINNER_MISSIONS = {
                 check: (meta, ctx = {}) => (ctx.ownedHeroCount || 0) >= 2 || (ctx.gachaCount || 0) >= 2 },
 };
 
+// ===== 每局戰役與戰術任務 =====
+// 初始金、新手一次性魂晶與抽卡保底維持原值。任務金額是額外的波間補給，
+// 只有清波與實際戰術表現才發放；漏掉戰術不會卡住主線。
+const OPERATIONS = {
+  version: 1,
+  maxSavedRuns: 48,
+  chapters: [
+    { endWave: 3, title: "立起防線", goal: "清掉第 3 波", hint: "先讓兩種攻擊塔交錯覆蓋。弓箭便宜，寒冰能替主力多爭幾輪攻擊。", gold: 18, soul: 0, tactics: ["mixed"] },
+    { endWave: 5, title: "迎擊王潮", goal: "清掉第 5 波", hint: "把一座主力升到 Lv.2，再看下波情報補克制。技能留給聚在一起的敵人。", gold: 24, soul: 1, tactics: ["anchor", "spell"] },
+    { endWave: 10, title: "拆開厚甲", goal: "清掉第 10 波", hint: "冰魄妖怕火，火系魔像怕雷。毒霧能穿盾，支援塔要放在主力旁。", gold: 34, soul: 1, tactics: ["elements", "support", "spell", "clean"] },
+    { endWave: 15, title: "守住火力", goal: "清掉第 15 波", hint: "緘口妖僧會讓附近主塔停火，別把所有輸出擠在同一格附近。", gold: 48, soul: 2, tactics: ["spread", "anchor", "spell", "clean"] },
+    { endWave: 20, title: "合成塔陣", goal: "清掉第 20 波", hint: "控場拖時間，範圍塔清護衛，主力塔集中升級。留一段尾線收漏網敵人。", gold: 68, soul: 2, tactics: ["support", "elements", "anchor", "clean"] },
+    { endWave: 25, title: "拆鏡破門", goal: "清掉第 25 波", hint: "裂鏡童會反射第一發技能。先靠塔拆鏡，再集火會替友軍減傷的守門人。", gold: 96, soul: 2, tactics: ["spread", "support", "spell", "clean"] },
+    { endWave: 30, title: "連段守望", goal: "清掉第 30 波", hint: "檢查低覆蓋路段，用緩速與不同元素接力；升級主力比散放低級塔更穩。", gold: 135, soul: 2, tactics: ["anchor", "elements", "support", "clean"] },
+    { endWave: 35, title: "無星前線", goal: "清掉第 35 波", hint: "女神升級會回滿生命。吃緊時留修復費，再用技能替塔陣爭取冷卻。", gold: 188, soul: 2, tactics: ["spread", "spell", "anchor", "clean"] },
+    { endWave: 40, title: "護住神火", goal: "清掉第 40 波", hint: "這段防線靠協同：支援罩住主力、寒冰留住敵人，尾段塔負責收尾。", gold: 263, soul: 3, tactics: ["elements", "support", "spread", "clean"] },
+  ],
+  tactics: {
+    mixed: { label: "交錯火線", desc: "同時保有 2 種攻擊塔", metric: "attackKinds", target: 2, unit: "種", hint: "支援塔不計入。寒冰與弓箭就能完成。" },
+    anchor: { label: "強化主力", desc: "讓一座攻擊塔達到指定等級", metric: "highestAttackLevel", target: 2, unit: "級", hint: "集中升級常用的主力，支援塔不計入。" },
+    spell: { label: "破陣施法", desc: "本章以技能打出有效傷害", metric: "skillDamage", target: 80, unit: "傷害", hint: "等敵人進場再放；空場或被鏡童反射的傷害不計入。" },
+    elements: { label: "元素接力", desc: "同時保有不同元素的攻擊塔", metric: "attackElements", target: 2, unit: "系", hint: "物理也算一系，聖光與引魂燈塔不計入。" },
+    support: { label: "支援交會", desc: "一座聖光塔同時罩住 2 座攻擊塔", metric: "supportedAttackTowers", target: 2, unit: "座", hint: "看聖光塔範圍圈，把兩座主力放在圈內。" },
+    spread: { label: "分散主力", desc: "兩座升級過的攻擊塔相距至少 3 格", metric: "spreadUpgradedTowers", target: 2, unit: "座", hint: "兩座都需 Lv.2；拉開距離，讓敵人沿路分段吃到主力火力。" },
+    clean: { label: "滴水不漏", desc: "本章累計守住 2 波且沒有漏怪", metric: "cleanWaves", target: 2, unit: "波", hint: "只看本章已清掉的波次，失守一波仍可繼續累積。" },
+  },
+};
+
 let _difficulty = "normal";
 function setDifficulty(id) { if (DIFFICULTIES[id]) _difficulty = id; }
 function getDifficulty() { return DIFFICULTIES[_difficulty] || DIFFICULTIES.normal; }
@@ -375,8 +460,8 @@ function waveHpScale(wave) {
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, MAP_AFFIXES, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS });
+  Object.assign(window, { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, MAP_AFFIXES, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS, OPERATIONS });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, MAP_AFFIXES, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS };
+  module.exports = { ELEMENTS, COUNTERS, elementMultiplier, TOWERS, UPGRADE, ENEMIES, SKILLS, GAME, GODDESS, MAPS, MAP_AFFIXES, setMap, getMap, waveGoldBonus, waveHpScale, DIFFICULTIES, setDifficulty, getDifficulty, EVENT_WAVES, getEventWave, WAVE_THEMES, waveTheme, themeEnemyPool, ACHIEVEMENTS, BEGINNER_MISSIONS, OPERATIONS };
 }

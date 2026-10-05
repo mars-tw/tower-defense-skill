@@ -1,0 +1,24 @@
+/* Explicit stress fixture, not player completion: moving targets, 8 heroes and
+ * up to 24 legally located towers exercise cached artwork and real navigation. */
+"use strict";
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const {chromium}=require('playwright'),ROOT=path.resolve(__dirname,'..'),OUT=path.join(ROOT,'docs/evidence/'+require('../package.json').pwaVersion.match(/td-(r[0-9]+)-/)[1].toUpperCase()+'/frame-budget');
+(async()=>{fs.mkdirSync(OUT,{recursive:true});const server=http.createServer((req,res)=>{const rel=decodeURIComponent(new URL(req.url,'http://local').pathname),file=path.resolve(ROOT,'.'+(rel==='/'?'/index.html':rel));if(path.relative(ROOT,file).startsWith('..')||!fs.existsSync(file)){res.writeHead(404);return res.end();}res.setHeader('Content-Type',({'.html':'text/html','.js':'application/javascript','.css':'text/css','.webp':'image/webp','.png':'image/png','.json':'application/json','.webmanifest':'application/manifest+json'})[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);});await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch(),results=[];
+try{for(const viewport of [{width:1366,height:768},{width:390,height:844}]){
+ const page=await browser.newPage({viewport,hasTouch:viewport.width<900,isMobile:viewport.width<900});await page.addInitScript(()=>{localStorage.setItem('td_tutorial_seen','1');localStorage.setItem('td_audio_muted','1');});await page.goto(`http://127.0.0.1:${server.address().port}/`);await page.waitForFunction(()=>!!window.TD);
+ await page.locator('.diff-opt').first().click();await page.locator('.map-opt').first().click();await page.waitForFunction(()=>!document.getElementById('mapLoadingOverlay').classList.contains('show'));
+ for(const id of ['plains','canyon','lava']){
+  const setup=await page.evaluate(id=>{TD.setMap(id);const t=performance.now();TD.newGame({runSeed:104729,affixSeed:130363});const initializationMs=performance.now()-t,s=TD.state(),map=TD.getMap();s.banner=null;s.running=true;s.gold=100000;TD.setPerformanceMode('high');TD.setReducedEffects(false);const warm=TD.debug.engineStats();
+   const legal=[];TD.selectTower('arrow');for(let y=24;y<640;y+=48)for(let x=24;x<960;x+=48)if(TD.buildPreviewAt(x,y).ok)legal.push({x,y});TD.cancelSelect();for(const p of legal.slice(0,24))TD.buildTowerAt('arrow',p.x,p.y);TD.cancelSelect();
+   for(let i=0;i<8;i++)TD.deployHero(i%2?'archer':'knight',{});
+   const total=map.path.slice(1).reduce((n,p,k)=>n+Math.hypot(p.x-map.path[k].x,p.y-map.path[k].y),0);
+   for(let i=0;i<40;i++){const ratio=.12+i*.008,p=TDRules.pointAtPathRatio(map.path,ratio);let distance=ratio*total,wp=1;for(;wp<map.path.length-1;wp++){const a=map.path[wp-1],b=map.path[wp],length=Math.hypot(b.x-a.x,b.y-a.y);if(distance<length)break;distance-=length;}TD.debug.spawnEnemy(i===0?'boss':'slime',{x:p.x,y:p.y,hp:1e9,maxHp:1e9,speed:35,wp});}
+   return{initializationMs,warm,towers:s.towers.length,heroes:s.heroes.length,enemies:s.enemies.length};
+  },id);await page.waitForFunction(()=>{TD.debug.step(.000001);return TD.state().backgroundCache?.ready;});await page.evaluate(()=>{for(let i=0;i<30;i++)TD.debug.step(1/60);});
+  const record=await page.evaluate(()=>new Promise(resolve=>{const times=[],before=TD.debug.engineStats();function frame(){const t=performance.now();TD.debug.step(1/60);times.push(performance.now()-t);if(times.length<180)requestAnimationFrame(frame);else{times.sort((a,b)=>a-b);resolve({before,after:TD.debug.engineStats(),medianMs:times[90],p95Ms:times[171],maxMs:times[179],samples:times.length,heroesStayOnLand:TD.state().heroes.every(h=>TDRules.mapWalkable(TD.getMap(),h.x,h.y,8))});}}requestAnimationFrame(frame);}));
+  const result={viewport,map:id,setup,...record};results.push(result);console.log(`${viewport.width}/${id}: ${setup.towers} towers / 8 heroes / 40 enemies, init ${setup.initializationMs.toFixed(1)}ms, p95 ${record.p95Ms.toFixed(1)}ms, max ${record.maxMs.toFixed(1)}ms, queries ${record.after.navQueries-record.before.navQueries}`);
+  assert(record.p95Ms<=18,'existing 18ms frame budget');assert(record.heroesStayOnLand);assert.equal(record.before.backgroundBakes,record.after.backgroundBakes);assert.equal(record.before.guideBakes,record.after.guideBakes);
+ }
+ await page.close();}
+}finally{await browser.close();server.closeAllConnections?.();server.close();fs.writeFileSync(path.join(OUT,'results.json'),JSON.stringify({method:'Injected production stress fixture, high quality; no numeric balance claim; 180 timed frames per map/device; <=18ms p95',sources:Object.fromEntries(['game.js','rules.js','config.js','map-art.js'].map(f=>[f,crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT,'src',f))).digest('hex')])),results},null,2)+'\n');}
+})().catch(e=>{console.error(e);process.exitCode=1});

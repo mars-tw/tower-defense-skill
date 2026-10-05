@@ -1,0 +1,17 @@
+/* Bind the shipped artwork to exact content hashes and the PWA shell. */
+"use strict";
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const ROOT=path.resolve(__dirname,'..'),ids=['plains','canyon','lava'];
+const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8'),write=(p,t)=>fs.writeFileSync(path.join(ROOT,p),t);
+const assets=[];
+for(const id of ids)for(const variant of ['terrain','preview']){const rel=`assets/maps/r80/${id}-${variant}.webp`,b=fs.readFileSync(path.join(ROOT,rel));assets.push({map_id:id,variant,path:rel,width:960,height:640,bytes:b.length,sha256:crypto.createHash('sha256').update(b).digest('hex')});}
+const rel='assets/maps/r80/stone-bridge.webp',b=fs.readFileSync(path.join(ROOT,rel));assets.push({map_id:null,variant:'bridge',path:rel,width:512,height:131,bytes:b.length,sha256:crypto.createHash('sha256').update(b).digest('hex')});
+const ref=a=>`${a.path}?v=${a.sha256.slice(0,8)}`,get=(id,v)=>assets.find(a=>a.map_id===id&&a.variant===v);
+const manifest={version:'R80',generation_interface:'Codex built-in imagegen',model_slug:null,model_note:'The built-in tool did not expose a model identifier; no inference made.',maps:ids,runtime_assets:assets,total_runtime_bytes:assets.reduce((s,a)=>s+a.bytes,0),decoded_rgba_mib_all_variants:assets.reduce((s,a)=>s+a.width*a.height*4,0)/1048576,generated_originals:'PNG masters and revisions retained; not requested or cached at runtime',provenance:['docs/evidence/R80/art/builtin-generation-records.json','docs/evidence/R80/art/stone-bridge-generation.json','docs/evidence/R80/art/lava-shore-generation.json','docs/evidence/R80/art/plains-clearance-generation.json'],geometry_source:'src/config.js MAPS',paint_source_sha256:crypto.createHash('sha256').update(read('src/map-art.js')).digest('hex')};
+const table=Object.fromEntries(ids.map(id=>{const source=ref(get(id,'preview')),q={high:source,med:source,low:source};return[id,{accent:{plains:'#487e59',canyon:'#9b753e',lava:'#bd502a'}[id],banner:q,loading:q}]}));
+let ui=read('src/ui.js').replace(/const R(?:72|80)_MAP_VISUALS = \{[\s\S]*?\n  \};/,`const R80_MAP_VISUALS = ${JSON.stringify(table,null,2).replace(/\n/g,'\n  ')};`).replaceAll('R72_MAP_VISUALS','R80_MAP_VISUALS');write('src/ui.js',ui);
+let index=read('index.html').replace(/<link rel="preload" as="image" href="assets\/maps\/(?:r72|r80)\/[^\n]+\n/g,'');
+const preloads=ids.map(id=>`<link rel="preload" as="image" href="${ref(get(id,'preview'))}" />`).join('\n');index=index.replace('<link rel="manifest"',preloads+'\n<link rel="manifest"');write('index.html',index);
+let sw=read('sw.js').replace(/^  "\.\/assets\/maps\/(?:r72|r80)\/[^\n]+\n/gm,'');sw=sw.replace('  "./assets/core/goddess.png",','  "./assets/core/goddess.png",\n'+assets.map(a=>`  "./${ref(a)}",`).join('\n'));if(!sw.includes('./src/map-art.js?'))sw=sw.replace('  "./src/game.js?',`  "./src/map-art.js?v=td-r80-v1",\n  "./src/game.js?`);write('sw.js',sw);
+let art=read('src/map-art.js');for(const a of assets.filter(a=>a.variant!=='preview')){const escaped=a.path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');art=art.replace(new RegExp(escaped+'(?:\\?v=[a-f0-9]+)?','g'),ref(a));}write('src/map-art.js',art);manifest.paint_source_sha256=crypto.createHash('sha256').update(art).digest('hex');
+write('assets/maps/r80/manifest.json',JSON.stringify(manifest,null,2)+'\n');console.log(`R80 ${assets.length} assets; ${(manifest.total_runtime_bytes/1024).toFixed(0)} KiB / ${manifest.decoded_rgba_mib_all_variants.toFixed(2)} MiB decoded`);

@@ -22,12 +22,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="無盡塔防" />
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-<link rel="manifest" href="manifest.webmanifest?v=td-r77-v1" />
+<link rel="preload" as="image" href="assets/maps/r80/plains-preview.webp?v=6301690e" />
+<link rel="preload" as="image" href="assets/maps/r80/canyon-preview.webp?v=0da09e07" />
+<link rel="preload" as="image" href="assets/maps/r80/lava-preview.webp?v=281b685d" />
+<link rel="manifest" href="manifest.webmanifest?v=td-r84-v3" />
 <!-- R72：39 KiB 真 low banner 保底先於 gameplay 貼圖排隊；high/med 仍按選擇時載入。 -->
-<link rel="preload" as="image" href="assets/maps/r72/plains-banner-low.webp?v=d040c3b6" fetchpriority="high" />
-<link rel="preload" as="image" href="assets/maps/r72/canyon-banner-low.webp?v=41fcb341" fetchpriority="high" />
-<link rel="preload" as="image" href="assets/maps/r72/lava-banner-low.webp?v=5f51a4a5" fetchpriority="high" />
-<link rel="preload" as="image" href="assets/maps/r72/plains-loading-low.webp?v=822eb164" fetchpriority="high" />
 <script>
   /* R45 早期 SW boot guard：在外部 JS 載入前先觸發 SW 更新檢查，
      搭配 ?v= URL 版本化，讓舊 SW 快取無法回舊版 JS。 */
@@ -1209,10 +1208,11 @@
     .hud-number, .hud .lives.danger, canvas.shake, .wave-meter-fill { animation: none !important; transition: none !important; transform: none !important; }
   }
 </style>
+<link rel="stylesheet" href="src/presentation.css?v=td-r84-v3" />
 </head>
 <body>
   <div class="app-shell" id="appShell">
-  <h1>🏰 無盡塔防 · ENDLESS TOWER DEFENSE 🏰</h1>
+  <h1>無盡塔防<span class="brand-en">ENDLESS SANCTUM</span></h1>
 
   <div class="hud" id="hud">
     <div class="stat gold">💰 <span id="gold" class="hud-number">200</span></div>
@@ -1225,28 +1225,96 @@
     <div class="stat best">🏆 最高 <span id="bestWave">0</span></div>
   </div>
 
+  <section class="run-brief" id="runBrief" aria-label="本局目標與戰術提示">
+    <div class="brief-location"><b id="briefMap">翠綠平原</b><span id="briefChapter">立起防線</span></div>
+    <div class="brief-objective"><b id="briefTitle">先在路徑旁建造一座攻擊塔</b><span id="briefHint">弓箭、加農砲搭配寒冰塔，先站穩第一波。</span></div>
+    <button type="button" class="brief-action route-guide-btn" id="routeGuideBtn" aria-pressed="true" aria-label="隱藏路線箭頭">路線</button>
+    <div class="brief-road" id="briefRoad" aria-label="波次里程"></div>
+    <button type="button" class="brief-action placement-confirm" id="confirmBuildBtn" hidden>確認建塔</button>
+    <button type="button" class="brief-action" id="briefAction">查看任務</button>
+  </section>
+
   <div class="wrap">
     <section class="battlefield-stage" id="battlefieldStage" aria-label="戰場與核心控制盤">
-      <div class="battlefield-scroll" id="battlefieldScroll" aria-label="戰場，可滑動查看完整棋盤">
+      <div class="battlefield-scroll" id="battlefieldScroll" aria-label="完整戰場棋盤">
         <canvas id="game" width="960" height="640"></canvas>
+      </div>
+
+      <div class="boss-watch" id="bossWatch" hidden aria-label="Boss 戰況">
+        <div class="boss-watch-title"><b id="bossWatchName">Boss</b><span id="bossWatchHp"></span></div>
+        <div class="boss-watch-track" role="progressbar" id="bossWatchMeter" aria-label="Boss 剩餘生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><span id="bossWatchFill"></span></div>
       </div>
 
       <div class="build-wheel hidden" id="buildWheel" data-testid="build-wheel" role="dialog" aria-label="就地建塔輪盤"></div>
 
       <div class="sel-panel scene-bubble hidden" id="selPanel" data-testid="tower-action-bubble" role="dialog" aria-label="砲塔就地操作">
         <div id="selInfo"></div>
+        <fieldset class="tower-targeting" id="towerTargeting" hidden>
+          <legend>優先攻擊</legend>
+          <div class="target-options" role="group" aria-label="砲塔目標優先順序">
+            <button type="button" data-target-priority="auto" aria-pressed="true">預設</button>
+            <button type="button" data-target-priority="first" aria-pressed="false">最前</button>
+            <button type="button" data-target-priority="boss" aria-pressed="false">Boss</button>
+            <button type="button" data-target-priority="strong" aria-pressed="false">厚血</button>
+          </div>
+          <p id="targetPriorityHint">依塔種特性選擇目標。</p>
+        </fieldset>
         <div class="row">
           <button class="upg" id="upgBtn" aria-label="升級選取的塔">升級</button>
           <button class="sell" id="sellBtn" aria-label="賣出選取的塔">賣出</button>
+          <button class="selection-close" id="selectionCloseBtn" type="button" aria-label="關閉砲塔資訊，返回建塔">返回</button>
         </div>
       </div>
 
       <div class="goddess-panel scene-bubble hidden" id="goddessPanel" data-testid="goddess-action-bubble" role="dialog" aria-label="女神就地升級">
         <div id="goddessInfo"></div>
         <button class="act goddess-btn" id="goddessBtn" aria-label="升級女神">👸 升級女神</button>
+        <button class="selection-close" id="goddessCloseBtn" type="button" aria-label="關閉女神資訊，返回建塔">返回</button>
       </div>
 
       <nav class="scene-controls" id="sceneControls" data-testid="mobile-control-deck" aria-label="戰場核心操作控制盤">
+        <div class="touch-tabs" id="touchTabs" role="tablist" aria-label="觸控操作" hidden>
+          <button type="button" data-touch-tab="build" role="tab" aria-selected="true">建塔</button>
+          <button type="button" data-touch-tab="skill" role="tab" aria-selected="false">技能</button>
+          <button type="button" data-touch-tab="units" role="tab" aria-selected="false">已建</button>
+          <button type="button" data-touch-tab="more" role="tab" aria-selected="false">更多</button>
+        </div>
+        <div class="touch-control-pages" id="touchControlPages" hidden>
+          <section class="touch-control-page" id="touchBuildPage" aria-label="建塔選擇">
+            <div id="touchBuildPalette"></div>
+            <div class="touch-pagination" id="touchBuildPager"><button type="button" data-touch-page="build:-1">上一頁</button><span id="touchBuildPageLabel">1 / 3</span><button type="button" data-touch-page="build:1">下一頁</button></div>
+          </section>
+          <section class="touch-control-page" id="touchSkillPage" aria-label="技能選擇" hidden>
+            <div id="touchSkillPalette"></div>
+            <div class="touch-pagination" id="touchSkillPager"><button type="button" data-touch-page="skill:-1">上一頁</button><span id="touchSkillPageLabel">1 / 2</span><button type="button" data-touch-page="skill:1">下一頁</button></div>
+            <div class="touch-skill-aim" id="touchSkillAim" hidden>
+              <p id="touchSkillStatus" role="status" aria-live="polite">點地圖預覽技能範圍。</p>
+              <div class="skill-regions" role="group" aria-label="選擇瞄準區域"><button type="button" data-skill-region="front">前線</button><button type="button" data-skill-region="crossfire">中段</button><button type="button" data-skill-region="rear">尾線</button></div>
+              <div class="skill-adjustments" role="group" aria-label="微調技能落點"><button type="button" data-skill-move="left" aria-label="向左微調技能">←</button><button type="button" data-skill-move="up" aria-label="向上微調技能">↑</button><button type="button" data-skill-move="down" aria-label="向下微調技能">↓</button><button type="button" data-skill-move="right" aria-label="向右微調技能">→</button></div>
+              <div class="touch-aim-actions"><button type="button" id="confirmSkillBtn">確認施放</button><button type="button" id="touchSkillCancelBtn">換技能</button></div>
+            </div>
+          </section>
+          <section class="touch-control-page" id="touchUnitsPage" aria-label="已建塔與女神" hidden><div class="touch-unit-list" id="touchUnitList"></div></section>
+          <section class="touch-control-page touch-more-page" id="touchMorePage" aria-label="情報與規劃" hidden>
+            <div id="touchToolsAnchor" aria-hidden="true"></div>
+            <div class="touch-more-actions" id="touchMoreActions"><label><input type="checkbox" id="touchPlanningToggle" checked>操作時暫停規劃</label></div>
+            <p>情報、英雄與功能在上方；關閉後回到戰場。</p>
+          </section>
+        </div>
+        <div class="touch-placement-dock" id="touchPlacementDock" aria-label="手機建塔定位" hidden>
+          <p class="placement-status" id="placementStatus" role="status" aria-live="polite">點地圖選位置，或按建議位。</p>
+          <div class="placement-directions" role="group" aria-label="微調建塔位置">
+            <button type="button" data-build-move="left" aria-label="建塔位置向左移一格">←</button>
+            <button type="button" data-build-move="up" aria-label="建塔位置向上移一格">↑</button>
+            <button type="button" id="placementSuggestBtn">建議位</button>
+            <button type="button" data-build-move="down" aria-label="建塔位置向下移一格">↓</button>
+            <button type="button" data-build-move="right" aria-label="建塔位置向右移一格">→</button>
+          </div>
+          <div class="placement-actions" id="placementActions">
+            <button type="button" id="placementCancelBtn">換塔</button>
+          </div>
+        </div>
+        <div class="selection-dock" id="selectionDock" aria-label="選取單位操作" hidden></div>
         <div class="dock-row build-row">
           <span class="dock-label tower-title">🗼 建塔</span>
           <div id="towerList" class="build-dock" data-testid="build-dock" role="toolbar" aria-label="建塔快捷列"></div>
@@ -1282,6 +1350,10 @@
           <button class="drawer-close-btn" type="button" aria-label="關閉抽屜" onclick="this.closest(&quot;details&quot;).removeAttribute(&quot;open&quot;)">✕ 關閉</button>
           <div class="next-wave-card" id="nextWaveCard"></div>
           <div class="affix-card" id="affixCard"></div>
+          <div class="expedition-panel" id="expeditionPanel" hidden></div>
+          <div class="operation-panel" id="operationsPanel"></div>
+          <div class="wave-report" id="waveReport" hidden></div>
+          <div class="map-tactics" id="mapTactics"></div>
           <div class="enemy-info hidden" id="enemyInfo" role="status" aria-live="polite"></div>
         </div>
       </details>
@@ -1292,9 +1364,9 @@
           <button class="drawer-close-btn" type="button" aria-label="關閉抽屜" onclick="this.closest(&quot;details&quot;).removeAttribute(&quot;open&quot;)">✕ 關閉</button>
           <button class="act gacha-btn" id="gachaBtn" data-hotkey="H" aria-label="抽英雄，快捷鍵 H">🎲 抽英雄（首抽免費！）</button>
           <div class="gacha-meta" id="gachaMeta"></div>
-          <div class="mission-panel" id="beginnerMissions"></div>
           <div id="heroRoster"></div>
           <div class="deployed-heroes" id="deployedHeroes"></div>
+          <div class="mission-panel" id="beginnerMissions"></div>
         </div>
       </details>
 
@@ -1312,7 +1384,7 @@
     </aside>
   </div>
 
-  <div id="log"></div>
+  <div class="battle-footer"><div id="log"></div><span class="combat-stats" id="combatStats" hidden aria-label="連殺與防守紀錄"></span></div>
 
   <footer class="series-footer">
     🎮 阿軒的小遊戲系列
@@ -1325,11 +1397,12 @@
   <div class="advisor-backdrop" id="advisorBackdrop" aria-hidden="true"></div>
 
   <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="戰敗結算">
-    <h2>💀 防線崩潰</h2>
+    <h2 id="resultTitle">💀 防線崩潰</h2>
     <div class="res">撐到第 <span id="finalWave">0</span> 波 · 得分 <span id="finalScore">0</span></div>
     <div class="meta-result" id="metaResult"></div>
     <button class="death-cta" id="deathCtaBtn">立即抽英雄</button>
     <button class="secondary-cta" id="restartBtn">再來一局</button>
+    <button class="secondary-cta" id="nextExpeditionBtn" hidden>下一座戰場</button>
     <button class="secondary-cta" id="mainMenuBtn">回主選單</button>
   </div>
 
@@ -1486,35 +1559,51 @@
   <div class="map-overlay" id="mapOverlay" role="dialog" aria-modal="true" aria-label="選擇地圖">
     <div class="map-card">
       <h2>選擇戰場</h2>
+      <div class="run-mode-options" role="group" aria-label="遊戲玩法">
+        <button type="button" data-run-mode="expedition" aria-pressed="true"><b>遠征戰役</b><span>12 波終戰 · 章間選祝福</span></button>
+        <button type="button" data-run-mode="classic" aria-pressed="false"><b>無盡守城</b><span>持續守波 · 挑戰排行榜</span></button>
+      </div>
       <div id="mapOptions"></div>
-      <p class="map-hint" id="mapHint" data-default="現有三座戰場的路徑與資源規則維持不變；排行榜紀錄會附上地圖名稱。">現有三座戰場的路徑與資源規則維持不變；排行榜紀錄會附上地圖名稱。</p>
+      <p class="map-hint" id="mapHint" data-default="選塔後，亮點皆可建造；圓環是建議塔位。排行榜會記錄所選地圖。">選塔後，亮點皆可建造；圓環是建議塔位。排行榜會記錄所選地圖。</p>
     </div>
   </div>
 
   <div class="map-loading-overlay" id="mapLoadingOverlay" role="dialog" aria-modal="true" aria-label="戰場整備中" aria-busy="true">
-    <img class="map-loading-art" id="mapLoadingImage" alt="" width="1024" height="576">
+    <img class="map-loading-art" id="mapLoadingImage" alt="" width="960" height="640">
     <div class="map-loading-shade" aria-hidden="true"></div>
     <div class="map-loading-panel" id="mapLoadingPanel">
       <span class="map-loading-kicker">BATTLEFIELD READY</span>
       <h2 id="mapLoadingTitle">翠綠平原</h2>
       <p id="mapLoadingDesc">標準蜿蜒路線，資源完整，適合熟悉塔陣。</p>
       <div class="map-loading-track" aria-hidden="true"><span></span></div>
-      <span class="map-loading-status" id="mapLoadingStatus">正在展開既有戰場圖資…</span>
+      <span class="map-loading-status" id="mapLoadingStatus">正在準備地形與防守路線…</span>
     </div>
   </div>
 
-  <script src="src/config.js?v=td-r77-v1"></script>
-  <script src="src/heroes.js?v=td-r77-v1"></script>
-  <script src="src/rules.js?v=td-r77-v1"></script>
-  <script src="src/lore.js?v=td-r77-v1"></script>
-  <script src="src/enemy-animation.js?v=td-r77-v1"></script>
-  <script src="src/hero-animation.js?v=td-r77-v1"></script>
-  <script src="src/game.js?v=td-r77-v1"></script>
-  <script src="src/ui.js?v=td-r77-v1"></script>
+  <div class="draft-overlay" id="relicOverlay" role="dialog" aria-modal="true" aria-labelledby="relicTitle">
+    <div class="draft-card">
+      <div class="draft-kicker">章間祝福 · 本局有效</div>
+      <h2 id="relicTitle">選擇下一段防線的打法</h2>
+      <p id="relicHint">選一項祝福，或略過這次祝福。本章略過後不能補選。</p>
+      <div class="relic-offers" id="relicOffers"></div>
+      <button type="button" class="draft-skip" id="relicSkipBtn">略過這次祝福</button>
+    </div>
+  </div>
+  <script src="src/config.js?v=td-r84-v3"></script>
+  <script src="src/heroes.js?v=td-r84-v3"></script>
+  <script src="src/rules.js?v=td-r84-v3"></script>
+  <script src="src/expedition.js?v=td-r84-v3"></script>
+  <script src="src/operations.js?v=td-r84-v3"></script>
+  <script src="src/lore.js?v=td-r84-v3"></script>
+  <script src="src/enemy-animation.js?v=td-r84-v3"></script>
+  <script src="src/hero-animation.js?v=td-r84-v3"></script>
+  <script src="src/map-art.js?v=td-r84-v3"></script>
+  <script src="src/game.js?v=td-r84-v3"></script>
+  <script src="src/ui.js?v=td-r84-v3"></script>
   <script>
     (() => {
       "use strict";
-      const PWA_VERSION = "td-r77-v1";
+      const PWA_VERSION = "td-r84-v3";
       const PWA_LOAD_AT = Date.now();
       const AUTO_RELOAD_WINDOW_MS = 15000;
       const AUTO_RELOAD_SESSION_KEY = "td_pwa_r45_auto_reload";

@@ -1,0 +1,66 @@
+{
+  "version": "0.12.2",
+  "pwaVersion": "td-r84-v3",
+  "date": "2026-10-05",
+  "sourceHashes": {
+    "src/game.js": "d14cb244b4dbc00c05c06d21d1d797ecad605727709f589464ea323502d08804",
+    "src/ui.js": "2527c86e3532cad8ea48f0a86ce2eba570957228404337bd880ae9eb789133c6",
+    "src/rules.js": "67e0f49c8802ca89985c7ae2597ec65d040503f5e0235831da3df292247c75a8",
+    "src/config.js": "4754ac333f2202b94afa0c6262f5da1c5a95d2b7a056931c9200103f489d53aa",
+    "src/expedition.js": "fc7f97c3c33e177370a4bcac23fc71fe84eb7cb7a73d977aee0175b73659ac6e",
+    "src/presentation.css": "f6fd6037297ba6371b40f6978062b050335914eee13f3c62be8362cb2a050ac7"
+  },
+  "localChecks": {
+    "unit": "passed",
+    "e2e": "passed",
+    "review": "passed",
+    "rwdViewports": 9,
+    "nativeViewports": [
+      {
+        "width": 360,
+        "height": 640
+      },
+      {
+        "width": 390,
+        "height": 844
+      },
+      {
+        "width": 820,
+        "height": 1180
+      },
+      {
+        "width": 1180,
+        "height": 820
+      }
+    ],
+    "nativeSourcesUnchanged": true,
+    "v3SupplementSourcesUnchanged": true,
+    "engineGroups": 11
+  },
+  "performance": {
+    "method": "Injected 24-tower/8-hero/40-enemy stress fixture, not physical-device FPS",
+    "p95Ms": [
+      5.199999988079071,
+      5.300000011920929,
+      6.5,
+      4.5,
+      4.5,
+      2.800000011920929
+    ],
+    "maxMs": 43.89999997615814,
+    "p95ThresholdMs": 18
+  },
+  "limits": [
+    "Device emulation and disclosed targeting/hero fixtures; not a physical-device study.",
+    "Normal expedition strategies have ample margin; higher difficulties and full hero distribution are not exhaustively validated.",
+    "Historical exact equivalence requires a private baseline and is explicitly skipped when absent."
+  ],
+  "cleanCheckoutChecks": {
+    "npmCi": "passed",
+    "unit": "passed",
+    "e2eAndNativeTouchAndReview": "passed",
+    "rwd": "passed",
+    "perf": "passed",
+    "historicalBaseline": "absent; one exact comparison explicitly skipped"
+  }
+}

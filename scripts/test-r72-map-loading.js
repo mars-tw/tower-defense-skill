@@ -101,9 +101,9 @@ function staticGovernance() {
     `all runtime variants decode to ${manifest.decoded_rgba_mib_all_variants} MiB <= mobile 32 MiB (desktop <=64 MiB)`);
   assert(sha256(path.join(ROOT, "assets", "tiles", "path.png")) === PATH_TILE_SHA256,
     "gameplay path tile hash is unchanged by R72 imagegen backgrounds");
-  assert(packageInfo.version === "0.7.7" && packageInfo.pwaVersion === "td-r77-v1" &&
-    indexSource.includes("td-r77-v1") && swSource.includes('CACHE_VERSION = "td-r77-v1"'),
-  "package, HTML and service worker expose the R77 version/cache bump");
+  assert(/^\d+\.\d+\.\d+$/.test(packageInfo.version) && /^td-r\d+-v\d+$/.test(packageInfo.pwaVersion) &&
+    indexSource.includes(packageInfo.pwaVersion) && swSource.includes(`CACHE_VERSION = "${packageInfo.pwaVersion}"`),
+  "package, HTML and service worker expose the same version/cache identifier");
   for (const mapId of EXPECTED_MAPS) {
     const item = c2paSummary[mapId];
     assert(item && item.software_agent_is_gpt_image_2_x && item.claim_signature_validated && item.data_hash_valid,
@@ -451,6 +451,27 @@ async function runPerformance(browser, base, target, measurements) {
 }
 
 async function run() {
+  if (process.argv.includes("--historical-only")) {
+    console.log("== R72 historical artifact governance (current R80 runtime tested separately) ==");
+    const historical = readJson(MANIFEST_PATH);
+    const claims = readJson(path.join(ROOT, "docs", "evidence", "R72", "c2pa", "summary.json"));
+    assert(historical.model_slug === "gpt-image-2" && historical.generation_interface === "Codex built-in imagegen",
+      "R72 historical generation metadata remains intact");
+    assert(JSON.stringify(historical.maps) === JSON.stringify(EXPECTED_MAPS) && historical.runtime_assets.length === 18,
+      "R72 retains its original three-map/18-derivative scope");
+    assert(sha256(path.join(ROOT, "assets", "tiles", "path.png")) === PATH_TILE_SHA256,
+      "retained R72 path-tile artifact has its historical hash");
+    for (const id of EXPECTED_MAPS) {
+      const c = claims[id];
+      assert(c && c.software_agent_is_gpt_image_2_x && c.claim_signature_validated && c.data_hash_valid,
+        `${id}: recorded R72 claim/signature/data-hash validation is preserved`);
+    }
+    for (const asset of historical.runtime_assets) assert(fs.existsSync(path.join(ROOT, asset.path)) &&
+      sha256(path.join(ROOT, asset.path)) === asset.sha256, `${asset.path}: retained historical derivative hash`);
+    if (failed) throw new Error(`R72 historical artifact gate failed: ${failed}`);
+    console.log("R72 historical artifact gate passed; no current-UI or performance assertions executed.");
+    return;
+  }
   fs.mkdirSync(EVIDENCE, { recursive: true });
   const manifest = staticGovernance();
   await waitForMemory();

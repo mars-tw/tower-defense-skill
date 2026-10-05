@@ -53,7 +53,7 @@ async function run() {
   try {
   for (const vp of [{ w: 1280, h: 900, name: "桌面 1280x900" }, { w: 768, h: 1024, name: "平板 768x1024" }, { w: 390, h: 844, name: "手機 390x844" }]) {
     console.log("\n== 視窗 " + vp.name + " ==");
-    const isMobileViewport = vp.w <= 560;
+    const isMobileViewport = vp.w <= 900;
     const page = await browser.newPage({
       viewport: { width: vp.w, height: vp.h },
       hasTouch: isMobileViewport,
@@ -346,19 +346,23 @@ async function run() {
     });
     await sleep(300);
     const mapSelect = await page.evaluate(() => {
-      const opt = [...document.querySelectorAll(".map-opt")].find((o) => o.textContent.includes("迂迴峽谷"));
+      const mode = document.querySelector('[data-run-mode="classic"]');
+      if (mode) mode.click();
+      const opt = document.querySelector('.map-opt[data-map-id="canyon"]');
       if (opt) opt.click();
       const st = window.TD.state();
       return {
         mapId: st.mapId,
         pathLen: st.path.length,
         plainsLen: window.TD.config.MAPS.plains.path.length,
+        pathSignature: JSON.stringify(st.path),
+        plainsSignature: JSON.stringify(window.TD.config.MAPS.plains.path),
         gold: st.gold,
         expectedGold: Math.round(window.TD.config.GAME.startGold * window.TD.config.MAPS.canyon.goldMul),
       };
     });
     await page.waitForFunction(() => !document.getElementById("mapLoadingOverlay").classList.contains("show"), null, { timeout: 5000 });
-    assert(mapSelect.mapId === "canyon" && mapSelect.pathLen !== mapSelect.plainsLen,
+    assert(mapSelect.mapId === "canyon" && mapSelect.pathSignature !== mapSelect.plainsSignature,
       `地圖選擇後開局路徑不同（${mapSelect.mapId}，節點 ${mapSelect.pathLen} vs ${mapSelect.plainsLen}）`);
     assert(mapSelect.gold === mapSelect.expectedGold,
       `迂迴峽谷套用資源倍率（${mapSelect.gold}/${mapSelect.expectedGold}）`);
@@ -389,7 +393,7 @@ async function run() {
     });
     assert(firstScreen.towerListBottom <= firstScreen.innerHeight && firstScreen.skillListBottom <= firstScreen.innerHeight && firstScreen.startBottom <= firstScreen.innerHeight && firstScreen.towerButtons === 10 && firstScreen.skillButtons === 5,
       `首屏常駐 10 塔 dock、5 技能盤與開始波（tower ${Math.round(firstScreen.towerListBottom)} / skill ${Math.round(firstScreen.skillListBottom)} / start ${Math.round(firstScreen.startBottom)} <= ${firstScreen.innerHeight}）`);
-    if (vp.w <= 560) {
+    if (isMobileViewport) {
       assert(firstScreen.towerListTop < firstScreen.startTop && firstScreen.deckPosition !== "fixed" && firstScreen.deckPosition !== "absolute" &&
         firstScreen.deckTop >= -2 && firstScreen.deckBottom <= firstScreen.innerHeight + 2 && firstScreen.deckCanvasOverlap <= 1,
         "R68 手機底部控制盤保留版面列，建塔、技能與波控不覆蓋地圖");
@@ -697,8 +701,8 @@ async function run() {
       wave: window.TD.state().wave,
       towers: window.TD.state().towers.length,
     }));
-    assert(noTowerStart.disabled && noTowerStart.text.includes("先建一座塔") && noTowerStart.wave === 0 && noTowerStart.towers === 0,
-      "未建塔時開始第 1 波按鈕提示先建一座塔");
+    assert(noTowerStart.disabled && /先建.*攻擊塔/.test(noTowerStart.text) && noTowerStart.wave === 0 && noTowerStart.towers === 0,
+      "無攻擊塔或戰鬥英雄時第 1 波提示先建一座攻擊塔");
 
     const p0Narration = await page.evaluate(() => {
       function addTower() {
@@ -884,7 +888,8 @@ async function run() {
         const canvas = document.getElementById("game");
         const rect = canvas.getBoundingClientRect();
         const sx = rect.width / 960, sy = rect.height / 640;
-        canvas.dispatchEvent(new MouseEvent("click", { clientX: rect.left + 504 * sx, clientY: rect.top + 72 * sy, bubbles: true }));
+        const point = window.TD.getMap().buildPads.find(p => p.id === "front-arrow");
+        canvas.dispatchEvent(new MouseEvent("click", { clientX: rect.left + point.x * sx, clientY: rect.top + point.y * sy, bubbles: true }));
       });
       await page.keyboard.press("Enter");
       const enterHotkey = await page.evaluate(() => ({
@@ -924,8 +929,9 @@ async function run() {
       const canvas = document.getElementById("game");
       const rect = canvas.getBoundingClientRect();
       const sx = rect.width / 960, sy = rect.height / 640;
-      const blocked = window.TD.buildPreviewAt(100, 80);
-      const open = window.TD.buildPreviewAt(504, 72);
+      const map = window.TD.getMap(), blockedPoint = map.path[1], point = map.buildPads.find(p => p.id === "front-arrow");
+      const blocked = window.TD.buildPreviewAt(blockedPoint.x, blockedPoint.y);
+      const open = window.TD.buildPreviewAt(point.x, point.y);
       const far = window.TD.buildPreviewAt(936, 24);
       const beforeFarClick = window.TD.state().towers.length;
       canvas.dispatchEvent(new MouseEvent("click", { clientX: rect.left + 936 * sx, clientY: rect.top + 24 * sy, bubbles: true }));
@@ -939,23 +945,25 @@ async function run() {
         beforeFarClick,
         openOk: open.ok,
         openReason: open.reason,
-        clientX: rect.left + 504 * sx,
-        clientY: rect.top + 72 * sy,
+        clientX: rect.left + point.x * sx,
+        clientY: rect.top + point.y * sy,
       };
     });
-    assert(previewCheck.blockedOk === false && previewCheck.blockedReason.includes("路徑") && previewCheck.openOk === true,
+    assert(previewCheck.blockedOk === false && /路徑|路線/.test(previewCheck.blockedReason) && previewCheck.openOk === true,
       `放塔預覽回報合法/非法格（非法原因：${previewCheck.blockedReason}，合法：${previewCheck.openReason || "可放置"}）`);
     assert(previewCheck.farOk === false && previewCheck.farReason.includes("太遠打不到路徑") && previewCheck.farClickTowers === previewCheck.beforeFarClick,
       `遠離路徑格不可建（距離 ${previewCheck.farPathDistance}px，原因：${previewCheck.farReason}）`);
 
     let idleRender;
-    if (vp.w <= 560) {
-      await page.touchscreen.tap(previewCheck.clientX, previewCheck.clientY);
+    await sleep(160);
+    const settledBuildPoint=await page.evaluate(()=>{const p=TD.getMap().buildPads.find(p=>p.id==="front-arrow"),r=document.getElementById("game").getBoundingClientRect();return{x:r.left+p.x*r.width/960,y:r.top+p.y*r.height/640};});
+    if (isMobileViewport) {
+      await page.touchscreen.tap(settledBuildPoint.x, settledBuildPoint.y);
       const firstTap = await page.evaluate(() => ({
         towers: window.TD.state().towers.length,
         hasGhost: !!window.TD.state().buildGhost,
       }));
-      await page.touchscreen.tap(previewCheck.clientX, previewCheck.clientY);
+      await page.touchscreen.tap(settledBuildPoint.x, settledBuildPoint.y);
       idleRender = await page.evaluate(() => ({
         running: window.TD.state().running,
         towers: window.TD.state().towers.length,
@@ -963,18 +971,17 @@ async function run() {
       }));
       assert(firstTap.towers === 0 && firstTap.hasGhost === true, "手機第一下只顯示幽靈塔、不直接建造");
     } else {
-      idleRender = await page.evaluate((pos) => {
+      await page.mouse.click(settledBuildPoint.x,settledBuildPoint.y);
+      idleRender = await page.evaluate(() => {
         const st = window.TD.state();
         const running = st.running;
-        const canvas = document.getElementById("game");
-        const ev = new MouseEvent("click", { clientX: pos.x, clientY: pos.y, bubbles: true });
-        canvas.dispatchEvent(ev);
         return { running, towers: st.towers.length, gold: st.gold };
-      }, { x: previewCheck.clientX, y: previewCheck.clientY });
+      });
     }
     const duplicateBuild = await page.evaluate(() => {
       window.TD.selectTower("arrow");
-      const preview = window.TD.buildPreviewAt(504, 72);
+      const point = window.TD.getMap().buildPads.find(p => p.id === "front-arrow");
+      const preview = window.TD.buildPreviewAt(point.x, point.y);
       return { ok: preview.ok, reason: preview.reason };
     });
     assert(idleRender.running === false, "第一波開始前主迴圈未跑（準備階段）");
@@ -1492,8 +1499,12 @@ async function run() {
     assert(r57VisualGuard.lv1.ringCount === 1 && new Set(ladderSignatures).size === r57VisualGuard.towerLevels.length &&
       r57VisualGuard.towerLevels.every((v, i, all) => i === 0 || v.gemSize > all[i - 1].gemSize),
       `R58 Lv1–10 連續辨識階梯 guard（${JSON.stringify(ladderSignatures)}）`);
-    assert(/rgba\(16,185,129,\.12\)/.test(r57VisualGuard.visual.themes.plains.tint),
-      `R58 平原 tint 已提升至宣傳可讀量級（${r57VisualGuard.visual.themes.plains.tint}）`);
+    const terrainGuard = await page.evaluate(() => ({ plates: Object.values(TDMapArt.TERRAIN_PLATES),
+      detail: Object.values(TD.debug.visualSnapshot().themes).map(v => v.detail),
+      biome: Object.values(TD.config.MAPS).map(v => v.biome) }));
+    assert(new Set(terrainGuard.plates).size === 3 && terrainGuard.plates.every(p => p.includes("assets/maps/r80/") && p.includes("-terrain.webp?v=")) &&
+      new Set(terrainGuard.biome).size === 3 && new Set(terrainGuard.detail).size === 3,
+      `R80 三張不同地形材質與 biome，實際路徑對比由 engine browser pixel gate 驗證（${terrainGuard.biome.join(" / ")}）`);
     assert(r57VisualGuard.denseGlow.filter((v) => v.enabled).length === 4 &&
       r57VisualGuard.denseGlow.slice(4).every((v) => !v.enabled && v.baseBlur === 0 && v.gemBlur === 0) &&
       !r57VisualGuard.lowGlow.enabled && !r57VisualGuard.reducedGlow.enabled,

@@ -131,7 +131,7 @@ async function run() {
         await page.waitForTimeout(200);
         const res = await page.evaluate(auditInPage);
         if (pg.name === "td-main" && (vp.kind === "mobile" || vp.kind === "landscape")) {
-          const mobileGuard = await page.evaluate(() => {
+          const mobileGuard = await page.evaluate(async () => {
             const canvas = document.getElementById("game");
             const host = document.getElementById("battlefieldScroll");
             const panel = document.getElementById("selPanel");
@@ -145,7 +145,14 @@ async function run() {
             shell.inert = false;
             shell.removeAttribute("aria-hidden");
             document.body.classList.remove("r71-modal-open");
-            panel.classList.remove("hidden");
+            // Explicit UI fixture: select a legal production tower so the
+            // real mobile inspector mounts. Unhiding a disconnected box did
+            // not exercise the selection workflow or its responsive sizing.
+            const td = window.TD, point = td.getMap().buildPads[0];
+            td.buildTowerAt("arrow", point.x, point.y);
+            td.state().selectedTower = td.state().towers[0];
+            window.__tdUI();
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             const panelStyle = getComputedStyle(panel);
             const deckStyle = getComputedStyle(deck);
             const deckRect = deck.getBoundingClientRect();
@@ -158,7 +165,8 @@ async function run() {
               document.getElementById("upgBtn"),
               document.getElementById("sellBtn"),
             ];
-            const targetMin = Math.min(...targets.map((el) => el.getBoundingClientRect().height));
+            const visibleTargets = targets.filter(el => el.getClientRects().length && el.getBoundingClientRect().height > 0);
+            const targetMin = Math.min(...visibleTargets.map((el) => el.getBoundingClientRect().height));
             const canvasRect = canvas.getBoundingClientRect();
             const cellCss = canvasRect.width / (canvas.width / 48);
             const startRect = start.getBoundingClientRect();
@@ -171,7 +179,11 @@ async function run() {
               fullMap: host.scrollWidth <= host.clientWidth + 2 && host.scrollHeight <= host.clientHeight + 2 &&
                 canvasRect.left >= host.getBoundingClientRect().left - 1 && canvasRect.top >= host.getBoundingClientRect().top - 1 &&
                 canvasRect.right <= host.getBoundingClientRect().right + 1 && canvasRect.bottom <= host.getBoundingClientRect().bottom + 1,
-              sceneUpgrade: panelStyle.position === "absolute" && targetMin >= 44,
+              sceneUpgrade: panelStyle.position === "static" && targetMin >= 44 &&
+                panelRect.left >= deckRect.left - 1 && panelRect.right <= deckRect.right + 1 &&
+                panelRect.top >= deckRect.top - 1 && panelRect.bottom <= deckRect.bottom + 1 &&
+                Math.max(0,Math.min(panelRect.right,canvasRect.right)-Math.max(panelRect.left,canvasRect.left))*
+                Math.max(0,Math.min(panelRect.bottom,canvasRect.bottom)-Math.max(panelRect.top,canvasRect.top)) <= 1,
               reservedDeck: deckStyle.position !== "fixed" && deckStyle.position !== "absolute" &&
                 deckRect.top >= -2 && deckRect.bottom <= innerHeight + 2 &&
                 (Math.max(0, Math.min(canvasRect.right, deckRect.right) - Math.max(canvasRect.left, deckRect.left)) *

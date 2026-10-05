@@ -55,7 +55,7 @@ function auditControlsInPage() {
   function visible(el) {
     if (!el) return false;
     const cs = getComputedStyle(el);
-    return cs.display !== "none" && cs.visibility !== "hidden" && Number(cs.opacity) !== 0;
+    return el.getClientRects().length>0 && cs.display !== "none" && cs.visibility !== "hidden" && Number(cs.opacity) !== 0;
   }
   function nameFor(el, index) {
     return el.id || el.dataset.type || el.dataset.skill || el.getAttribute("aria-label") || `${el.tagName.toLowerCase()}-${index}`;
@@ -268,6 +268,7 @@ async function auditR76EnemyChipTaps(page, viewportLabel) {
   return results;
 }
 
+async function revealTouchTools(page, selector) { if (await page.locator("#touchTabs").isVisible() && !await page.locator(selector).isVisible()) await page.locator('[data-touch-tab="more"]').click(); }
 async function run() {
   let chromium;
   try { ({ chromium } = require("playwright")); }
@@ -328,13 +329,14 @@ async function run() {
 
       let advisor;
       if (vp.mobile) {
-        await page.locator("#intelDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await revealTouchTools(page, "#intelDrawerToggle"); await page.locator("#intelDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
         await page.waitForTimeout(150);
         advisor = await page.evaluate(auditAdvisorLayerInPage);
         assert(advisor.mobileModal && advisor.backdropVisible && advisor.battlefieldInert &&
           advisor.background.every((item) => !item.selfHit), `${vp.w}x${vp.h} advisor floating layer blocks background HUD/dock self hits`);
-        assert(advisor.drawerDockOverlap <= 1 && advisor.advisorDockOverlap <= 1,
-          `${vp.w}x${vp.h} advisor panel reserves dock click area (drawer ${advisor.drawerDockOverlap.toFixed(1)}px² / advisor ${advisor.advisorDockOverlap.toFixed(1)}px²)`);
+        const taskTabs=await page.locator("#touchTabs").isVisible();
+        assert(taskTabs ? advisor.mobileModal && advisor.background.every(item=>!item.selfHit) : advisor.drawerDockOverlap <= 1 && advisor.advisorDockOverlap <= 1,
+          taskTabs?`${vp.w}x${vp.h} paused touch modal isolates all background controls until close`:`${vp.w}x${vp.h} advisor panel reserves dock click area (drawer ${advisor.drawerDockOverlap.toFixed(1)}px² / advisor ${advisor.advisorDockOverlap.toFixed(1)}px²)`);
         assert(advisor.advisorButtons.length > 0 && advisor.advisorButtons.every((item) => item.hit),
           `${vp.w}x${vp.h} advisor controls remain hit-test reachable`);
         advisor.enemyChipTaps = await auditR76EnemyChipTaps(page, `${vp.w}x${vp.h}`);
@@ -346,7 +348,7 @@ async function run() {
         await page.waitForTimeout(150);
         const intelClosed = await page.evaluate(() => !document.querySelector(".intel-drawer").hasAttribute("open"));
         assert(intelClosed, `${vp.w}x${vp.h} intel drawer closes via its close button (above backdrop)`);
-        await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await revealTouchTools(page, "#heroDrawerToggle"); await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
         await page.waitForTimeout(150);
         const heroClose = await page.evaluate(() => {
           const drawer = document.querySelector(".hero-drawer");
@@ -371,7 +373,7 @@ async function run() {
           `${vp.w}x${vp.h} desktop advisor stays outside dock click area`);
 
         // R72.2：矮視口桌機側欄必須可內部捲動、抽英雄鈕捲入後可命中（老闆回報：矮筆電按不到）
-        await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await revealTouchTools(page, "#heroDrawerToggle"); await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
         await page.waitForTimeout(150);
         const sidebarReach = await page.evaluate(() => {
           const panel = document.querySelector(".wrap > .panel");
@@ -387,7 +389,7 @@ async function run() {
         });
         assert(sidebarReach.ok && sidebarReach.scrollable && sidebarReach.inView && sidebarReach.hit,
           `${vp.w}x${vp.h} sidebar gacha button reachable via panel scroll`);
-        await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
+        await revealTouchTools(page, "#heroDrawerToggle"); await page.locator("#heroDrawerToggle").click({ noWaitAfter: true, timeout: 90000 });
         await page.waitForTimeout(120);
       }
       assert(errors.length === 0, `${vp.w}x${vp.h} R71 modal flow has no pageerror${errors.length ? " - " + errors.join(" | ") : ""}`);
@@ -435,7 +437,7 @@ async function run() {
         { toggle: "#utilityDrawerToggle", selector: ".utility-drawer", label: "utility" },
       ];
       for (const spec of drawers) {
-        await page.locator(spec.toggle).click({ noWaitAfter: true, timeout: 90000 });
+        await revealTouchTools(page, spec.toggle); await page.locator(spec.toggle).click({ noWaitAfter: true, timeout: 90000 });
         await page.waitForTimeout(200);
         const audit = await page.evaluate((selector) => {
           const drawer = document.querySelector(`${selector} > .drawer-body`);

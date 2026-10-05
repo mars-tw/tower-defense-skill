@@ -125,8 +125,11 @@ assert(drawEnemy.includes("drawEnemyAtlasFrame") && drawEnemy.includes("frameCol
 assert(game.includes("(e.walkDist || 0) / stride") && game.includes("(e.animSeed || 0) * count"),
   "走路幀以 walkDist 相位選擇並由 animSeed 錯開個體");
 assert(game.includes("if (lowQuality)") && game.includes("Math.floor(count / 2)"), "performanceLow 路徑降為兩幀交替，不退回晃動");
-assert(game.includes("brightness(0) saturate(100%) invert(1)") && game.includes("deathStartedAt") && game.includes("if (e._dead) return;"),
-  "受擊白閃與延遲移除的死亡播放管線存在");
+assert((game.includes("brightness(0) saturate(100%) invert(1)") ||
+  (game.includes("drawEnemyHitFrame(atlas, animation, frameColumn, e, size)") &&
+   game.includes('flash.globalCompositeOperation = "source-in"') && game.includes('flash.fillStyle = "#fff"'))) &&
+  game.includes("deathStartedAt") && game.includes("if (e._dead) return;"),
+  "受擊白閃與延遲移除的死亡播放管線存在（支援 alpha 白色真幀快取）");
 
 if (failed) {
   console.error(`\nR62 enemy animation guard: ${failed} failed`);

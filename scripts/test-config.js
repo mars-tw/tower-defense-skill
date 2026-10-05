@@ -7,6 +7,7 @@ const path = require("path");
 const fs = require("fs");
 const ROOT = path.join(__dirname, "..");
 const cfg = require(path.join(__dirname, "..", "src", "config.js"));
+const { collectRuntimeResources } = require("./lib/runtime-resources");
 const { TOWERS, ENEMIES, SKILLS, ELEMENTS, elementMultiplier, GAME, UPGRADE, MAPS, MAP_AFFIXES, ACHIEVEMENTS, BEGINNER_MISSIONS } = cfg;
 
 let failed = 0;
@@ -101,11 +102,7 @@ console.log("== R41：PWA/可近用性資產 ==");
   const shellSet = new Set(appShell);
   const localResources = collectLocalIndexResources(index);
   const manifestIcons = new Set((manifest.icons || []).map((i) => normalizeResourcePath(i.src)));
-  const assetResources = new Set(
-    walkFiles(path.join(root, "assets"))
-      .filter((fp) => /\.png$/i.test(fp))
-      .map(posixRel)
-  );
+  const assetResources = new Set(collectRuntimeResources(root, { indexText: index }).resources);
   const requiredShell = new Set([
     "",
     "index.html",
@@ -126,7 +123,7 @@ console.log("== R41：PWA/可近用性資產 ==");
   assert(sw.includes("CACHE_VERSION") && sw.includes("networkFirst") && sw.includes("cacheFirst"), "sw.js 有版本化快取與 network-first/cache-first 策略");
   assert(sw.includes("self.skipWaiting()") && sw.includes("self.clients.claim()") && sw.includes("caches.delete"), "sw.js 安裝即接管並清除舊快取");
   assert(sw.includes("offline.html") && fs.existsSync(offlinePath) && offline.includes("離線"), "sw.js 與離線 fallback 頁完整");
-  assert(appShell.length >= requiredShell.size && missingShell.length === 0, `sw.js APP_SHELL 自動涵蓋 HTML/manifest/assets 本地資源（缺 ${missingShell.slice(0, 3).join(",") || "0"}）`);
+  assert(appShell.length >= requiredShell.size && missingShell.length === 0, `sw.js APP_SHELL 涵蓋 HTML/config/動畫與真 runtime 資源（缺 ${missingShell.slice(0, 3).join(",") || "0"}）`);
   assert(missingFiles.length === 0, `sw.js APP_SHELL 清單檔案皆存在（缺 ${missingFiles.slice(0, 3).join(",") || "0"}）`);
   assert(sw.includes("assets|enemies") || (sw.includes("heroes") && sw.includes("enemies") && sw.includes("towers")), "sw.js 涵蓋 heroes/enemies/towers 圖像資產");
   assert(index.includes('rel="manifest"') && index.includes("navigator.webdriver") && index.includes("swtest"), "index 連結 manifest、webdriver 跳過 SW 註冊且提供 swtest");
@@ -286,11 +283,12 @@ for (const m of Object.values(MAPS || {})) {
 }
 assert(Object.keys(MAPS || {}).length >= 2, `至少 2 張地圖（實際 ${Object.keys(MAPS || {}).length}）`);
 assert(badMap === 0, `地圖欄位完整且 path 合法（異常 ${badMap}）`);
-assert(MAPS.plains && MAPS.canyon && MAPS.canyon.path.length > MAPS.plains.path.length && MAPS.canyon.goldMul < MAPS.plains.goldMul,
-  "迂迴峽谷路徑較曲折且資源較少");
+const routeLength = (points) => points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index].x, point.y - points[index].y), 0);
+assert(MAPS.plains && MAPS.canyon && routeLength(MAPS.canyon.path) > routeLength(MAPS.plains.path) && MAPS.canyon.goldMul < MAPS.plains.goldMul && MAPS.canyon.bridges.length === 2,
+  "R80 峽谷真路長較長、資源較少且有兩座石橋");
 assert(MAPS.lava && MAPS.lava.id === "lava" && MAPS.lava.label === "熔岩峽道" &&
-  MAPS.lava.goldMul === 0.95 && MAPS.lava.path.length === 10,
-  "熔岩峽道 R47 地圖配置正確");
+  MAPS.lava.goldMul === 0.95 && MAPS.lava.entry.x === 960 && MAPS.lava.defenseNodes.length === 3,
+  "R80 熔岩峽道保留經濟、東側入口與三段防守節點");
 for (const pollutedKey of ["__proto__", "toString", "constructor"]) {
   cfg.setMap("canyon");
   cfg.setMap(pollutedKey);

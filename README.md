@@ -1,3 +1,9 @@
+> **專案整合公告｜Project merged**
+>
+> 本專案已併入 [三相邊境 · Trine Frontier（strategy-anthology）](https://github.com/mars-tw/strategy-anthology)。後續更新在新 repo 進行；本 repo 保留為歷史紀錄。
+>
+> This project has been merged into [Trine Frontier (strategy-anthology)](https://github.com/mars-tw/strategy-anthology). Future updates will take place in the new repository; this repository is retained as a historical record.
+
 # 無盡塔防 · Endless Tower Defense
 
 [![CI & Deploy Pages](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/mars-tw/tower-defense-skill/actions/workflows/ci.yml)
